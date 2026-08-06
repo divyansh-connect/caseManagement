@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { CaseItem, RiskLevel, PetitionCategory } from '../../types';
+import { api } from '../../services/api';
 
 interface NewCaseModalProps {
   isOpen: boolean;
@@ -16,67 +17,82 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
   const [serviceCenter, setServiceCenter] = useState<'Nebraska (NSC)' | 'Texas (TSC)'>('Nebraska (NSC)');
   const [premium, setPremium] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !fieldCategory) return;
 
-    const prefix = petitionCategory === 'EB-1A' ? 'EB1A' : petitionCategory === 'O-1' ? 'O1' : 'NIW';
+    try {
+      const clientEmailVal = clientEmail || `${clientName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+      
+      // 1. Create client profile
+      const clientData = await api.post('/clients', {
+        name: clientName,
+        email: clientEmailVal,
+        phone: '+1 (555) 012-3456',
+        countryOfBirth: 'United States',
+        currentField: fieldCategory,
+        highestDegree: 'Ph.D.',
+        university: 'Standard University'
+      });
 
-    const createdCase: CaseItem = {
-      id: `case-${Date.now()}`,
-      caseNumber: `${prefix}-2025-${Math.floor(100 + Math.random() * 900)}`,
-      clientId: `c-${Date.now()}`,
-      clientName,
-      clientEmail: clientEmail || `${clientName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-      petitionCategory,
-      fieldCategory,
-      currentStage: 1,
-      assignedWriter: 'Petition Drafter 1',
-      assignedReviewer: 'Senior Reviewer',
-      riskLevel: 'low',
-      targetFilingDate: '2025-05-15',
-      uscisServiceCenter: serviceCenter,
-      premiumProcessing: premium,
-      dhanasar: {
-        prong1: {
-          title: 'Substantial Merit & National Importance',
-          endeavorSummary: `Advancing ${fieldCategory} with direct national impact across federal initiatives.`,
-          usImpactAreas: ['National Strategy Directive', 'Executive Order Modernization'],
-          nationalImportanceScore: 90
-        },
-        prong2: {
-          title: 'Well Positioned to Advance the Endeavor',
-          educationTrack: 'Advanced degree qualification & publication track record.',
-          keyAchievements: ['Authored milestone peer-reviewed literature', 'Verified citation record'],
-          citationPercentile: 'Top 5%',
-          fundingSecured: '$500,000 Grants'
-        },
-        prong3: {
-          title: 'On Balance Beneficial to Waive Job Offer & PERM',
-          urgencyArguments: ['Rapid deployment required to support national competitive standing'],
-          uniqueExpertise: 'Specialized technical expertise.'
-        }
-      },
-      eb1aCriteria: petitionCategory === 'EB-1A' ? {
-        prizes: true,
-        membership: true,
-        media: false,
-        judging: true,
-        originalContributions: true,
-        scholarlyArticles: true,
-        exhibitions: false,
-        leadingRole: true,
-        highSalary: false,
-        commercialSuccess: false
-      } : undefined,
-      recommenders: [],
-      documentsCount: 2,
-      notes: 'Initial client intake created.',
-      lastUpdated: 'Just now'
-    };
+      if (!clientData.success) {
+        alert('Failed to register candidate');
+        return;
+      }
 
-    onAddCase(createdCase);
-    onClose();
+      // 2. Initialize case folder
+      const caseData = await api.post('/cases', {
+        clientId: clientData.data.id,
+        petitionCategory,
+        fieldCategory,
+        assignedWriter: 'Petition Drafter 1',
+        assignedReviewer: 'Senior Reviewer',
+        riskLevel: 'low',
+        targetFilingDate: '2025-05-15',
+        uscisServiceCenter: serviceCenter,
+        premiumProcessing: premium
+      });
+
+      if (!caseData.success) {
+        alert('Failed to initialize case');
+        return;
+      }
+
+      const createdCase: CaseItem = {
+        ...caseData.data,
+        clientName,
+        clientEmail: clientEmailVal,
+        dhanasar: {
+          prong1: {
+            title: 'Substantial Merit & National Importance',
+            endeavorSummary: `Advancing ${fieldCategory} with direct national impact across federal initiatives.`,
+            usImpactAreas: ['National Strategy Directive', 'Executive Order Modernization'],
+            nationalImportanceScore: 90
+          },
+          prong2: {
+            title: 'Well Positioned to Advance the Endeavor',
+            educationTrack: 'Advanced degree qualification & publication track record.',
+            keyAchievements: ['Authored milestone peer-reviewed literature', 'Verified citation record'],
+            citationPercentile: 'Top 5%',
+            fundingSecured: '$500,000 Grants'
+          },
+          prong3: {
+            title: 'On Balance Beneficial to Waive Job Offer & PERM',
+            urgencyArguments: ['Rapid deployment required to support national competitive standing'],
+            uniqueExpertise: 'Specialized technical expertise.'
+          }
+        },
+        recommenders: [],
+        documentsCount: 0,
+        notes: 'Initial client intake created.',
+        lastUpdated: 'Just now'
+      };
+
+      onAddCase(createdCase);
+      onClose();
+    } catch (err: any) {
+      alert(`Connection error: ${err.message}`);
+    }
   };
 
   return (

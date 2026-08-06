@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { UserRole, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, StageId, Recommender, AuditLogEntry } from './types';
+import { UserRole, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, CaseMessage, AppointmentItem, StageId, Recommender, AuditLogEntry } from './types';
+import { api } from './services/api';
 import { 
   INITIAL_CASES, 
   INITIAL_CLIENTS, 
@@ -105,13 +106,14 @@ export default function App() {
     }
   ]);
 
-  // Core App State
-  const [cases, setCases] = useState<CaseItem[]>(INITIAL_CASES);
-  const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
-  const [documents, setDocuments] = useState<CaseDocument[]>(INITIAL_DOCUMENTS);
-  const [tasks, setTasks] = useState<CaseTask[]>(INITIAL_TASKS);
-  const [payments, setPayments] = useState<PaymentMilestone[]>(INITIAL_PAYMENTS);
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  // Core App State (default empty, loaded from backend)
+  const [cases, setCases] = useState<CaseItem[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [documents, setDocuments] = useState<CaseDocument[]>([]);
+  const [tasks, setTasks] = useState<CaseTask[]>([]);
+  const [payments, setPayments] = useState<PaymentMilestone[]>([]);
+  const [messages, setMessages] = useState<CaseMessage[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
@@ -124,13 +126,100 @@ export default function App() {
   // Mobile navigation drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
-  superadmin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports', 'settings'],
-  admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports'],
-  writer: ['dashboard', 'cases', 'tasks', 'documents', 'communication', 'templates'],
-  reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'reports'],
-  client: ['clientPortal', 'tasks', 'documents', 'forms', 'payments', 'communication', 'appointments', 'postFiling', 'settings'],
-};
+  // 1. Auto Login on mount if token exists
+  useEffect(() => {
+    const token = localStorage.getItem('jwt_token');
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        setIsAuthenticated(true);
+        setUserRole(payload.role);
+        setCurrentUserEmail(payload.email);
+      } catch (e) {
+        localStorage.removeItem('jwt_token');
+      }
+    }
+  }, []);
+
+  // 2. Fetch all data when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch Clients
+        const clientsData = await api.get('/clients');
+        if (clientsData.success) {
+          setClients(clientsData.data);
+        }
+
+        // Fetch Cases (Backend includes clients, recommenders, and documents)
+        const casesData = await api.get('/cases');
+        if (casesData.success) {
+          const casesList = casesData.data.map((c: any) => ({
+            ...c,
+            clientName: c.client?.name || 'Unknown',
+            clientEmail: c.client?.email || '',
+            dhanasar: c.dhanasarProngs || {
+              prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
+              prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
+              prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
+            },
+            recommenders: c.recommenders || [],
+            documentsCount: c.documents?.length || 0,
+            notes: c.notes || '',
+            lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
+          }));
+          setCases(casesList);
+        }
+
+        // Fetch Tasks
+        const tasksData = await api.get('/tasks');
+        if (tasksData.success) {
+          setTasks(tasksData.data);
+        }
+
+        // Fetch Documents
+        const docsData = await api.get('/documents');
+        if (docsData.success) {
+          setDocuments(docsData.data);
+        }
+
+        // Fetch Payments
+        const paymentsData = await api.get('/payments');
+        if (paymentsData.success) {
+          setPayments(paymentsData.data);
+        }
+
+        // Fetch Messages
+        const messagesData = await api.get('/messages');
+        if (messagesData.success) {
+          setMessages(messagesData.data);
+        }
+
+        // Fetch Appointments
+        const appointmentsData = await api.get('/appointments');
+        if (appointmentsData.success) {
+          setAppointments(appointmentsData.data);
+        }
+
+      } catch (error) {
+        console.error('Error fetching data from backend API:', error);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated]);
+
+  const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
+    superadmin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports', 'settings'],
+    admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports'],
+    writer: ['dashboard', 'cases', 'tasks', 'documents', 'communication', 'templates'],
+    reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'reports'],
+    client: ['clientPortal', 'tasks', 'documents', 'forms', 'payments', 'communication', 'appointments', 'postFiling', 'settings'],
+  };
 
   // Sync URL Path with Active Tab state & Route Access Control
   useEffect(() => {
@@ -244,6 +333,7 @@ const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('jwt_token');
     setIsAuthenticated(false);
     navigate('/login');
   };
@@ -255,26 +345,47 @@ const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
     navigate(`/cases/${caseId}`);
   };
 
-  const handleUpdateStage = (caseId: string, newStage: StageId) => {
-    setCases(cases.map(c => {
-      if (c.id === caseId) {
-        return {
-          ...c,
-          currentStage: newStage,
-          lastUpdated: new Date().toISOString().replace('T', ' ').substring(0, 16)
-        };
+  const handleUpdateStage = async (caseId: string, newStage: StageId) => {
+    const caseToUpdate = cases.find(c => c.id === caseId);
+    if (!caseToUpdate) return;
+
+    try {
+      const data = await api.patch(`/cases/${caseToUpdate.caseNumber}/stage`, { stageId: newStage });
+      if (data.success) {
+        setCases(cases.map(c => {
+          if (c.id === caseId) {
+            return {
+              ...c,
+              currentStage: newStage,
+              lastUpdated: new Date().toISOString().replace('T', ' ').substring(0, 16)
+            };
+          }
+          return c;
+        }));
+      } else {
+        alert('Failed to update stage');
       }
-      return c;
-    }));
+    } catch (error) {
+      console.error('Error updating stage:', error);
+    }
   };
 
   const handleAddCase = (newCase: CaseItem) => {
-    if (userRole !== 'superadmin' && userRole !== 'admin') return;
     setCases([newCase, ...cases]);
   };
 
   const handleAddDoc = (newDoc: CaseDocument) => {
     setDocuments([newDoc, ...documents]);
+    // Also increment documentsCount on the specific case
+    setCases(cases.map(c => {
+      if (c.id === newDoc.caseId) {
+        return {
+          ...c,
+          documentsCount: c.documentsCount + 1
+        };
+      }
+      return c;
+    }));
   };
 
   const handleAddRecommender = (rec: Recommender) => {
@@ -285,6 +396,29 @@ const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
       }
       return c;
     }));
+  };
+
+  const handleBookAppointment = async (apptData: any) => {
+    try {
+      const payload = {
+        clientName: 'Dr. Alexander Vance',
+        clientEmail: 'client@babelglobal.com',
+        type: apptData.type,
+        specialist: apptData.specialist,
+        date: apptData.date,
+        time: apptData.time,
+        duration: '30 mins',
+        status: 'Upcoming',
+        meetingUrl: 'https://meet.babelglobal.com/call-892',
+        notes: apptData.notes
+      };
+      const data = await api.post('/appointments', payload);
+      if (data.success) {
+        setAppointments(prev => [...prev, data.data]);
+      }
+    } catch (err: any) {
+      alert(`Booking failed: ${err.message}`);
+    }
   };
 
   // Current active case detail object
@@ -432,6 +566,8 @@ const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
             <CommunicationView cases={roleFilteredCases} messages={messages} viewMode={commViewMode} />
           ) : activeTab === 'appointments' ? (
             <AppointmentsView
+              appointments={appointments}
+              setAppointments={setAppointments}
               userRole={userRole}
               openBookingModal={() => setIsAppointmentModalOpen(true)}
             />
@@ -476,6 +612,7 @@ const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
       <AppointmentBookingModal
         isOpen={isAppointmentModalOpen}
         onClose={() => setIsAppointmentModalOpen(false)}
+        onBookAppointment={handleBookAppointment}
       />
 
       <ElectronicSignatureModal

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { CaseDocument } from '../../types';
+import { api } from '../../services/api';
 
 interface NewDocModalProps {
   isOpen: boolean;
@@ -10,43 +11,56 @@ interface NewDocModalProps {
 }
 
 export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAddDoc, caseId = 'case-101' }) => {
+  const [file, setFile] = useState<File | null>(null);
   const [docName, setDocName] = useState('');
   const [exhibitNum, setExhibitNum] = useState('Exhibit 104');
   const [category, setCategory] = useState<CaseDocument['category']>('Publication');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!docName) return;
+    if (!file) {
+      alert('Please select a file to upload');
+      return;
+    }
 
-    const newDoc: CaseDocument = {
-      id: `doc-${Date.now()}`,
-      caseId,
-      name: docName.endsWith('.pdf') ? docName : `${docName}.pdf`,
-      exhibitNumber: exhibitNum,
-      category,
-      fileSize: '2.1 MB',
-      uploadedBy: 'Legal Team Specialist',
-      uploadedAt: new Date().toISOString().split('T')[0],
-      status: 'Verified',
-      aiSummary: `AI Verified ${category} supporting candidate's national importance arguments for Form I-140.`
-    };
+    const formData = new FormData();
+    formData.append('caseId', caseId);
+    formData.append('category', category);
+    formData.append('file', file);
 
-    onAddDoc(newDoc);
-    onClose();
+    try {
+      const data = await api.post('/documents', formData, true);
+      if (data.success) {
+        const newDoc: CaseDocument = {
+          ...data.data,
+          exhibitNumber: exhibitNum
+        };
+        onAddDoc(newDoc);
+        onClose();
+      } else {
+        alert('Upload failed');
+      }
+    } catch (err: any) {
+      alert(`Connection error: ${err.message}`);
+    }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Upload & Classify Exhibit Document" subtitle="Attach academic or technical evidence to Form I-140 petition">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div>
-          <label className="block text-slate-700 font-bold mb-1">Document Title / File Name *</label>
+          <label className="block text-slate-700 font-bold mb-1">Select Evidence File *</label>
           <input
-            type="text"
+            type="file"
             required
-            value={docName}
-            onChange={(e) => setDocName(e.target.value)}
-            placeholder="e.g. IEEE_Transaction_Paper_2024.pdf"
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                const selectedFile = e.target.files[0];
+                setFile(selectedFile);
+                setDocName(selectedFile.name);
+              }
+            }}
+            className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

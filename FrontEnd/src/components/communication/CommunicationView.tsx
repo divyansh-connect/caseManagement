@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { CaseItem, CaseMessage } from '../../types';
 import { WhatsAppModal } from './WhatsAppModal';
+import { api } from '../../services/api';
 
 interface CommunicationViewProps {
   cases: CaseItem[];
@@ -43,6 +44,11 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     }
   }, [viewMode]);
 
+  // Sync messages when prop updates
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedCase = cases.find(c => c.id === selectedCaseId) || cases[0];
@@ -67,7 +73,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     { label: '📑 USCIS Receipt Notice', text: 'Your petition filing receipt (Form I-797C) has been generated and logged in your Document Vault.' },
   ];
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMsgText.trim() && !attachedFileName || !selectedCase) return;
 
@@ -76,18 +82,22 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
       contentToSend += ` [Attachment: ${attachedFileName}]`;
     }
 
-    const newMsg: CaseMessage = {
-      id: `msg-${Date.now()}`,
-      caseId: selectedCase.id,
-      senderName: 'Sarah Jenkins (Legal Specialist)',
-      senderRole: 'writer',
-      content: contentToSend,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
+    try {
+      const data = await api.post('/messages', {
+        caseId: selectedCase.id,
+        senderName: 'Sarah Jenkins (Legal Specialist)',
+        senderRole: 'writer',
+        content: contentToSend
+      });
 
-    setMessages(prev => [...prev, newMsg]);
-    setNewMsgText('');
-    setAttachedFileName(null);
+      if (data.success) {
+        setMessages(prev => [...prev, data.data]);
+        setNewMsgText('');
+        setAttachedFileName(null);
+      }
+    } catch (err: any) {
+      alert(`Message send failed: ${err.message}`);
+    }
   };
 
   const applyTemplate = (templateText: string) => {

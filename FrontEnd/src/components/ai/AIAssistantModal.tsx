@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Loader2
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 interface AIAssistantModalProps {
   isOpen: boolean;
@@ -31,17 +32,12 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     setLoading(true);
 
     try {
-      const response = await fetch('/api/ai/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          task: selectedTask,
-          field: candidateField,
-          background: candidateBackground,
-          userPrompt: prompt
-        })
+      const data = await api.post('/ai/draft', {
+        task: selectedTask,
+        field: candidateField,
+        background: candidateBackground,
+        userPrompt: prompt
       });
-      const data = await response.json();
       setAiOutput(data.result);
     } catch (err) {
       // Fallback robust AI legal output

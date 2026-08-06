@@ -15,6 +15,7 @@ import {
 import { CaseTask, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { NewTaskModal } from '../modals/NewTaskModal';
+import { api } from '../../services/api';
 
 interface TasksViewProps {
   tasks: CaseTask[];
@@ -33,12 +34,24 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
     setTasks(initialTasks);
   }, [initialTasks]);
 
-  const toggleTaskCompletion = (taskId: string) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  const toggleTaskCompletion = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const data = await api.patch(`/tasks/${taskId}`, { completed: !task.completed });
+      if (data.success) {
+        setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+      } else {
+        alert('Failed to update task status');
+      }
+    } catch (err) {
+      console.error('Error toggling task completion:', err);
+    }
   };
 
   const handleCreateTask = (newTask: CaseTask) => {
-    setTasks([newTask, ...tasks]);
+    // Simply let the list reload from state
     if (onAddTask) {
       onAddTask(newTask);
     }

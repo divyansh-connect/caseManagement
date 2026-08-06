@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { PaymentMilestone, CaseItem } from '../../types';
 import { StatusBadge } from '../common/Badge';
+import { api } from '../../services/api';
 
 interface PaymentsViewProps {
   payments: PaymentMilestone[];
@@ -50,29 +51,38 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
   const totalCollected = paymentsList.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
   const totalPending = paymentsList.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0);
 
+  // Sync state when initialPayments prop changes
+  React.useEffect(() => {
+    setPaymentsList(initialPayments);
+  }, [initialPayments]);
+
   // Handle Sync Zoho Invoice Submit
-  const handleSyncSubmit = (e: React.FormEvent) => {
+  const handleSyncSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
 
-    setTimeout(() => {
+    try {
       const selectedCase = cases.find(c => c.id === syncCaseId) || cases[0];
-      const newPayment: PaymentMilestone = {
-        id: `pm-${Date.now()}`,
+      const data = await api.post('/payments', {
         caseId: syncCaseId,
         description: syncDescription,
         amount: parseFloat(syncAmount) || 2500,
         dueDate: syncDueDate,
         status: 'Pending'
-      };
+      });
 
-      setPaymentsList([newPayment, ...paymentsList]);
+      if (data.success) {
+        setPaymentsList([data.data, ...paymentsList]);
+        setIsSyncing(false);
+        setIsSyncModalOpen(false);
+
+        setSyncSuccessMsg(`Successfully synced Zoho Books Invoice #${`INV-ZB-2026-${Math.floor(100 + Math.random() * 900)}`} for ${selectedCase.clientName}`);
+        setTimeout(() => setSyncSuccessMsg(''), 4000);
+      }
+    } catch (err: any) {
+      alert(`Sync failed: ${err.message}`);
       setIsSyncing(false);
-      setIsSyncModalOpen(false);
-
-      setSyncSuccessMsg(`Successfully synced Zoho Books Invoice #${`INV-ZB-2026-${Math.floor(100 + Math.random() * 900)}`} for ${selectedCase.clientName}`);
-      setTimeout(() => setSyncSuccessMsg(''), 4000);
-    }, 800);
+    }
   };
 
   // Open PDF Invoice Modal

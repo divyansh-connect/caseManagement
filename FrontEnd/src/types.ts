@@ -183,3 +183,17 @@ export interface AuditLogEntry {
   details: string;
 }
 
+export interface AppointmentItem {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  type: string;
+  specialist: string;
+  date: string;
+  time: string;
+  duration: string;
+  status: 'Upcoming' | 'Completed' | 'Rescheduled' | 'Cancelled';
+  meetingUrl: string;
+  notes?: string;
+}
+

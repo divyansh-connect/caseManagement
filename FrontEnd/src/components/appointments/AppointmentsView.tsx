@@ -100,15 +100,18 @@ export const INITIAL_APPOINTMENTS: AppointmentItem[] = [
 ];
 
 interface AppointmentsViewProps {
+  appointments: AppointmentItem[];
+  setAppointments: React.Dispatch<React.SetStateAction<AppointmentItem[]>>;
   userRole?: UserRole;
   openBookingModal: () => void;
 }
 
 export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
+  appointments,
+  setAppointments,
   userRole = 'admin',
   openBookingModal
 }) => {
-  const [appointments, setAppointments] = useState<AppointmentItem[]>(INITIAL_APPOINTMENTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Upcoming' | 'Completed' | 'Cancelled'>('All');
 

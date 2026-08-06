@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { CaseTask, StageId, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
+import { api } from '../../services/api';
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -17,25 +18,31 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
   const [dueDate, setDueDate] = useState('2025-03-15');
   const [priority, setPriority] = useState<CaseTask['priority']>('medium');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const newTask: CaseTask = {
-      id: `task-${Date.now()}`,
-      caseId: 'case-101',
-      title: title.trim(),
-      assignedRole,
-      assignedToName,
-      stageId,
-      dueDate,
-      priority,
-      completed: false
-    };
+    try {
+      const data = await api.post('/tasks', {
+        caseId: 'case-101', // Default target case file
+        title: title.trim(),
+        assignedRole,
+        assignedToName,
+        stageId,
+        dueDate,
+        priority
+      });
 
-    onAddTask(newTask);
-    setTitle('');
-    onClose();
+      if (data.success) {
+        onAddTask(data.data);
+        setTitle('');
+        onClose();
+      } else {
+        alert('Failed to create task');
+      }
+    } catch (err: any) {
+      alert(`Connection error: ${err.message}`);
+    }
   };
 
   return (

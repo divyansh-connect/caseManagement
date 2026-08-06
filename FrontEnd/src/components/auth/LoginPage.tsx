@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Globe, ArrowLeft, Users, UserCheck, Shield, Briefcase, UserCog } from 'lucide-react';
 import { UserRole } from '../../types';
 import loginBg from '../../assets/login-bg.png';
+import { api } from '../../services/api';
 
 interface LoginPageProps {
   onLogin: (role: UserRole, email: string) => void;
@@ -95,17 +96,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
+  // Helper to run actual auth call
+  const performLogin = async (emailVal: string, passwordVal: string) => {
+    setError('');
+    setIsLoading(true);
+    try {
+      const data = await api.post('/auth/login', { email: emailVal, password: passwordVal });
+      if (data.success) {
+        localStorage.setItem('jwt_token', data.token);
+        const role = data.user.role as UserRole;
+        onLogin(role, data.user.email);
+      } else {
+        setError('Authentication failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect to authentication server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Step 1b: Team sub-role selected
   const handleTeamSubRole = (sub: typeof TEAM_SUB_ROLES[0]) => {
     setSelectedSubRole(sub);
     setEmail(sub.email);
     setPassword('password123');
-    setError('');
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin(sub.role, sub.email);
-    }, 400);
+    performLogin(sub.email, 'password123');
   };
 
   // Quick pill autofill
@@ -136,19 +152,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { setError('Please enter email and password.'); return; }
-    setError('');
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      let role: UserRole = 'admin';
-      const matched = QUICK_ROLES.find(r => r.email === email);
-      if (matched)                          role = matched.role;
-      else if (email.includes('superadmin')) role = 'superadmin';
-      else if (email.includes('client'))     role = 'client';
-      else if (email.includes('writer'))     role = 'writer';
-      else if (email.includes('reviewer'))   role = 'reviewer';
-      onLogin(role, email);
-    }, 700);
+    performLogin(email, password);
   };
 
   // ── Heading / subtitle per step ───────────────────────────────────────────

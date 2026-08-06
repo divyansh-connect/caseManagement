@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Recommender } from '../../types';
+import { api } from '../../services/api';
 
 interface NewRecommenderModalProps {
   isOpen: boolean;
@@ -15,24 +16,30 @@ export const NewRecommenderModal: React.FC<NewRecommenderModalProps> = ({ isOpen
   const [organization, setOrganization] = useState('');
   const [relationship, setRelationship] = useState<Recommender['relationship']>('Independent Expert');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !title) return;
 
-    const newRec: Recommender = {
-      id: `rec-${Date.now()}`,
-      caseId,
-      name,
-      title,
-      organization: organization || 'US Research Institute',
-      relationship,
-      status: 'Outreach Sent',
-      cvReceived: true,
-      keyContributionsMentioned: ['Attests to candidate original algorithmic contributions', 'Validates national merit']
-    };
+    try {
+      const data = await api.post(`/cases/${caseId}/recommenders`, {
+        name,
+        title,
+        organization: organization || 'US Research Institute',
+        relationship
+      });
 
-    onAddRecommender(newRec);
-    onClose();
+      if (data.success) {
+        onAddRecommender(data.data);
+        setName('');
+        setTitle('');
+        setOrganization('');
+        onClose();
+      } else {
+        alert('Failed to save recommender');
+      }
+    } catch (err: any) {
+      alert(`Connection error: ${err.message}`);
+    }
   };
 
   return (
