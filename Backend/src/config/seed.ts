@@ -717,5 +717,98 @@ export async function seed() {
     }
   }
 
+  // 10. Seed Templates
+  const templateCount = await prisma.template.count();
+  if (templateCount === 0) {
+    console.log('Seeding templates...');
+    const mockTemplates = [
+      {
+        id: 'tpl-1',
+        industry: 'Artificial Intelligence & Machine Learning',
+        title: 'AI/ML Research Scientist & Infrastructure Engineer',
+        description: 'Tailored for candidates advancing foundation models, computer vision, natural language processing, or AI chip acceleration.',
+        sampleEndeavor: 'Pioneering energy-efficient machine learning architectures for enterprise cybersecurity and real-time medical diagnostics in the United States.',
+        suggestedProng1Points: [
+          'Aligns with Executive Order on Safe, Secure, and Trustworthy Artificial Intelligence',
+          'Addresses critical semiconductor efficiency bottlenecks reducing server grid load',
+          'Enhances national economic competitiveness against international state-sponsored AI initiatives'
+        ],
+        suggestedProng2Points: [
+          'Top-tier conference publications (NeurIPS, CVPR, ICML) demonstrating field leadership',
+          'Open-source repository adoption metrics (GitHub stars, PyTorch core integrations)',
+          'Peer review record for IEEE Transactions and ACM digital libraries'
+        ],
+        suggestedProng3Points: [
+          'PERM labor certification requires tied employer sponsorship, hindering multi-institutional open AI collaboration',
+          'Rapid pace of AI model iteration requires immediate research deployment without 2-year PERM processing latency'
+        ],
+        recommendedExhibits: [
+          'Google Scholar Citation Index & World Percentile Chart',
+          'GitHub Repository Impact & Downstream Commercial Usage Log',
+          'Executive Order 14110 AI Policy Excerpt',
+          'Conference Acceptance Rate Verification Letters'
+        ]
+      },
+      {
+        id: 'tpl-2',
+        industry: 'Clean Energy & Power Infrastructure',
+        title: 'Renewable Microgrid & Battery Systems Specialist',
+        description: 'Designed for engineers developing battery management, hydrogen fuel cells, wind grid integration, or solar forecasting.',
+        sampleEndeavor: 'Engineering resilient microgrid management platforms to integrate high-penetration renewable power into aging US electrical utility networks.',
+        suggestedProng1Points: [
+          'Fulfills Bipartisan Infrastructure Law mandates for grid modernization',
+          'Mitigates catastrophic blackout risks during climate extreme weather events',
+          'Accelerates US transition away from fossil-fuel baseline dependency'
+        ],
+        suggestedProng2Points: [
+          'Utility-scale pilot deployment certifications and patents',
+          'State energy commission research awards (e.g. CEC, NYSERDA grants)',
+          'IEEE Power & Energy Society peer-reviewed articles'
+        ],
+        suggestedProng3Points: [
+          'Contractual utility deployment model makes standard permanent labor certification unworkable',
+          'Urgent grid safety risks demand immediate application of candidate proprietary software algorithms'
+        ],
+        recommendedExhibits: [
+          'US Department of Energy Grid Modernization Index',
+          'Utility Deployment Verification Letters from Senior Engineers',
+          'Patent Application Index & Claims Specifications'
+        ]
+      },
+      {
+        id: 'tpl-3',
+        industry: 'Biomedical & Healthcare Innovation',
+        title: 'Computational Oncologist & Medical Device Pioneer',
+        description: 'Designed for researchers working in drug discovery, genomics, surgical robotics, medical image AI, or therapeutics.',
+        sampleEndeavor: 'Developing precision genomic algorithms to predict therapeutic efficacy and reduce adverse drug reactions in underserved cancer patient demographics.',
+        suggestedProng1Points: [
+          'Directly advances the NIH Cancer Moonshot mission to reduce cancer mortality by 50%',
+          'Reduces national healthcare expenditure by preventing ineffective drug regimens',
+          'Promotes health equity in complex multi-ethnic genetic research datasets'
+        ],
+        suggestedProng2Points: [
+          'High-impact medical journal citations (Nature Medicine, Lancet Oncology, Cell)',
+          'NIH / NSF grant co-investigator role or SBIR commercialization awards',
+          'Clinical trial protocol approvals incorporating candidate algorithms'
+        ],
+        suggestedProng3Points: [
+          'Public health urgency of pediatric and rare cancer research demands immediate waiver of labor certification',
+          'Academic and hospital mobility essential for cross-institutional patient trial data analysis'
+        ],
+        recommendedExhibits: [
+          'NCI Cancer Moonshot Official Policy Documentation',
+          'Clinical Trial Protocol References & Co-Author Verification',
+          'Journal Impact Factor & Editorial Commentary Letters'
+        ]
+      }
+    ];
+
+    for (const t of mockTemplates) {
+      await prisma.template.create({
+        data: t
+      });
+    }
+  }
+
   console.log('🌱 Seeding check complete.');
 }

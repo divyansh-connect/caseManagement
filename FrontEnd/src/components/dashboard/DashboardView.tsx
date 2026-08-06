@@ -25,6 +25,8 @@ interface DashboardViewProps {
   userRole: UserRole;
 }
 
+import { api } from '../../services/api';
+
 export const DashboardView: React.FC<DashboardViewProps> = ({
   cases,
   tasks,
@@ -33,13 +35,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   openAIAssistant,
   userRole,
 }) => {
-  const activeCasesCount = cases.length;
-  const inReviewCount = cases.filter(c => c.currentStage >= 9 && c.currentStage <= 12).length;
-  const highRiskCount = cases.filter(c => c.riskLevel === 'high' || c.riskLevel === 'medium').length;
-  const pendingTasksCount = tasks.filter(t => !t.completed).length;
+  const [dbStats, setDbStats] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/dashboard/stats');
+        if (res.success) {
+          setDbStats(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard stats from backend:', err);
+      }
+    };
+    fetchStats();
+  }, [cases, tasks]);
+
+  const activeCasesCount = dbStats ? dbStats.activeCasesCount : cases.length;
+  const inReviewCount = dbStats ? dbStats.inReviewCount : cases.filter(c => c.currentStage >= 9 && c.currentStage <= 12).length;
+  const highRiskCount = dbStats ? dbStats.rfeCasesCount : cases.filter(c => c.riskLevel === 'high' || c.riskLevel === 'medium').length;
+  const pendingTasksCount = dbStats ? dbStats.pendingTasksCount : tasks.filter(t => !t.completed).length;
 
   // Calculate stage counts for 5 main workflow categories
-  const categoryCounts = WORKFLOW_STAGES.reduce((acc, stage) => {
+  const categoryCounts = dbStats && dbStats.funnel ? {
+    'Intake': dbStats.funnel.intake,
+    'Evaluation': dbStats.funnel.evaluation,
+    'Endeavor & Evidence': dbStats.funnel.evidence,
+    'Drafting & Review': dbStats.funnel.drafting,
+    'Final Filing': dbStats.funnel.filing
+  } : WORKFLOW_STAGES.reduce((acc, stage) => {
     const stageCases = cases.filter(c => c.currentStage === stage.id).length;
     acc[stage.category] = (acc[stage.category] || 0) + stageCases;
     return acc;

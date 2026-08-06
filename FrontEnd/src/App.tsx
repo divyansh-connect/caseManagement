@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { UserRole, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, CaseMessage, AppointmentItem, StageId, Recommender, AuditLogEntry } from './types';
+import { UserRole, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, CaseMessage, AppointmentItem, CaseTemplate, StageId, Recommender, AuditLogEntry } from './types';
 import { api } from './services/api';
 import { 
   INITIAL_CASES, 
@@ -114,6 +114,7 @@ export default function App() {
   const [payments, setPayments] = useState<PaymentMilestone[]>([]);
   const [messages, setMessages] = useState<CaseMessage[]>([]);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [templates, setTemplates] = useState<CaseTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
@@ -125,6 +126,22 @@ export default function App() {
 
   // Mobile navigation drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  // Centralized case data properties mapper
+  const mapCaseData = (c: any) => ({
+    ...c,
+    clientName: c.client?.name || 'Unknown',
+    clientEmail: c.client?.email || '',
+    dhanasar: c.dhanasarProngs || {
+      prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
+      prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
+      prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
+    },
+    recommenders: c.recommenders || [],
+    documentsCount: c.documents?.length || 0,
+    notes: c.notes || '',
+    lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
+  });
 
   // 1. Auto Login on mount if token exists
   useEffect(() => {
@@ -143,75 +160,103 @@ export default function App() {
     }
   }, []);
 
-  // 2. Fetch all data when authenticated
+  // 2. Fetch data dynamically based on the active tab
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const fetchData = async () => {
+    const loadDataForTab = async () => {
       try {
-        // Fetch Clients
-        const clientsData = await api.get('/clients');
-        if (clientsData.success) {
-          setClients(clientsData.data);
-        }
+        switch (activeTab) {
+          case 'dashboard':
+            // Dashboard needs stats, cases and tasks
+            const statsRes = await api.get('/dashboard/stats');
+            const dashboardCases = await api.get('/cases');
+            if (dashboardCases.success) {
+              setCases(dashboardCases.data.map(mapCaseData));
+            }
+            const dashboardTasks = await api.get('/tasks');
+            if (dashboardTasks.success) {
+              setTasks(dashboardTasks.data);
+            }
+            break;
 
-        // Fetch Cases (Backend includes clients, recommenders, and documents)
-        const casesData = await api.get('/cases');
-        if (casesData.success) {
-          const casesList = casesData.data.map((c: any) => ({
-            ...c,
-            clientName: c.client?.name || 'Unknown',
-            clientEmail: c.client?.email || '',
-            dhanasar: c.dhanasarProngs || {
-              prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
-              prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
-              prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
-            },
-            recommenders: c.recommenders || [],
-            documentsCount: c.documents?.length || 0,
-            notes: c.notes || '',
-            lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
-          }));
-          setCases(casesList);
-        }
+          case 'cases':
+          case 'reviews':
+            const casesRes = await api.get('/cases');
+            if (casesRes.success) {
+              setCases(casesRes.data.map(mapCaseData));
+            }
+            break;
 
-        // Fetch Tasks
-        const tasksData = await api.get('/tasks');
-        if (tasksData.success) {
-          setTasks(tasksData.data);
-        }
+          case 'clients':
+            const clientsRes = await api.get('/clients');
+            if (clientsRes.success) {
+              setClients(clientsRes.data);
+            }
+            break;
 
-        // Fetch Documents
-        const docsData = await api.get('/documents');
-        if (docsData.success) {
-          setDocuments(docsData.data);
-        }
+          case 'tasks':
+            const tasksRes = await api.get('/tasks');
+            if (tasksRes.success) {
+              setTasks(tasksRes.data);
+            }
+            break;
 
-        // Fetch Payments
-        const paymentsData = await api.get('/payments');
-        if (paymentsData.success) {
-          setPayments(paymentsData.data);
-        }
+          case 'documents':
+            const docsRes = await api.get('/documents');
+            if (docsRes.success) {
+              setDocuments(docsRes.data);
+            }
+            break;
 
-        // Fetch Messages
-        const messagesData = await api.get('/messages');
-        if (messagesData.success) {
-          setMessages(messagesData.data);
-        }
+          case 'communication':
+            // Chat needs cases (for selection) and message threads
+            const commCases = await api.get('/cases');
+            if (commCases.success) {
+              setCases(commCases.data.map(mapCaseData));
+            }
+            const messagesRes = await api.get('/messages');
+            if (messagesRes.success) {
+              setMessages(messagesRes.data);
+            }
+            break;
 
-        // Fetch Appointments
-        const appointmentsData = await api.get('/appointments');
-        if (appointmentsData.success) {
-          setAppointments(appointmentsData.data);
-        }
+          case 'payments':
+            // Payments needs cases (for syncing invoice) and milestones
+            const payCases = await api.get('/cases');
+            if (payCases.success) {
+              setCases(payCases.data.map(mapCaseData));
+            }
+            const paymentsRes = await api.get('/payments');
+            if (paymentsRes.success) {
+              setPayments(paymentsRes.data);
+            }
+            break;
 
+          case 'appointments':
+            const appointmentsRes = await api.get('/appointments');
+            if (appointmentsRes.success) {
+              setAppointments(appointmentsRes.data);
+            }
+            break;
+
+          case 'templates':
+            const templatesRes = await api.get('/templates');
+            if (templatesRes.success) {
+              setTemplates(templatesRes.data);
+            }
+            break;
+
+          default:
+            break;
+        }
       } catch (error) {
-        console.error('Error fetching data from backend API:', error);
+        console.error(`Error loading data for tab ${activeTab}:`, error);
       }
     };
 
-    fetchData();
-  }, [isAuthenticated]);
+    loadDataForTab();
+  }, [isAuthenticated, activeTab]);
 
   const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
     superadmin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports', 'settings'],
@@ -561,6 +606,7 @@ export default function App() {
               cases={roleFilteredCases}
               onSelectCase={handleSelectCase}
               openAIAssistant={() => setIsAiModalOpen(true)}
+              onUpdateStage={handleUpdateStage}
             />
           ) : activeTab === 'communication' ? (
             <CommunicationView cases={roleFilteredCases} messages={messages} viewMode={commViewMode} />
@@ -574,7 +620,7 @@ export default function App() {
           ) : activeTab === 'payments' ? (
             <PaymentsView payments={payments} cases={cases} />
           ) : activeTab === 'templates' ? (
-            <TemplatesView templates={CASE_TEMPLATES} openAIAssistant={() => setIsAiModalOpen(true)} />
+            <TemplatesView templates={templates} openAIAssistant={() => setIsAiModalOpen(true)} />
           ) : activeTab === 'reports' ? (
             <ReportsView />
           ) : activeTab === 'settings' ? (

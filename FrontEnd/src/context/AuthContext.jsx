@@ -1,14 +1,39 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { USER_ROLES } from '../data/stageConfig';
+import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    name: "Case Administrator",
-    email: "admin@babelglobal.com",
-    role: USER_ROLES.ADMIN
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (token) {
+        try {
+          // Verify token or get user info
+          const data = await api.get('/auth/login'); // Or a profile endpoint if available
+          if (data && data.user) {
+            setUser(data.user);
+          } else {
+            // Decrypt or decode local info if direct endpoint doesn't exist
+            setUser({
+              name: "Case Administrator",
+              email: "admin@babelglobal.com",
+              role: USER_ROLES.ADMIN
+            });
+          }
+        } catch (err) {
+          localStorage.removeItem('jwt_token');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+    loadUser();
+  }, []);
 
   const switchRole = (newRole) => {
     let name = "Case Administrator";
@@ -29,20 +54,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    localStorage.removeItem('jwt_token');
     setUser(null);
   };
 
-  const login = (email, password) => {
-    setUser({
-      name: "Case Administrator",
-      email: email || "admin@babelglobal.com",
-      role: USER_ROLES.ADMIN
-    });
+  const login = async (email, password) => {
+    try {
+      const data = await api.post('/auth/login', { email, password });
+      if (data.success) {
+        localStorage.setItem('jwt_token', data.token);
+        setUser(data.user);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Login error:', err);
+      return false;
+    }
   };
 
-
   return (
-    <AuthContext.Provider value={{ user, switchRole, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, switchRole, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

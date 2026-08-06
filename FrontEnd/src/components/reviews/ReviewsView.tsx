@@ -17,9 +17,15 @@ interface ReviewsViewProps {
   cases: CaseItem[];
   onSelectCase: (caseId: string) => void;
   openAIAssistant: () => void;
+  onUpdateStage?: (caseId: string, stageId: number) => Promise<void>;
 }
 
-export const ReviewsView: React.FC<ReviewsViewProps> = ({ cases, onSelectCase, openAIAssistant }) => {
+export const ReviewsView: React.FC<ReviewsViewProps> = ({ 
+  cases, 
+  onSelectCase, 
+  openAIAssistant,
+  onUpdateStage 
+}) => {
   // Cases pending review (stages 9 - 12)
   const pendingReviewCases = cases.filter(c => c.currentStage >= 9 && c.currentStage <= 12);
   const [selectedCaseId, setSelectedCaseId] = useState<string>(pendingReviewCases[0]?.id || cases[0]?.id);
@@ -27,8 +33,16 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({ cases, onSelectCase, o
   const [reviewNotes, setReviewNotes] = useState('');
   const [isApproved, setIsApproved] = useState(false);
 
-  const handleApproveDraft = () => {
+  // Reset approved state when selected case changes
+  React.useEffect(() => {
+    setIsApproved(false);
+  }, [selectedCaseId]);
+
+  const handleApproveDraft = async () => {
     setIsApproved(true);
+    if (onUpdateStage && selectedCase) {
+      await onUpdateStage(selectedCase.id, 13);
+    }
   };
 
   return (

@@ -156,3 +156,17 @@ model Appointment {
 
   @@map("appointments")
 }
+
+model Template {
+  id                    String @id @default(uuid())
+  industry              String
+  title                 String
+  description           String @db.Text
+  sampleEndeavor        String @db.Text @map("sample_endeavor")
+  suggestedProng1Points Json   @map("suggested_prong_1_points")
+  suggestedProng2Points Json   @map("suggested_prong_2_points")
+  suggestedProng3Points Json   @map("suggested_prong_3_points")
+  recommendedExhibits   Json   @map("recommended_exhibits")
+
+  @@map("templates")
+}

@@ -10,6 +10,8 @@ import aiRoutes from './routes/aiRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import templateRoutes from './routes/templateRoutes.js';
 import { seed } from './config/seed.js';
 
 dotenv.config();
@@ -35,6 +37,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Seed API endpoint for easy developer verification
 app.get('/api/seed', async (req, res) => {
