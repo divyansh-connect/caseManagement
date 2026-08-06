@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
 import caseRoutes from './routes/caseRoutes.js';
@@ -12,9 +14,9 @@ import messageRoutes from './routes/messageRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
+import settingRoutes from './routes/settingRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import { seed } from './config/seed.js';
-
-dotenv.config();
 
 // Auto-seed database if empty on startup
 seed().catch(err => console.error('Database seeding failed:', err));
@@ -39,6 +41,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/settings', settingRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Seed API endpoint for easy developer verification
 app.get('/api/seed', async (req, res) => {

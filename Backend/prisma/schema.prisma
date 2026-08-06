@@ -170,3 +170,28 @@ model Template {
 
   @@map("templates")
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  userEmail String   @map("user_email")
+  details   String   @db.Text
+  timestamp String
+
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id                   String  @id @default(uuid())
+  companyName          String  @default("Babel Global") @map("company_name")
+  specialistId         String  @default("BG-CONSULT-391024") @map("specialist_id")
+  filingFee            String  @default("$715") @map("filing_fee")
+  premiumFee           String  @default("$2,965") @map("premium_fee")
+  asylumFee            String  @default("$300") @map("asylum_fee")
+  whatsappAlerts       Boolean @default(true) @map("whatsapp_alerts")
+  emailRequests        Boolean @default(true) @map("email_requests")
+  appointmentReminders Boolean @default(true) @map("appointment_reminders")
+  quietHours           Boolean @default(true) @map("quiet_hours")
+
+  @@map("system_settings")
+}

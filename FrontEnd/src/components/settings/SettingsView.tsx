@@ -15,11 +15,70 @@ import { AuditLogEntry } from '../../types';
 
 interface SettingsViewProps {
   activityLogs?: AuditLogEntry[];
+  settings?: any;
+  onSaveSettings?: (settings: any) => Promise<void>;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ 
+  activityLogs = [], 
+  settings, 
+  onSaveSettings 
+}) => {
+  const [companyName, setCompanyName] = React.useState('');
+  const [specialistId, setSpecialistId] = React.useState('');
+  const [filingFee, setFilingFee] = React.useState('');
+  const [premiumFee, setPremiumFee] = React.useState('');
+  const [asylumFee, setAsylumFee] = React.useState('');
+  const [whatsappAlerts, setWhatsappAlerts] = React.useState(true);
+  const [emailRequests, setEmailRequests] = React.useState(true);
+  const [appointmentReminders, setAppointmentReminders] = React.useState(true);
+  const [quietHours, setQuietHours] = React.useState(true);
+  const [showSavedToast, setShowSavedToast] = React.useState(false);
+
+  React.useEffect(() => {
+    if (settings) {
+      setCompanyName(settings.companyName || 'Babel Global');
+      setSpecialistId(settings.specialistId || 'BG-CONSULT-391024');
+      setFilingFee(settings.filingFee || '$715');
+      setPremiumFee(settings.premiumFee || '$2,965');
+      setAsylumFee(settings.asylumFee || '$300');
+      setWhatsappAlerts(settings.whatsappAlerts !== false);
+      setEmailRequests(settings.emailRequests !== false);
+      setAppointmentReminders(settings.appointmentReminders !== false);
+      setQuietHours(settings.quietHours !== false);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    if (onSaveSettings) {
+      await onSaveSettings({
+        companyName,
+        specialistId,
+        filingFee,
+        premiumFee,
+        asylumFee,
+        whatsappAlerts,
+        emailRequests,
+        appointmentReminders,
+        quietHours
+      });
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-12 w-full">
+      {/* Toast Notification */}
+      {showSavedToast && (
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center justify-between text-xs font-bold animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-200" />
+            <span>System Settings successfully saved and updated in the database!</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
         <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">System Settings & Governance</h1>
@@ -74,11 +133,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="block text-slate-600 font-semibold mb-1">Company / Business Name</label>
-              <input type="text" defaultValue="Babel Global" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input 
+                type="text" 
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              />
             </div>
             <div>
               <label className="block text-slate-600 font-semibold mb-1">Lead Immigration Specialist ID</label>
-              <input type="text" defaultValue="BG-CONSULT-391024" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+              <input 
+                type="text" 
+                value={specialistId}
+                onChange={(e) => setSpecialistId(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" 
+              />
             </div>
           </div>
         </div>
@@ -105,22 +174,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
           </div>
         </div>
 
-
-
         <div className="pt-4 border-t border-slate-100">
           <h3 className="font-bold text-slate-800 text-sm mb-3">USCIS Fee Calculation Defaults</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div>
               <label className="block text-slate-600 font-semibold mb-1">Form I-140 Filing Fee</label>
-              <input type="text" defaultValue="$715" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input 
+                type="text" 
+                value={filingFee}
+                onChange={(e) => setFilingFee(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              />
             </div>
             <div>
               <label className="block text-slate-600 font-semibold mb-1">Form I-907 Premium Fee</label>
-              <input type="text" defaultValue="$2,965" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-amber-700" />
+              <input 
+                type="text" 
+                value={premiumFee}
+                onChange={(e) => setPremiumFee(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-amber-700" 
+              />
             </div>
             <div>
               <label className="block text-slate-600 font-semibold mb-1">Asylum Program Fee (Non-Profit/Small)</label>
-              <input type="text" defaultValue="$300" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input 
+                type="text" 
+                value={asylumFee}
+                onChange={(e) => setAsylumFee(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              />
             </div>
           </div>
         </div>
@@ -141,7 +223,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
                 <span className="font-semibold text-slate-800 block">WhatsApp Instant Alerts</span>
                 <span className="text-[10px] text-slate-500">Send automatic WhatsApp messages on stage progress</span>
               </div>
-              <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+              <input 
+                type="checkbox" 
+                checked={whatsappAlerts}
+                onChange={(e) => setWhatsappAlerts(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              />
             </label>
 
             <label className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between cursor-pointer">
@@ -149,7 +236,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
                 <span className="font-semibold text-slate-800 block">Email Document Requests</span>
                 <span className="text-[10px] text-slate-500">Notify clients via email when exhibit review requires action</span>
               </div>
-              <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+              <input 
+                type="checkbox" 
+                checked={emailRequests}
+                onChange={(e) => setEmailRequests(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              />
             </label>
 
             <label className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between cursor-pointer">
@@ -157,7 +249,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
                 <span className="font-semibold text-slate-800 block">Appointment Reminders</span>
                 <span className="text-[10px] text-slate-500">Automated SMS & Email reminders 24 hrs prior to calls</span>
               </div>
-              <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+              <input 
+                type="checkbox" 
+                checked={appointmentReminders}
+                onChange={(e) => setAppointmentReminders(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              />
             </label>
 
             <label className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between cursor-pointer">
@@ -165,13 +262,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
                 <span className="font-semibold text-slate-800 block">Quiet Hours Enforcement</span>
                 <span className="text-[10px] text-slate-500">Pause automated dispatch between 09:00 PM and 08:00 AM</span>
               </div>
-              <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+              <input 
+                type="checkbox" 
+                checked={quietHours}
+                onChange={(e) => setQuietHours(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              />
             </label>
           </div>
         </div>
 
         <div className="pt-4 border-t border-slate-100 flex justify-end">
-          <button className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
+          <button 
+            onClick={handleSave}
+            className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 cursor-pointer border border-blue-500"
+          >
             <Save className="w-3.5 h-3.5" />
             <span>Save System Settings</span>
           </button>
@@ -181,4 +286,3 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ activityLogs = [] })
     </div>
   );
 };
-

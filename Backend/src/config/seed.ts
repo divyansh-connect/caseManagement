@@ -810,5 +810,51 @@ export async function seed() {
     }
   }
 
+  // 11. Seed Audit Logs
+  const auditLogCount = await prisma.auditLog.count();
+  if (auditLogCount === 0) {
+    console.log('Seeding audit logs...');
+    const mockAuditLogs = [
+      {
+        id: 'log-1',
+        action: 'Account Sign In',
+        userEmail: 'superadmin@babelglobal.com',
+        details: 'Signed in to portal. Automatically routed to SUPERADMIN assigned workspace.',
+        timestamp: '04:30 pm'
+      },
+      {
+        id: 'log-2',
+        action: 'Super Admin Initialization',
+        userEmail: 'admin@juris-flow.com',
+        details: 'Super Administrator session initialized with unrestricted system access permissions.',
+        timestamp: '04:28 pm'
+      }
+    ];
+    for (const log of mockAuditLogs) {
+      await prisma.auditLog.create({
+        data: log
+      });
+    }
+  }
+
+  // 12. Seed System Settings
+  const settingsCount = await prisma.systemSetting.count();
+  if (settingsCount === 0) {
+    console.log('Seeding system settings...');
+    await prisma.systemSetting.create({
+      data: {
+        companyName: 'Babel Global',
+        specialistId: 'BG-CONSULT-391024',
+        filingFee: '$715',
+        premiumFee: '$2,965',
+        asylumFee: '$300',
+        whatsappAlerts: true,
+        emailRequests: true,
+        appointmentReminders: true,
+        quietHours: true
+      }
+    });
+  }
+
   console.log('🌱 Seeding check complete.');
 }

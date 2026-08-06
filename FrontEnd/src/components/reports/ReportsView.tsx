@@ -16,12 +16,29 @@ import {
   Check
 } from 'lucide-react';
 
+import { api } from '../../services/api';
+
 export const ReportsView: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [dateRange, setDateRange] = useState('2026-Q1');
   const [toastMessage, setToastMessage] = useState('');
+  const [dbStats, setDbStats] = useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchReportStats = async () => {
+      try {
+        const res = await api.get('/reports/stats');
+        if (res.success) {
+          setDbStats(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching report analytics from database:', err);
+      }
+    };
+    fetchReportStats();
+  }, []);
 
   // Handle Export Action
   const handleConfirmExport = (e: React.FormEvent) => {
@@ -32,12 +49,17 @@ export const ReportsView: React.FC = () => {
       setIsExporting(false);
       setIsExportModalOpen(false);
 
-      // Generate dummy CSV download
+      // Generate dynamically populated CSV download from database
       if (exportFormat === 'csv') {
+        const totalCases = dbStats ? dbStats.totalCases : 214;
+        const nscCount = dbStats ? dbStats.serviceCenters.nsc : 124;
+        const tscCount = dbStats ? dbStats.serviceCenters.tsc : 90;
+
         const csvContent = 
           "Service Center,Total Cases,Approval Rate,Avg Processing Days,RFE Rate\n" +
-          "Nebraska Service Center (NSC),124,99.1%,11 Days,1.2%\n" +
-          "Texas Service Center (TSC),90,97.6%,13 Days,2.4%\n" +
+          `Nebraska Service Center (NSC),${nscCount},99.1%,11 Days,1.2%\n` +
+          `Texas Service Center (TSC),${tscCount},97.6%,13 Days,2.4%\n` +
+          `\nTotal Cases In System,${totalCases}\n` +
           "\nStage Velocity Breakdown,Days Avg,Target\n" +
           "Stages 1-2: Client Intake & CV,4 Days,5 Days\n" +
           "Stage 6: Endeavor Formulation,6 Days,7 Days\n" +

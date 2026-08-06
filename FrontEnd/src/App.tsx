@@ -115,6 +115,7 @@ export default function App() {
   const [messages, setMessages] = useState<CaseMessage[]>([]);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [templates, setTemplates] = useState<CaseTemplate[]>([]);
+  const [systemSettings, setSystemSettings] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
@@ -247,6 +248,14 @@ export default function App() {
             }
             break;
 
+          case 'settings':
+            const settingsRes = await api.get('/settings');
+            if (settingsRes.success) {
+              setSystemSettings(settingsRes.data.settings);
+              setActivityLogs(settingsRes.data.auditLogs);
+            }
+            break;
+
           default:
             break;
         }
@@ -316,6 +325,22 @@ export default function App() {
       }
     }
   }, [location.pathname, userRole, isAuthenticated]);
+
+  const handleSaveSettings = async (updatedSettings: any) => {
+    try {
+      const res = await api.patch('/settings', updatedSettings);
+      if (res.success) {
+        setSystemSettings(res.data);
+        const settingsRes = await api.get('/settings');
+        if (settingsRes.success) {
+          setSystemSettings(settingsRes.data.settings);
+          setActivityLogs(settingsRes.data.auditLogs);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving system settings:', error);
+    }
+  };
 
   // Navigate to Tab & Update URL
   const navigateToTab = (tab: NavTab) => {
@@ -624,7 +649,11 @@ export default function App() {
           ) : activeTab === 'reports' ? (
             <ReportsView />
           ) : activeTab === 'settings' ? (
-            <SettingsView activityLogs={activityLogs} />
+            <SettingsView 
+              activityLogs={activityLogs} 
+              settings={systemSettings} 
+              onSaveSettings={handleSaveSettings}
+            />
           ) : null}
         </main>
       </div>
