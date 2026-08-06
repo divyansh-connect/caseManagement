@@ -256,8 +256,31 @@ export default function App() {
             }
             break;
 
+          // Client workspace tabs — fetch the client's own case via /cases/my-case
+          case 'clientPortal':
+          case 'postFiling':
+          case 'forms':
+            const myCaseRes = await api.get('/cases/my-case');
+            if (myCaseRes.success && myCaseRes.data) {
+              const mapped = mapCaseData(myCaseRes.data);
+              setCases(prev => {
+                // Replace existing entry if present, otherwise prepend
+                const exists = prev.find(c => c.id === mapped.id);
+                return exists
+                  ? prev.map(c => (c.id === mapped.id ? mapped : c))
+                  : [mapped, ...prev];
+              });
+              // Also load documents and messages for client portal tabs
+              const myDocsRes = await api.get('/documents');
+              if (myDocsRes.success) setDocuments(myDocsRes.data);
+              const myMsgsRes = await api.get('/messages');
+              if (myMsgsRes.success) setMessages(myMsgsRes.data);
+            }
+            break;
+
           default:
             break;
+
         }
       } catch (error) {
         console.error(`Error loading data for tab ${activeTab}:`, error);

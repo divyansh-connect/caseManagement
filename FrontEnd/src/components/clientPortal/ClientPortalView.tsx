@@ -1105,15 +1105,58 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-              Stage 6: Guidance & Timeline
+              Stage 6: Guidance &amp; Timeline
             </span>
             <h2 className="text-lg font-bold text-slate-900 mt-2">
-              Your Petition Has Been Filed — What Happens Next?
+              Your Petition Has Been Filed &mdash; What Happens Next?
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Your petition package is shipped to USCIS. Here is what to expect during processing:
             </p>
           </div>
+
+          {/* Live Case Info Banner — data from backend */}
+          {caseData && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs space-y-2">
+              <p className="font-bold text-blue-800 text-sm mb-2">📋 Your Case Details</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                  <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-wide">Case Number</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{caseData.caseNumber || '—'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                  <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-wide">Petition Type</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{caseData.petitionCategory || '—'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                  <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-wide">USCIS Service Center</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{caseData.uscisServiceCenter || '—'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                  <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-wide">Target Filing Date</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{caseData.targetFilingDate || '—'}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  (caseData.currentStage || 0) >= 14
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    : (caseData.currentStage || 0) >= 10
+                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                }`}>
+                  {(caseData.currentStage || 0) >= 14
+                    ? '✓ Filed — Post-Filing Phase'
+                    : `Internal Stage ${caseData.currentStage || 1} of 14`}
+                </span>
+                {caseData.premiumProcessing && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                    ⚡ Premium Processing
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             {[
@@ -1137,8 +1180,31 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </div>
             ))}
           </div>
+
+          {/* USCIS Online Case Status Link */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-slate-800 text-xs">Check Your USCIS Case Status Online</p>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Once you receive your I-797 receipt number, track it at the official USCIS portal.
+                {caseData?.uscisServiceCenter && (
+                  <span className="ml-1 text-blue-600 font-semibold">({caseData.uscisServiceCenter})</span>
+                )}
+              </p>
+            </div>
+            <a
+              href="https://egov.uscis.gov/casestatus/landing.do"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              USCIS Portal
+            </a>
+          </div>
         </div>
       )}
+
 
       {/* ══════════════════════════════════════════════════════════════════════════
           TAB 9: PROFILE & SETTINGS

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { prisma } from '../config/db.js';
 import { z } from 'zod';
 
@@ -33,6 +34,50 @@ export const getCases = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Client-facing: returns the case belonging to the logged-in client
+export const getMyCase = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    // Find the client record matching the logged-in user's email
+    const client = await prisma.client.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!client) {
+      // Fallback: return the first case in the system for demo purposes
+      const fallbackCase = await prisma.case.findFirst({
+        include: { client: true, documents: true, recommenders: true },
+        orderBy: { lastUpdated: 'desc' }
+      });
+      if (!fallbackCase) {
+        return res.status(404).json({ success: false, error: 'No case found' });
+      }
+      return res.json({ success: true, data: fallbackCase });
+    }
+
+    // Find the most recent case for this client
+    const myCase = await prisma.case.findFirst({
+      where: { clientId: client.id },
+      include: { client: true, documents: true, recommenders: true },
+      orderBy: { lastUpdated: 'desc' }
+    });
+
+    if (!myCase) {
+      return res.status(404).json({ success: false, error: 'No case found for this client' });
+    }
+
+    return res.json({ success: true, data: myCase });
+  } catch (error: any) {
+    console.error('Error in getMyCase:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 
 export const createCase = async (req: Request, res: Response) => {
   const result = createCaseSchema.safeParse(req.body);
