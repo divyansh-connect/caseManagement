@@ -1,21 +1,27 @@
-# API Contract Specification
+# API Contract & Validation Specification
 
-This contract details all REST endpoints required to fully connect the frontend Case Management System to the database.
+This contract details all REST endpoints and input validations required to connect the frontend Case Management System to the database.
 
 ---
 
 ## 1. Global Specifications
-* **Base URL**: `http://localhost:5000/api` (or environment-configured)
+* **Base URL**: `http://localhost:5000/api`
 * **Headers Required (Protected Routes)**:
   ```http
   Authorization: Bearer <jwt_token>
   Content-Type: application/json
   ```
-* **Common Error Format**:
+* **Validation Error Format (400 Bad Request)**:
   ```json
   {
     "success": false,
-    "error": "Error description or validation message"
+    "error": "Validation Failed",
+    "details": [
+      {
+        "field": "email",
+        "message": "Invalid email address format"
+      }
+    ]
   }
   ```
 
@@ -24,15 +30,22 @@ This contract details all REST endpoints required to fully connect the frontend 
 ## 2. Authentication Router (`/api/auth`)
 
 ### POST `/api/auth/login`
-Authenticates a user and returns a token along with user details.
+Authenticates a user and returns a token.
 
-* **Payload**:
-  ```json
-  {
-    "email": "admin@babelglobal.com",
-    "password": "secure_password"
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `email` | String | Required, valid email format, trim, lowercase | `"admin@babelglobal.com"` |
+  | `password` | String | Required, minimum 6 characters | `"secure_password"` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const loginSchema = z.object({
+    email: z.string().trim().toLowerCase().email("Invalid email format"),
+    password: z.string().min(6, "Password must be at least 6 characters")
+  });
   ```
+
 * **Success Response (200 OK)**:
   ```json
   {
@@ -54,48 +67,41 @@ Authenticates a user and returns a token along with user details.
 ### GET `/api/clients`
 Fetches a list of all clients.
 
-* **Success Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": "c-101",
-        "name": "Dr. Elena Rostova",
-        "email": "elena.rostova@quantum-labs.io",
-        "phone": "+1 (555) 382-9102",
-        "countryOfBirth": "Ukraine",
-        "currentField": "Quantum Machine Learning",
-        "highestDegree": "Ph.D.",
-        "university": "MIT",
-        "citationsCount": 418,
-        "publicationsCount": 14,
-        "patentsCount": 3,
-        "status": "Active",
-        "createdAt": "2025-01-10T12:00:00.000Z"
-      }
-    ]
-  }
-  ```
+---
 
 ### POST `/api/clients`
 Registers a new client.
 
-* **Payload**:
-  ```json
-  {
-    "name": "Carlos Mendez",
-    "email": "carlos@cleanenergy.com",
-    "phone": "+1 (555) 714-2289",
-    "countryOfBirth": "Mexico",
-    "currentField": "Smart Grid Energy Storage Integration",
-    "highestDegree": "Master's",
-    "university": "Stanford University",
-    "citationsCount": 195,
-    "publicationsCount": 8,
-    "patentsCount": 2
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `name` | String | Required, min 2 chars, max 100 | `"Carlos Mendez"` |
+  | `email` | String | Required, valid email format, unique | `"carlos@cleanenergy.com"` |
+  | `phone` | String | Required, valid phone pattern | `"+1 (555) 714-2289"` |
+  | `countryOfBirth`| String | Required, min 2 chars | `"Mexico"` |
+  | `currentField` | String | Required, min 2 chars | `"Smart Grid Energy Storage Integration"` |
+  | `highestDegree` | String | Required, Enum: `Ph.D.`, `Master's`, `Bachelor's + 5 yrs`, `Exceptional Ability` | `"Master's"` |
+  | `university` | String | Required, min 2 chars | `"Stanford University"` |
+  | `citationsCount`| Number | Optional, integer, minimum 0 | `195` |
+  | `publicationsCount`| Number | Optional, integer, minimum 0 | `8` |
+  | `patentsCount` | Number | Optional, integer, minimum 0 | `2` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const createClientSchema = z.object({
+    name: z.string().min(2).max(100),
+    email: z.string().email(),
+    phone: z.string().min(5),
+    countryOfBirth: z.string().min(2),
+    currentField: z.string().min(2),
+    highestDegree: z.enum(["Ph.D.", "Master's", "Bachelor's + 5 yrs", "Exceptional Ability"]),
+    university: z.string().min(2),
+    citationsCount: z.number().int().nonnegative().optional(),
+    publicationsCount: z.number().int().nonnegative().optional(),
+    patentsCount: z.number().int().nonnegative().optional()
+  });
   ```
+
 * **Success Response (201 Created)**:
   ```json
   {
@@ -120,61 +126,41 @@ Registers a new client.
 ## 4. Cases Router (`/api/cases`)
 
 ### GET `/api/cases`
-Retrieves all cases under management (includes recommenders).
+Retrieves all cases.
 
-* **Success Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": "case-101",
-        "caseNumber": "NIW-2025-089",
-        "clientId": "c-101",
-        "clientName": "Dr. Elena Rostova",
-        "clientEmail": "elena.rostova@quantum-labs.io",
-        "petitionCategory": "EB-2 NIW",
-        "fieldCategory": "Quantum Machine Learning",
-        "currentStage": 9,
-        "assignedWriter": "Petition Drafter 1",
-        "assignedReviewer": "Senior Reviewer",
-        "riskLevel": "low",
-        "targetFilingDate": "2025-03-20",
-        "uscisServiceCenter": "Nebraska (NSC)",
-        "premiumProcessing": true,
-        "dhanasar": {
-          "prong1": {
-            "title": "Substantial Merit & National Importance",
-            "endeavorSummary": "...",
-            "usImpactAreas": ["..."],
-            "nationalImportanceScore": 94
-          },
-          "prong2": { ... },
-          "prong3": { ... }
-        },
-        "recommenders": []
-      }
-    ]
-  }
-  ```
+---
 
 ### POST `/api/cases`
 Initializes a new case folder for a client.
 
-* **Payload**:
-  ```json
-  {
-    "clientId": "c-101",
-    "petitionCategory": "EB-2 NIW",
-    "fieldCategory": "Computational Oncology",
-    "assignedWriter": "Petition Drafter 1",
-    "assignedReviewer": "Senior Reviewer",
-    "riskLevel": "low",
-    "targetFilingDate": "2026-10-15",
-    "uscisServiceCenter": "Texas (TSC)",
-    "premiumProcessing": true
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `clientId` | String | Required, valid client UUID | `"c-101"` |
+  | `petitionCategory` | String | Required, Enum: `EB-2 NIW`, `EB-1A`, `O-1`, `Immigration Editorial Services`, `Mexico TR Visa` | `"EB-2 NIW"` |
+  | `fieldCategory` | String | Required, min 2 chars | `"Computational Oncology"` |
+  | `assignedWriter` | String | Optional, string | `"Petition Drafter 1"` |
+  | `assignedReviewer`| String | Optional, string | `"Senior Reviewer"` |
+  | `riskLevel` | String | Required, Enum: `low`, `medium`, `high` | `"low"` |
+  | `targetFilingDate`| String | Required, ISO date string format `YYYY-MM-DD` | `"2026-10-15"` |
+  | `uscisServiceCenter`| String | Required, Enum: `Nebraska (NSC)`, `Texas (TSC)` | `"Texas (TSC)"` |
+  | `premiumProcessing`| Boolean| Required | `true` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const createCaseSchema = z.object({
+    clientId: z.string().uuid("Invalid client ID format"),
+    petitionCategory: z.enum(['EB-2 NIW', 'EB-1A', 'O-1', 'Immigration Editorial Services', 'Mexico TR Visa']),
+    fieldCategory: z.string().min(2),
+    assignedWriter: z.string().optional(),
+    assignedReviewer: z.string().optional(),
+    riskLevel: z.enum(['low', 'medium', 'high']),
+    targetFilingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format"),
+    uscisServiceCenter: z.enum(['Nebraska (NSC)', 'Texas (TSC)']),
+    premiumProcessing: z.boolean()
+  });
   ```
+
 * **Success Response (201 Created)**:
   ```json
   {
@@ -189,80 +175,74 @@ Initializes a new case folder for a client.
   }
   ```
 
+---
+
 ### PATCH `/api/cases/:caseNumber/stage`
 Updates the current stage of a case.
 
-* **Payload**:
-  ```json
-  {
-    "stageId": 10
-  }
-  ```
-* **Success Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "caseNumber": "NIW-2025-089",
-      "currentStage": 10,
-      "lastUpdated": "2026-08-06T12:00:00.000Z"
-    }
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `stageId` | Number | Required, Integer, Range: `1` to `14` | `10` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const updateStageSchema = z.object({
+    stageId: z.number().int().min(1).max(14)
+  });
   ```
 
 ---
 
 ## 5. Documents Router (`/api/documents`)
 
-### GET `/api/documents?caseId=<caseId>`
-Fetches all documents associated with a specific case folder.
-
 ### POST `/api/documents` (Multipart Upload)
-Uploads document records. File binary goes directly to Cloudinary, and metadata to MySQL.
+Uploads document records.
 
-* **Payload (Multipart Form-Data)**:
-  * `caseId`: "case-101"
-  * `category`: "CV" | "Degree" | "Transcript" | ...
-  * `file`: [File binary]
-* **Success Response (201 Created)**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": "DOC-003",
-      "caseId": "case-101",
-      "name": "resume_updated.pdf",
-      "category": "CV",
-      "fileSize": "1.4 MB",
-      "uploadedBy": "Client User",
-      "uploadedAt": "2026-08-06T12:00:00.000Z",
-      "status": "Pending Review",
-      "fileUrl": "https://res.cloudinary.com/..."
-    }
-  }
+* **Multipart Form Fields & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `caseId` | String | Required, valid case UUID | `"case-101"` |
+  | `category` | String | Required, Enum: `CV`, `Degree`, `Transcript`, `Publication`, `Citation Report`, `Recommendation Letter`, `Expert Opinion`, `Form I-140`, `ETA-9089`, `Exhibits Index` | `"CV"` |
+  | `file` | File | Required, Max size 10MB, allowed types: `.pdf`, `.doc`, `.docx`, `.png`, `.jpg` | `resume.pdf` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const uploadDocSchema = z.object({
+    caseId: z.string().uuid(),
+    category: z.enum(['CV', 'Degree', 'Transcript', 'Publication', 'Citation Report', 'Recommendation Letter', 'Expert Opinion', 'Form I-140', 'ETA-9089', 'Exhibits Index'])
+  });
   ```
 
 ---
 
 ## 6. Tasks Router (`/api/tasks`)
 
-### GET `/api/tasks`
-Gets all tasks.
-
 ### POST `/api/tasks`
 Creates a new task.
 
-* **Payload**:
-  ```json
-  {
-    "caseId": "case-101",
-    "title": "Complete Prong 1 drafting",
-    "assignedRole": "writer",
-    "assignedToName": "Petition Drafter 1",
-    "stageId": 9,
-    "dueDate": "2026-08-15",
-    "priority": "high"
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `caseId` | String | Required, UUID | `"case-101"` |
+  | `title` | String | Required, min 3 chars, max 200 | `"Complete Prong 1 drafting"` |
+  | `assignedRole` | String | Required, Enum: `superadmin`, `admin`, `writer`, `reviewer`, `client` | `"writer"` |
+  | `assignedToName`| String | Required, min 2 chars | `"Petition Drafter 1"` |
+  | `stageId` | Number | Required, Integer, Range: `1` to `14` | `9` |
+  | `dueDate` | String | Required, format `YYYY-MM-DD` | `"2026-08-15"` |
+  | `priority` | String | Required, Enum: `low`, `medium`, `high`, `urgent` | `"high"` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const createTaskSchema = z.object({
+    caseId: z.string().uuid(),
+    title: z.string().min(3).max(200),
+    assignedRole: z.enum(['superadmin', 'admin', 'writer', 'reviewer', 'client']),
+    assignedToName: z.string().min(2),
+    stageId: z.number().int().min(1).max(14),
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    priority: z.enum(['low', 'medium', 'high', 'urgent'])
+  });
   ```
 
 ---
@@ -270,22 +250,17 @@ Creates a new task.
 ## 7. AI Operations Router (`/api/ai`)
 
 ### POST `/api/ai/draft`
-Connects frontend AI modal to internal assistant engines.
 
-* **Payload**:
-  ```json
-  {
-    "prompt": "Draft an endeavor statement for a quantum engineer.",
-    "context": {
-      "field": "Quantum Engineering",
-      "degree": "Ph.D."
-    }
-  }
-  ```
-* **Success Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "draft": "Dr. Rostova proposes to focus her endeavor on developing error-mitigated quantum computing algorithms..."
-  }
+* **Payload & Validation Rules**:
+  | Field | Type | Rules | Example |
+  | :--- | :--- | :--- | :--- |
+  | `prompt` | String | Required, min 5 characters | `"Draft an endeavor statement..."` |
+  | `context` | Object | Required | `{ "field": "Quantum Engineering" }` |
+
+* **Zod Validation Schema**:
+  ```typescript
+  const aiDraftSchema = z.object({
+    prompt: z.string().min(5),
+    context: z.record(z.any())
+  });
   ```
