@@ -98,3 +98,29 @@ export const updateStage = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const createRecommender = async (req: Request, res: Response) => {
+  const { caseId } = req.params;
+  const { name, title, organization, relationship } = req.body;
+  try {
+    const caseItem = await prisma.case.findUnique({ where: { id: caseId } });
+    if (!caseItem) {
+      return res.status(404).json({ success: false, error: 'Case not found' });
+    }
+    const newRec = await prisma.recommender.create({
+      data: {
+        caseId,
+        name,
+        title,
+        organization: organization || 'US Research Institute',
+        relationship,
+        status: 'Outreach Sent',
+        cvReceived: true,
+        keyContributionsMentioned: ['Attests to candidate original algorithmic contributions', 'Validates national merit']
+      }
+    });
+    return res.status(201).json({ success: true, data: newRec });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};

@@ -59,6 +59,8 @@ model Case {
   client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   documents          Document[]
   recommenders       Recommender[]
+  payments           Payment[]
+  messages           Message[]
 
   @@map("cases")
 }
@@ -110,4 +112,47 @@ model Task {
   completed      Boolean  @default(false)
 
   @@map("tasks")
+}
+
+model Payment {
+  id           String    @id @default(uuid())
+  caseId       String    @map("case_id")
+  description  String
+  amount       Float
+  dueDate      String    @map("due_date")
+  status       String    // Paid, Pending, Overdue
+  paidAt       String?   @map("paid_at")
+
+  case         Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  caseId     String   @map("case_id")
+  senderName String   @map("sender_name")
+  senderRole String   @map("sender_role")
+  content    String   @db.Text
+  timestamp  String
+
+  case       Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Appointment {
+  id          String   @id @default(uuid())
+  clientName  String   @map("client_name")
+  clientEmail String   @map("client_email")
+  type        String
+  specialist  String
+  date        String
+  time        String
+  duration    String
+  status      String   // Upcoming, Completed, Rescheduled, Cancelled
+  meetingUrl  String   @map("meeting_url")
+  notes       String?  @db.Text
+
+  @@map("appointments")
 }
