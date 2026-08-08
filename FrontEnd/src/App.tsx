@@ -454,8 +454,26 @@ export default function App() {
     }
   };
 
-  const handleAddCase = (newCase: CaseItem) => {
+  const handleAddCase = async (newCase: CaseItem) => {
+    // Append the client-side mapped object to state immediately for responsiveness
     setCases([newCase, ...cases]);
+    
+    // Then fetch updated lists from database to ensure full sync
+    try {
+      const [casesRes, clientsRes] = await Promise.all([
+        api.get('/cases'),
+        api.get('/clients')
+      ]);
+      
+      if (casesRes.success) {
+        setCases(casesRes.data.map(mapCaseData));
+      }
+      if (clientsRes.success) {
+        setClients(clientsRes.data);
+      }
+    } catch (error) {
+      console.error('Error syncing cases/clients after intake:', error);
+    }
   };
 
   const handleAddDoc = (newDoc: CaseDocument) => {
