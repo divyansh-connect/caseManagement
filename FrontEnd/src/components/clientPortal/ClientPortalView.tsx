@@ -235,12 +235,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [expandedStage, setExpandedStage] = useState<number>(2); // Default open to current stage 2
   const [stage1FlowMode, setStage1FlowMode] = useState<'standard' | 'evidence_first'>('standard');
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'sms' | 'whatsapp' | null>(null);
-  const [messages, setMessages] = useState<CaseMessage[]>(initialMessages.filter(m => m.caseId === caseData.id));
+  const [messages, setMessages] = useState<CaseMessage[]>(() => {
+    return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
+  });
   const [newMsg, setNewMsg] = useState('');
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMsg.trim()) return;
+    if (!newMsg.trim() || !caseData) return;
 
     const msg: CaseMessage = {
       id: `msg-${Date.now()}`,
@@ -286,7 +288,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     dynamicDescription = 'Please review, correct, and approve the proposed endeavor statement we have provided.';
   }
 
-  const clientDocs = documents.filter(d => d.caseId === caseData.id);
+  const clientDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
+
+  if (!caseData) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-medium text-sm">Loading your case profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Status badge styling helper
   const getStatusBadge = (status: ClientStageGroup['tasks'][0]['status']) => {

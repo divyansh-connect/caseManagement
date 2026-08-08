@@ -2,15 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserRole, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, CaseMessage, AppointmentItem, CaseTemplate, StageId, Recommender, AuditLogEntry } from './types';
 import { api } from './services/api';
-import { 
-  INITIAL_CASES, 
-  INITIAL_CLIENTS, 
-  INITIAL_DOCUMENTS, 
-  INITIAL_TASKS, 
-  INITIAL_PAYMENTS, 
-  CASE_TEMPLATES, 
-  INITIAL_MESSAGES 
-} from './data/mockData';
 
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';

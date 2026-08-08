@@ -127,7 +127,7 @@ export const ReportsView: React.FC = () => {
             <div>
               <div className="flex flex-wrap justify-between text-xs font-semibold text-slate-700 mb-1 gap-1">
                 <span>Nebraska Service Center (NSC)</span>
-                <span className="text-blue-600">99.1% Approval (124 Cases)</span>
+                <span className="text-blue-600">99.1% Approval ({dbStats ? dbStats.serviceCenters.nsc : 124} Cases)</span>
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-600 w-[99.1%]" />
@@ -138,7 +138,7 @@ export const ReportsView: React.FC = () => {
             <div>
               <div className="flex flex-wrap justify-between text-xs font-semibold text-slate-700 mb-1 gap-1">
                 <span>Texas Service Center (TSC)</span>
-                <span className="text-indigo-600">97.6% Approval (90 Cases)</span>
+                <span className="text-indigo-600">97.6% Approval ({dbStats ? dbStats.serviceCenters.tsc : 90} Cases)</span>
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-indigo-600 w-[97.6%]" />

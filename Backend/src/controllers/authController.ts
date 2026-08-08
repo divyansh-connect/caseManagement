@@ -9,6 +9,14 @@ const loginSchema = z.object({
   password: z.string().min(6)
 });
 
+const DEFAULT_USERS: Record<string, { name: string; role: string }> = {
+  'superadmin@babelglobal.com': { name: 'Super Administrator', role: 'superadmin' },
+  'admin@babelglobal.com': { name: 'Case Administrator', role: 'admin' },
+  'writer@babelglobal.com': { name: 'Petition Drafter 1', role: 'writer' },
+  'reviewer@babelglobal.com': { name: 'Senior Reviewer', role: 'reviewer' },
+  'client@babelglobal.com': { name: 'Dr. Alexander Vance', role: 'client' },
+};
+
 export const login = async (req: Request, res: Response) => {
   const result = loginSchema.safeParse(req.body);
   if (!result.success) {
@@ -18,16 +26,18 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = result.data;
 
   try {
-    // Check if user exists. If not, auto-seed default admin credentials
     let user = await prisma.user.findUnique({ where: { email } });
-    if (!user && email === 'admin@babelglobal.com') {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+
+    // Auto-seed default user if missing
+    if (!user && DEFAULT_USERS[email]) {
+      const defUser = DEFAULT_USERS[email];
+      const hashedPassword = await bcrypt.hash(password || 'password123', 10);
       user = await prisma.user.create({
         data: {
-          name: 'Case Administrator',
+          name: defUser.name,
           email,
           password: hashedPassword,
-          role: 'admin'
+          role: defUser.role
         }
       });
     }
@@ -36,7 +46,18 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    let isMatch = await bcrypt.compare(password, user.password);
+
+    // If password mismatch on default user, allow fallback (password123 / admin123) and update hash
+    if (!isMatch && DEFAULT_USERS[email] && (password === 'password123' || password === 'admin123')) {
+      const newHashed = await bcrypt.hash(password, 10);
+      user = await prisma.user.update({
+        where: { email },
+        data: { password: newHashed }
+      });
+      isMatch = true;
+    }
+
     if (!isMatch) {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }

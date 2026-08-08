@@ -168,18 +168,31 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   userRole,
 }) => {
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
-  const [expandedStage, setExpandedStage] = useState<number>(caseData.currentStage);
+  const [expandedStage, setExpandedStage] = useState<number>(() => caseData?.currentStage || 1);
   const [stageGroups, setStageGroups] = useState<StageGroup[]>(INITIAL_WORKFLOW_STAGES);
-  const [messages, setMessages] = useState<CaseMessage[]>(initialMessages.filter(m => m.caseId === caseData.id));
+  const [messages, setMessages] = useState<CaseMessage[]>(() => {
+    return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
+  });
   const [newMessageText, setNewMessageText] = useState('');
   
   // Petition builder state
-  const [prong1Draft, setProng1Draft] = useState(caseData.dhanasar.prong1.endeavorSummary);
-  const [prong2Draft, setProng2Draft] = useState(caseData.dhanasar.prong2.educationTrack);
-  const [prong3Draft, setProng3Draft] = useState(caseData.dhanasar.prong3.uniqueExpertise);
+  const [prong1Draft, setProng1Draft] = useState(() => caseData?.dhanasar?.prong1?.endeavorSummary || '');
+  const [prong2Draft, setProng2Draft] = useState(() => caseData?.dhanasar?.prong2?.educationTrack || '');
+  const [prong3Draft, setProng3Draft] = useState(() => caseData?.dhanasar?.prong3?.uniqueExpertise || '');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
-  const activeCaseDocs = documents.filter(d => d.caseId === caseData.id);
+  const activeCaseDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
+
+  if (!caseData) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-medium text-sm">Loading case details...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Status Badge Helper
   const getTaskStatusBadge = (status: TaskStatus) => {
