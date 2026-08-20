@@ -23,6 +23,8 @@ interface DashboardViewProps {
   openNewCaseModal: () => void;
   openAIAssistant: () => void;
   userRole: UserRole;
+  openNewCaseCreationModal?: () => void;
+  openNewClientOnboardingModal?: () => void;
 }
 
 import { api } from '../../services/api';
@@ -34,6 +36,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   openNewCaseModal,
   openAIAssistant,
   userRole,
+  openNewCaseCreationModal,
+  openNewClientOnboardingModal
 }) => {
   const [dbStats, setDbStats] = React.useState<any>(null);
 
@@ -108,7 +112,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Babel AI Petition Drafter</span>
             </button>
 
-            {(userRole === 'superadmin' || userRole === 'admin') && (
+            {userRole === 'superadmin' ? (
+              <>
+                <button
+                  onClick={openNewClientOnboardingModal}
+                  className="px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/20 font-semibold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add New Client</span>
+                </button>
+                <button
+                  onClick={openNewCaseCreationModal}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-500 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Create New Case</span>
+                </button>
+              </>
+            ) : userRole === 'admin' ? (
               <button
                 onClick={openNewCaseModal}
                 className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-500 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
@@ -116,7 +137,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Plus className="w-4 h-4" />
                 <span>Intake New Case</span>
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

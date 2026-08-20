@@ -31,6 +31,8 @@ import { USCISFormQuestionnaireModal } from './components/modals/USCISFormQuesti
 import { ResumeBuildingModal } from './components/modals/ResumeBuildingModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { WhatsAppModal } from './components/communication/WhatsAppModal';
+import { NewCaseCreationModal } from './components/modals/NewCaseCreationModal';
+import { NewClientOnboardingModal } from './components/modals/NewClientOnboardingModal';
 
 // Tab to URL Route Path Mapping
 const TAB_TO_PATH: Record<NavTab, string> = {
@@ -118,6 +120,8 @@ export default function App() {
   const [isNewRecModalOpen, setIsNewRecModalOpen] = useState(false);
   const [isResumeBuildingModalOpen, setIsResumeBuildingModalOpen] = useState(false);
   const [resumeBuildingCase, setResumeBuildingCase] = useState<CaseItem | null>(null);
+  const [isNewCaseCreationModalOpen, setIsNewCaseCreationModalOpen] = useState(false);
+  const [isNewClientOnboardingModalOpen, setIsNewClientOnboardingModalOpen] = useState(false);
   const [commViewMode, setCommViewMode] = useState<'hub' | 'whatsapp'>('whatsapp');
 
   const handleOpenResumeBuilding = (c: CaseItem) => {
@@ -188,7 +192,7 @@ export default function App() {
       try {
         switch (activeTab) {
           case 'dashboard':
-            // Dashboard needs stats, cases and tasks
+            // Dashboard needs stats, cases, tasks and clients (for new case dropdown)
             const statsRes = await api.get('/dashboard/stats');
             const dashboardCases = await api.get('/cases');
             if (dashboardCases.success) {
@@ -197,6 +201,10 @@ export default function App() {
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
               setTasks(dashboardTasks.data);
+            }
+            const dashboardClients = await api.get('/clients');
+            if (dashboardClients.success) {
+              setClients(dashboardClients.data);
             }
             break;
 
@@ -494,6 +502,44 @@ export default function App() {
     }
   };
 
+  const handleCreateCase = async (formData: any) => {
+    try {
+      const res = await api.post('/cases', formData);
+      if (res.success) {
+        alert('Case created successfully!');
+        // Refresh cases from backend to update dashboard immediately
+        const casesRes = await api.get('/cases');
+        if (casesRes.success) {
+          setCases(casesRes.data.map(mapCaseData));
+        }
+      } else {
+        throw new Error(res.error || 'Failed to create case');
+      }
+    } catch (err: any) {
+      console.error('Error creating case:', err);
+      throw err;
+    }
+  };
+
+  const handleOnboardClient = async (formData: any) => {
+    try {
+      const res = await api.post('/clients', formData);
+      if (res.success) {
+        alert('Client onboarding successful!');
+        // Refresh clients list instantly
+        const clientsRes = await api.get('/clients');
+        if (clientsRes.success) {
+          setClients(clientsRes.data);
+        }
+      } else {
+        throw new Error(res.error || 'Failed to onboard client');
+      }
+    } catch (err: any) {
+      console.error('Error onboarding client:', err);
+      throw err;
+    }
+  };
+
   const handleAddCase = async (newCase: CaseItem) => {
     // Append the client-side mapped object to state immediately for responsiveness
     setCases([newCase, ...cases]);
@@ -655,6 +701,8 @@ export default function App() {
                 openNewCaseModal={() => setIsNewCaseModalOpen(true)}
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 userRole={userRole}
+                openNewCaseCreationModal={() => setIsNewCaseCreationModalOpen(true)}
+                openNewClientOnboardingModal={() => setIsNewClientOnboardingModalOpen(true)}
               />
             )
           ) : activeTab === 'cases' ? (
@@ -801,6 +849,19 @@ export default function App() {
       <USCISFormQuestionnaireModal
         isOpen={isQuestionnaireModalOpen}
         onClose={() => setIsQuestionnaireModalOpen(false)}
+      />
+
+      <NewCaseCreationModal
+        isOpen={isNewCaseCreationModalOpen}
+        onClose={() => setIsNewCaseCreationModalOpen(false)}
+        clients={clients}
+        onCreateCase={handleCreateCase}
+      />
+
+      <NewClientOnboardingModal
+        isOpen={isNewClientOnboardingModalOpen}
+        onClose={() => setIsNewClientOnboardingModalOpen(false)}
+        onOnboardClient={handleOnboardClient}
       />
     </div>
   );
