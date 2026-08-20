@@ -1,19 +1,22 @@
 import React from 'react';
-import { STAGES } from '../../data/stageConfig';
-import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
+import { WORKFLOW_STAGES } from '../../data/mockData';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 export const WorkflowStepper = ({ currentStage = 1, onStageSelect }) => {
+  const totalCoreStages = 6;
+  const current = Math.min(currentStage, totalCoreStages);
+
   return (
     <div className="glass-panel p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            14-Stage EB-2 NIW Workflow Engine
+            EB-2 NIW Workflow Stepper
           </h2>
-          <p className="text-xs text-slate-400">Current Progress: Stage {currentStage} of 14</p>
+          <p className="text-xs text-slate-400">Current Progress: Stage {current} of {totalCoreStages}</p>
         </div>
         <div className="text-xs text-cyan-400 font-semibold bg-cyan-950/60 border border-cyan-800/60 px-3 py-1 rounded-full">
-          {Math.round((currentStage / 14) * 100)}% Completed
+          {Math.round((current / totalCoreStages) * 100)}% Completed
         </div>
       </div>
 
@@ -21,13 +24,13 @@ export const WorkflowStepper = ({ currentStage = 1, onStageSelect }) => {
       <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
         <div 
           className="bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 h-full transition-all duration-500"
-          style={{ width: `${(currentStage / 14) * 100}%` }}
+          style={{ width: `${(current / totalCoreStages) * 100}%` }}
         />
       </div>
 
-      {/* Grid of 14 Stages */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-2">
-        {STAGES.map((s) => {
+      {/* Grid of Stages */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2">
+        {WORKFLOW_STAGES.filter(s => s.id <= 6).map((s) => {
           const isDone = s.id < currentStage;
           const isCurrent = s.id === currentStage;
 
@@ -55,7 +58,7 @@ export const WorkflowStepper = ({ currentStage = 1, onStageSelect }) => {
                   <Circle className={`h-3.5 w-3.5 ${isCurrent ? 'text-blue-400 fill-blue-400/20' : 'text-slate-600'}`} />
                 )}
               </div>
-              <p className="text-xs font-semibold truncate leading-tight">{s.short}</p>
+              <p className="text-xs font-semibold truncate leading-tight">{s.name}</p>
             </button>
           );
         })}

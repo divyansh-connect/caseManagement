@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { Calendar, Clock, Video, UserCheck, CheckCircle2, FileText, Globe } from 'lucide-react';
+import { Calendar, Clock, Video, UserCheck, CheckCircle2, FileText, Globe, User } from 'lucide-react';
+import { Client } from '../../types';
 
 interface AppointmentBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientName?: string;
+  clients?: Client[];
   onBookAppointment?: (appointment: {
-    id: string;
+    clientName: string;
+    clientEmail: string;
     type: string;
     specialist: string;
     date: string;
     time: string;
+    duration: string;
+    meetingUrl?: string;
     notes: string;
   }) => void;
 }
@@ -19,27 +24,56 @@ interface AppointmentBookingModalProps {
 export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = ({
   isOpen,
   onClose,
-  clientName = 'Client',
+  clientName = '',
+  clients = [],
   onBookAppointment
 }) => {
+  const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id || '');
+  const [customClientName, setCustomClientName] = useState<string>(clientName || (clients[0]?.name || 'Dr. Alexander Vance'));
+  const [customClientEmail, setCustomClientEmail] = useState<string>(clients[0]?.email || 'client@babelglobal.com');
   const [selectedType, setSelectedType] = useState('1-on-1 Endeavor Strategy Session');
   const [selectedSpecialist, setSelectedSpecialist] = useState('Senior Reviewer');
-  const [selectedDate, setSelectedDate] = useState('2025-03-05');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split('T')[0];
+  });
   const [selectedTime, setSelectedTime] = useState('10:00 AM EST');
+  const [selectedDuration, setSelectedDuration] = useState('45 mins');
   const [notes, setNotes] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (clients.length > 0 && !selectedClientId) {
+      setSelectedClientId(clients[0].id);
+      setCustomClientName(clients[0].name);
+      setCustomClientEmail(clients[0].email);
+    }
+  }, [clients]);
+
   if (!isOpen) return null;
+
+  const handleClientChange = (clientId: string) => {
+    setSelectedClientId(clientId);
+    const found = clients.find(c => c.id === clientId);
+    if (found) {
+      setCustomClientName(found.name);
+      setCustomClientEmail(found.email);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const appointment = {
-      id: `apt-${Date.now()}`,
+      clientName: customClientName,
+      clientEmail: customClientEmail,
       type: selectedType,
       specialist: selectedSpecialist,
       date: selectedDate,
       time: selectedTime,
+      duration: selectedDuration,
+      meetingUrl: `https://meet.babelglobal.com/call-${Math.floor(100 + Math.random() * 900)}`,
       notes
     };
 
@@ -51,7 +85,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
     setTimeout(() => {
       setIsSuccess(false);
       onClose();
-    }, 1800);
+    }, 1500);
   };
 
   return (
@@ -68,11 +102,52 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
           </div>
           <h3 className="text-base font-bold text-slate-800">Consultation Scheduled!</h3>
           <p className="text-xs text-slate-600 max-w-xs mx-auto">
-            Calendar invite sent to your email. Meeting link: <strong className="text-blue-600">meet.babelglobal.com/call-892</strong>
+            Calendar invite sent to <strong className="text-blue-600">{customClientEmail}</strong>.
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {/* Client Selection (for Admin/Superadmin) */}
+          {clients && clients.length > 0 ? (
+            <div>
+              <label className="block text-slate-700 font-bold mb-1">Select Candidate / Client *</label>
+              <select
+                value={selectedClientId}
+                onChange={(e) => handleClientChange(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              >
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Client Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={customClientName}
+                  onChange={(e) => setCustomClientName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Client Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={customClientEmail}
+                  onChange={(e) => setCustomClientEmail(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Consultation Type Selector */}
           <div>
             <label className="block text-slate-700 font-bold mb-1.5">Select Meeting Purpose *</label>
@@ -85,7 +160,10 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
               ].map((opt) => (
                 <div
                   key={opt.title}
-                  onClick={() => setSelectedType(opt.title)}
+                  onClick={() => {
+                    setSelectedType(opt.title);
+                    setSelectedDuration(opt.duration);
+                  }}
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
                     selectedType === opt.title
                       ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-300'

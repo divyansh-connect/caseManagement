@@ -14,16 +14,12 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           // Verify token or get user info
-          const data = await api.get('/auth/login'); // Or a profile endpoint if available
-          if (data && data.user) {
+          const data = await api.get('/auth/me');
+          if (data && data.success && data.user) {
             setUser(data.user);
           } else {
-            // Decrypt or decode local info if direct endpoint doesn't exist
-            setUser({
-              name: "Case Administrator",
-              email: "admin@babelglobal.com",
-              role: USER_ROLES.ADMIN
-            });
+            localStorage.removeItem('jwt_token');
+            setUser(null);
           }
         } catch (err) {
           localStorage.removeItem('jwt_token');

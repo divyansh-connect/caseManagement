@@ -46,6 +46,7 @@ interface ClientPortalViewProps {
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
   openQuestionnaireModal?: () => void;
+  openResumeBuildingModal?: (caseItem: CaseItem) => void;
   activeNavTab?: string;
   onNavigateTab?: (tab: any) => void;
   commViewMode?: 'hub' | 'whatsapp';
@@ -216,6 +217,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   openAppointmentModal,
   openSignModal,
   openQuestionnaireModal,
+  openResumeBuildingModal,
   activeNavTab,
   onNavigateTab,
   commViewMode = 'whatsapp',
@@ -390,6 +392,30 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               )}
             </div>
           </div>
+
+          {/* Dedicated Resume Building Banner */}
+          {caseData.petitionCategory === 'Resume Building' && (
+            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-emerald-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-800/80 rounded-xl text-emerald-300 shrink-0">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-emerald-200">Resume Building Action Required</h3>
+                  <p className="text-xs text-slate-300 mt-0.5">Upload your documents for candidate profile creation & resume building.</p>
+                </div>
+              </div>
+              {openResumeBuildingModal && (
+                <button
+                  onClick={() => openResumeBuildingModal(caseData)}
+                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs shrink-0 cursor-pointer shadow-md transition-all flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Resume Documents</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* 2. PROMINENT "YOUR NEXT ACTION" CARD (One-Action-at-a-Time) */}
           <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-400/80 rounded-2xl p-4 sm:p-6 shadow-sm">
@@ -1037,7 +1063,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <div className="p-4 border-b border-slate-200 font-bold text-slate-800 text-sm flex items-center justify-between bg-slate-50">
                 <span>Messaging Hub Conversation History</span>
                 <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Legal Team Sync
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Editorial Team Sync
                 </span>
               </div>
 

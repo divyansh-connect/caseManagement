@@ -20,6 +20,7 @@ import { NavTab } from './Sidebar';
 
 interface HeaderProps {
   userRole: UserRole;
+  currentUser?: { id?: string; name?: string; email?: string; role?: UserRole; avatar?: string } | null;
   activeTab: NavTab;
   onNavigateTab?: (tab: NavTab) => void;
   openNewCaseModal: () => void;
@@ -33,6 +34,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   userRole,
+  currentUser,
   activeTab,
   onNavigateTab,
   openNewCaseModal,
@@ -54,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getRoleLabel = (role: UserRole) => {
     switch (role) {
+      case 'superadmin': return 'Super Administrator';
       case 'admin': return 'Administrator / Case Manager';
       case 'writer': return 'Petition Drafter';
       case 'reviewer': return 'Senior Reviewer';
@@ -80,15 +83,37 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const getUserName = () => {
-    if (userRole === 'client') return 'Dr. Elena Rostova';
+    if (currentUser?.name) return currentUser.name;
+    if (userRole === 'superadmin') return 'Super Administrator';
+    if (userRole === 'admin') return 'Case Administrator';
+    if (userRole === 'writer') return 'Petition Drafter 1';
     if (userRole === 'reviewer') return 'Senior Reviewer';
-    return 'Petition Drafter 1';
+    if (userRole === 'client') return 'Dr. Alexander Vance';
+    return 'Authenticated User';
   };
 
   const getUserEmail = () => {
-    if (userRole === 'client') return 'client@babelglobal.com';
+    if (currentUser?.email) return currentUser.email;
+    if (userRole === 'superadmin') return 'superadmin@babelglobal.com';
+    if (userRole === 'admin') return 'admin@babelglobal.com';
+    if (userRole === 'writer') return 'writer@babelglobal.com';
     if (userRole === 'reviewer') return 'reviewer@babelglobal.com';
-    return 'admin@babelglobal.com';
+    if (userRole === 'client') return 'client@babelglobal.com';
+    return 'user@babelglobal.com';
+  };
+
+  const getInitials = (name?: string, role?: UserRole) => {
+    if (name && name.trim().length > 0) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    if (role === 'superadmin') return 'SA';
+    if (role === 'admin') return 'CA';
+    if (role === 'writer') return 'PD';
+    if (role === 'reviewer') return 'SR';
+    if (role === 'client') return 'AV';
+    return 'U';
   };
 
 
@@ -222,7 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer group"
           >
             <div className="w-8 h-8 rounded-full bg-blue-900 text-white font-semibold text-xs flex items-center justify-center ring-2 ring-blue-100 shadow-sm">
-              {userRole === 'client' ? 'ER' : userRole === 'reviewer' ? 'SR' : 'PD'}
+                    {getInitials(getUserName(), userRole)}
             </div>
             <div className="hidden md:block text-left">
               <div className="text-xs font-semibold text-slate-800 leading-none">
@@ -242,7 +267,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 mb-1">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-blue-900 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
-                    {userRole === 'client' ? 'ER' : userRole === 'reviewer' ? 'SR' : 'PD'}
+                          {getInitials(getUserName(), userRole)}
                   </div>
 
                   <div className="min-w-0">

@@ -89,7 +89,7 @@ export const AdminDashboard = () => {
         <div className="lg:col-span-2 space-y-6">
           <div className="glass-panel p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Active Case Workflows (14-Stage Status)</h3>
+              <h3 className="text-base font-bold text-white">Active Case Workflows</h3>
               <button className="text-xs text-cyan-400 hover:underline flex items-center gap-1">View All Cases <ArrowUpRight className="h-3 w-3"/></button>
             </div>
 

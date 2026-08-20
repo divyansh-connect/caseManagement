@@ -7,9 +7,10 @@ interface NewCaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddCase: (newCase: CaseItem) => void;
+  onOpenResumeBuilding?: (createdCase: CaseItem) => void;
 }
 
-export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onAddCase }) => {
+export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onAddCase, onOpenResumeBuilding }) => {
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [petitionCategory, setPetitionCategory] = useState<PetitionCategory>('EB-2 NIW');
@@ -24,37 +25,27 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
     try {
       const clientEmailVal = clientEmail || `${clientName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
       
-      // 1. Create client profile
-      const clientData = await api.post('/clients', {
-        name: clientName,
-        email: clientEmailVal,
+      // Perform atomic client & case intake transaction
+      const caseData = await api.post('/cases/intake', {
+        clientName,
+        clientEmail: clientEmailVal,
         phone: '+1 (555) 012-3456',
         countryOfBirth: 'United States',
         currentField: fieldCategory,
         highestDegree: 'Ph.D.',
-        university: 'Standard University'
-      });
-
-      if (!clientData.success) {
-        alert('Failed to register candidate');
-        return;
-      }
-
-      // 2. Initialize case folder
-      const caseData = await api.post('/cases', {
-        clientId: clientData.data.id,
+        university: 'Standard University',
         petitionCategory,
         fieldCategory,
         assignedWriter: 'Petition Drafter 1',
         assignedReviewer: 'Senior Reviewer',
         riskLevel: 'low',
-        targetFilingDate: '2025-05-15',
+        targetFilingDate: '2026-12-31',
         uscisServiceCenter: serviceCenter,
         premiumProcessing: premium
       });
 
       if (!caseData.success) {
-        alert('Failed to initialize case');
+        alert('Failed to initialize case file: ' + (caseData.error || 'Unknown error'));
         return;
       }
 
@@ -62,7 +53,7 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
         ...caseData.data,
         clientName,
         clientEmail: clientEmailVal,
-        dhanasar: {
+        dhanasar: caseData.data.dhanasarProngs || {
           prong1: {
             title: 'Substantial Merit & National Importance',
             endeavorSummary: `Advancing ${fieldCategory} with direct national impact across federal initiatives.`,
@@ -82,21 +73,25 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
             uniqueExpertise: 'Specialized technical expertise.'
           }
         },
-        recommenders: [],
-        documentsCount: 0,
-        notes: 'Initial client intake created.',
+        recommenders: caseData.data.recommenders || [],
+        documentsCount: caseData.data.documents?.length || 0,
+        notes: caseData.data.notes || 'Initial client intake created.',
         lastUpdated: 'Just now'
       };
 
       onAddCase(createdCase);
       onClose();
+
+      if (petitionCategory === 'Resume Building' && onOpenResumeBuilding) {
+        onOpenResumeBuilding(createdCase);
+      }
     } catch (err: any) {
-      alert(`Connection error: ${err.message}`);
+      alert(`Intake failed: ${err.message}`);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Intake New Case File" subtitle="Initialize 14-stage workflow pipeline for a new candidate">
+    <Modal isOpen={isOpen} onClose={onClose} title="Intake New Case File" subtitle="Initialize workflow pipeline for a new candidate">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="min-w-0">
@@ -121,7 +116,8 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
               <option value="EB-2 NIW">EB-2 NIW</option>
               <option value="EB-1A">EB-1A</option>
               <option value="O-1">O-1 Visa</option>
-              <option value="Immigration Editorial Services">Editorial Services</option>
+              <option value="Profile Building">Profile Building</option>
+              <option value="Resume Building">Resume Building</option>
               <option value="Mexico TR Visa">Mexico TR Visa</option>
             </select>
           </div>
@@ -181,7 +177,7 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
             Cancel
           </button>
           <button type="submit" className="w-full sm:w-auto px-5 py-2 rounded-lg bg-blue-600 text-white font-bold shadow-sm hover:bg-blue-700 cursor-pointer">
-            Create Case File
+            {petitionCategory === 'Resume Building' ? 'Continue to Resume Building Upload' : 'Create Case File'}
           </button>
         </div>
       </form>

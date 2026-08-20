@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Globe, ArrowLeft, Users, UserCheck, Shield, Briefcase, UserCog } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Users, User, ArrowRight, Shield, Briefcase, UserCog } from 'lucide-react';
 import { UserRole } from '../../types';
 import loginBg from '../../assets/login-bg.png';
 import { api } from '../../services/api';
@@ -8,27 +8,16 @@ interface LoginPageProps {
   onLogin: (role: UserRole, email: string) => void;
 }
 
-// ── All quick-login roles (bottom pills) ──────────────────────────────────────
-const QUICK_ROLES: { label: string; email: string; role: UserRole }[] = [
-  { label: 'Super Admin',      email: 'superadmin@babelglobal.com', role: 'admin'    },
-  { label: 'Admin / Manager',  email: 'admin@babelglobal.com',      role: 'admin'    },
-  { label: 'Drafter',          email: 'writer@babelglobal.com',     role: 'writer'   },
-  { label: 'Reviewer',         email: 'reviewer@babelglobal.com',   role: 'reviewer' },
-  { label: 'Client',           email: 'client@babelglobal.com',     role: 'client'   },
-];
-
-// ── Team sub-roles shown after clicking "Babel Global Team" ────────────────────────
+// ── Team sub-roles ────────────────────────────────────────────────────────────
 const TEAM_SUB_ROLES: {
   label: string;
   description: string;
   email: string;
   role: UserRole;
-  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
-  color: string;
-  border: string;
-  hoverBg: string;
-  hoverBorder: string;
-  hoverText: string;
+  icon: React.FC<{ className?: string }>;
+  colorClass: string;
+  bgClass: string;
+  borderHoverClass: string;
 }[] = [
   {
     label: 'Administrator / Case Manager',
@@ -36,11 +25,9 @@ const TEAM_SUB_ROLES: {
     email: 'admin@babelglobal.com',
     role: 'admin',
     icon: UserCog,
-    color: '#2563eb',
-    border: 'rgba(37,99,235,0.25)',
-    hoverBg: 'rgba(37,99,235,0.1)',
-    hoverBorder: 'rgba(37,99,235,0.55)',
-    hoverText: '#2563eb',
+    colorClass: 'text-blue-600',
+    bgClass: 'bg-blue-100/70 border-blue-200/50',
+    borderHoverClass: 'hover:border-blue-500 hover:bg-blue-50/40',
   },
   {
     label: 'Drafter / Researcher',
@@ -48,11 +35,9 @@ const TEAM_SUB_ROLES: {
     email: 'writer@babelglobal.com',
     role: 'writer',
     icon: Briefcase,
-    color: '#7c3aed',
-    border: 'rgba(124,58,237,0.25)',
-    hoverBg: 'rgba(124,58,237,0.1)',
-    hoverBorder: 'rgba(124,58,237,0.55)',
-    hoverText: '#7c3aed',
+    colorClass: 'text-purple-600',
+    bgClass: 'bg-purple-100/70 border-purple-200/50',
+    borderHoverClass: 'hover:border-purple-500 hover:bg-purple-50/40',
   },
   {
     label: 'Super Administrator',
@@ -60,30 +45,25 @@ const TEAM_SUB_ROLES: {
     email: 'superadmin@babelglobal.com',
     role: 'superadmin',
     icon: Shield,
-    color: '#f59e0b',
-    border: 'rgba(245,158,11,0.25)',
-    hoverBg: 'rgba(245,158,11,0.1)',
-    hoverBorder: 'rgba(245,158,11,0.55)',
-    hoverText: '#d97706',
+    colorClass: 'text-amber-600',
+    bgClass: 'bg-amber-100/70 border-amber-200/50',
+    borderHoverClass: 'hover:border-amber-500 hover:bg-amber-50/40',
   },
 ];
 
-// Step type: 'accountType' | 'teamSubRole' | 'loginForm'
 type Step = 'accountType' | 'teamSubRole' | 'loginForm';
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [step, setStep]                     = useState<Step>('accountType');
-  const [accountType, setAccountType]       = useState<'team' | 'client' | null>(null);
-  const [email, setEmail]                   = useState('');
-  const [password, setPassword]             = useState('');
-  const [showPassword, setShowPassword]     = useState(false);
-  const [isLoading, setIsLoading]           = useState(false);
-  const [error, setError]                   = useState('');
+  const [step, setStep] = useState<Step>('accountType');
+  const [accountType, setAccountType] = useState<'team' | 'client' | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [selectedSubRole, setSelectedSubRole] = useState<typeof TEAM_SUB_ROLES[0] | null>(null);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-
-  // Step 1: Account Type selected
   const handleAccountType = (type: 'team' | 'client') => {
     setAccountType(type);
     setError('');
@@ -96,7 +76,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
-  // Helper to run actual auth call
   const performLogin = async (emailVal: string, passwordVal: string) => {
     setError('');
     setIsLoading(true);
@@ -116,7 +95,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
-  // Step 1b: Team sub-role selected
   const handleTeamSubRole = (sub: typeof TEAM_SUB_ROLES[0]) => {
     setSelectedSubRole(sub);
     setEmail(sub.email);
@@ -124,17 +102,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     performLogin(sub.email, 'password123');
   };
 
-  // Quick pill autofill
-  const handleQuickRole = (r: typeof QUICK_ROLES[0]) => {
-    setEmail(r.email);
-    setPassword('password123');
-    setError('');
-    // Also jump straight to form
-    setAccountType(r.role === 'client' ? 'client' : 'team');
-    setStep('loginForm');
-  };
-
-  // Back button
   const handleBack = () => {
     setError('');
     if (step === 'loginForm' && accountType === 'team') {
@@ -148,340 +115,260 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
-  // Submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError('Please enter email and password.'); return; }
+    if (!email || !password) {
+      setError('Please enter email and password.');
+      return;
+    }
     performLogin(email, password);
   };
 
-  // ── Heading / subtitle per step ───────────────────────────────────────────
-  const heading = step === 'accountType'
-    ? 'Welcome Back!'
-    : step === 'teamSubRole'
-    ? 'Select Your Role'
-    : accountType === 'client'
-    ? 'Client Sign In'
-    : `Sign In — ${selectedSubRole?.label ?? 'Babel Global Team'}`;
-
-  const subtitle = step === 'accountType'
-    ? 'Please select your account type to continue.'
-    : step === 'teamSubRole'
-    ? 'Choose your team role to access the correct workspace.'
-    : `Enter your credentials to access your ${accountType === 'client' ? 'client portal' : 'workspace'}.`;
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans" style={{ background: '#f0f2f5' }}>
-      <div
-        className="flex w-full overflow-hidden"
-        style={{
-          maxWidth: '960px',
-          minHeight: '560px',
-          borderRadius: '20px',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.18)',
-          background: '#ffffff',
-        }}
-      >
-        {/* ═══════════════════ LEFT — Photo ═══════════════════ */}
-        <div className="hidden md:block relative flex-shrink-0" style={{ width: '46%' }}>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 sm:p-6 md:p-8 font-sans">
+      {/* Outer Login Card matching reference layout */}
+      <div className="w-full max-w-[1024px] min-h-[580px] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-slate-200/80">
+        
+        {/* ═══════════════════ LEFT PANEL (Photo & Branding) ═══════════════════ */}
+        <div className="md:w-1/2 relative min-h-[360px] md:min-h-[580px] bg-slate-900 overflow-hidden flex flex-col justify-between p-6 sm:p-8">
           <img
             src={loginBg}
-            alt="Immigration Law Office"
-            className="w-full h-full object-cover"
-            style={{ display: 'block', minHeight: '560px' }}
+            alt="Immigration Case Management"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: 'left top' }}
           />
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)' }}
-          />
-          {/* Brand badge */}
-          <div
-            className="absolute top-6 left-6 flex items-center gap-2 px-3 py-2 rounded-xl"
-            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)' }}
-          >
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}>
-              <Globe className="w-4 h-4 text-white" />
+
+          {/* Bottom Title & Tagline Overlay */}
+          <div className="relative z-10 mt-auto flex items-start gap-3 pt-6">
+            <div className="w-1 h-10 bg-amber-500 rounded-full flex-shrink-0 mt-0.5" />
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                Immigration<br />Case Management
+              </h2>
+              <p className="text-slate-300 text-xs mt-1 drop-shadow font-medium">
+                Trusted by immigration attorneys across the USA.
+              </p>
             </div>
-            <span className="text-white font-bold text-sm tracking-tight">Babel Global</span>
-            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(37,99,235,0.55)', color: '#93c5fd', letterSpacing: '0.08em' }}>
-              Case OS
-            </span>
-          </div>
-          {/* Caption */}
-          <div className="absolute bottom-6 left-6 right-6">
-            <p className="text-white font-bold text-xl leading-snug drop-shadow-lg">
-              EB-2 NIW Immigration<br />Case Management
-            </p>
-            <p className="text-slate-300 text-xs mt-1 drop-shadow">Trusted by immigration attorneys across the USA.</p>
           </div>
         </div>
 
-        {/* ═══════════════════ RIGHT — Form panel ═══════════════════ */}
-        <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 py-10" style={{ background: '#ffffff' }}>
+        {/* ═══════════════════ RIGHT PANEL (Interactive Selection / Form) ═══════════════════ */}
+        <div className="md:w-1/2 p-8 sm:p-10 md:p-12 flex flex-col justify-between bg-white">
+          
+          {/* Top content area */}
+          <div>
+            {/* Back Button if not on home step */}
+            {step !== 'accountType' && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer mb-6"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
 
-          {/* Mobile brand */}
-          <div className="md:hidden flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}>
-              <Globe className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-black text-slate-800 text-lg">Babel Global</span>
+            {/* Header */}
+            {step === 'accountType' && (
+              <div className="mb-8">
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+                  Welcome Back!
+                </h1>
+                <p className="text-slate-500 text-sm font-medium">
+                  Please select your account type to continue.
+                </p>
+              </div>
+            )}
+
+            {step === 'teamSubRole' && (
+              <div className="mb-6">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
+                  Select Team Workspace
+                </h1>
+                <p className="text-slate-500 text-xs font-medium">
+                  Choose your sub-role to enter your designated workspace.
+                </p>
+              </div>
+            )}
+
+            {step === 'loginForm' && (
+              <div className="mb-6">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
+                  {accountType === 'client' ? 'Client Portal Sign In' : `Sign In — ${selectedSubRole?.label ?? 'Team'}`}
+                </h1>
+                <p className="text-slate-500 text-xs font-medium">
+                  Enter your credentials to access your account.
+                </p>
+              </div>
+            )}
+
+            {/* Error Banner */}
+            {error && (
+              <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
+                {error}
+              </div>
+            )}
+
+            {/* ════════════ STEP 1: Account Type Selection ════════════ */}
+            {step === 'accountType' && (
+              <div className="space-y-4">
+                {/* Babel Global Team Option */}
+                <button
+                  type="button"
+                  onClick={() => handleAccountType('team')}
+                  className="w-full flex items-center justify-between p-5 rounded-2xl border border-slate-200/90 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/40 transition-all duration-200 group text-left shadow-sm hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100/70 border border-blue-200/50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <Users className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-base group-hover:text-blue-600 transition-colors">
+                        Babel Global Team
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5 font-normal">
+                        Super Admin · Administrator · Drafter / Researcher
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                </button>
+
+                {/* Client Option */}
+                <button
+                  type="button"
+                  onClick={() => handleAccountType('client')}
+                  className="w-full flex items-center justify-between p-5 rounded-2xl border border-slate-200/90 hover:border-purple-500 bg-slate-50/60 hover:bg-purple-50/40 transition-all duration-200 group text-left shadow-sm hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-purple-100/70 border border-purple-200/50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <User className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-base group-hover:text-purple-600 transition-colors">
+                        Client
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5 font-normal">
+                        Track your case progress, upload documents & communicate with your team
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                </button>
+              </div>
+            )}
+
+            {/* ════════════ STEP 1b: Team Sub-Role Selection ════════════ */}
+            {step === 'teamSubRole' && (
+              <div className="space-y-3">
+                {TEAM_SUB_ROLES.map((sub) => {
+                  const Icon = sub.icon;
+                  return (
+                    <button
+                      key={sub.label}
+                      type="button"
+                      onClick={() => handleTeamSubRole(sub)}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50/60 ${sub.borderHoverClass} transition-all duration-200 group text-left cursor-pointer`}
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className={`w-11 h-11 rounded-xl ${sub.bgClass} border flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+                          <Icon className={`w-5.5 h-5.5 ${sub.colorClass}`} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-sm">
+                            {sub.label}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5 font-normal">
+                            {sub.description}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ════════════ STEP 2: Credentials Form ════════════ */}
+            {step === 'loginForm' && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="w-full rounded-xl px-4 py-3 text-sm text-slate-900 bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => alert('Password reset link sent to your email.')}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full rounded-xl px-4 py-3 pr-11 text-sm text-slate-900 bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    'Login'
+                  )}
+                </button>
+              </form>
+            )}
           </div>
 
-          {/* Back button (shown on step 1b and form) */}
-          {step !== 'accountType' && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer mb-5 w-fit"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back
-            </button>
-          )}
-
-          {/* Heading */}
-          <h1 className="font-black text-slate-800 mb-1" style={{ fontSize: '1.75rem', letterSpacing: '-0.02em' }}>
-            {heading}
-          </h1>
-          <p className="text-slate-500 text-sm mb-6">{subtitle}</p>
-
-          {/* Error */}
-          {error && (
-            <div className="mb-4 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
-              {error}
+          {/* ════════════ FOOTER ════════════ */}
+          <div className="mt-8 pt-4 border-t border-slate-100 space-y-2">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
+              <span className="text-amber-500">🔒</span>
+              <span>256-bit SSL encrypted · GDPR compliant</span>
             </div>
-          )}
+            <p className="text-center text-[11px] text-slate-400 font-normal">
+              © 2026 Babel Global Inc. All rights reserved.
+            </p>
+          </div>
 
-          {/* ══════════════════════════════════════════
-              STEP 1 — Account Type
-          ══════════════════════════════════════════ */}
-          {step === 'accountType' && (
-            <div className="space-y-3">
-              {/* Babel Global Team */}
-              <button
-                type="button"
-                onClick={() => handleAccountType('team')}
-                className="group w-full text-left flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 cursor-pointer"
-                style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.background = '#eff6ff';
-                  el.style.border = '1.5px solid #2563eb';
-                  el.style.transform = 'translateY(-1px)';
-                  el.style.boxShadow = '0 8px 24px rgba(37,99,235,0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.background = '#f8fafc';
-                  el.style.border = '1.5px solid #e2e8f0';
-                  el.style.transform = 'translateY(0)';
-                  el.style.boxShadow = 'none';
-                }}
-              >
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,rgba(37,99,235,0.15),rgba(37,99,235,0.05))', border: '1.5px solid rgba(37,99,235,0.2)' }}>
-                  <Users className="w-6 h-6" style={{ color: '#2563eb' }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 text-sm">Babel Global Team</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Super Admin · Administrator · Drafter / Researcher</p>
-                </div>
-                <ArrowLeft className="w-4 h-4 text-slate-400 rotate-180 group-hover:text-blue-600 transition-colors flex-shrink-0" />
-              </button>
-
-              {/* Client */}
-              <button
-                type="button"
-                onClick={() => handleAccountType('client')}
-                className="group w-full text-left flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 cursor-pointer"
-                style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.background = '#f5f3ff';
-                  el.style.border = '1.5px solid #7c3aed';
-                  el.style.transform = 'translateY(-1px)';
-                  el.style.boxShadow = '0 8px 24px rgba(124,58,237,0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.background = '#f8fafc';
-                  el.style.border = '1.5px solid #e2e8f0';
-                  el.style.transform = 'translateY(0)';
-                  el.style.boxShadow = 'none';
-                }}
-              >
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.15),rgba(124,58,237,0.05))', border: '1.5px solid rgba(124,58,237,0.2)' }}>
-                  <UserCheck className="w-6 h-6" style={{ color: '#7c3aed' }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 text-sm">Client</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Track your case progress, upload documents & communicate with your team</p>
-                </div>
-                <ArrowLeft className="w-4 h-4 text-slate-400 rotate-180 group-hover:text-violet-600 transition-colors flex-shrink-0" />
-              </button>
-
-              {/* Trust note */}
-              <p className="text-center text-[11px] text-slate-400 pt-1">🔒 256-bit SSL encrypted · GDPR compliant</p>
-            </div>
-          )}
-
-          {/* ══════════════════════════════════════════
-              STEP 1b — Team Sub-Role Picker
-          ══════════════════════════════════════════ */}
-          {step === 'teamSubRole' && (
-            <div className="space-y-3">
-              {TEAM_SUB_ROLES.map((sub) => {
-                const Icon = sub.icon;
-                return (
-                  <button
-                    key={sub.label}
-                    type="button"
-                    onClick={() => handleTeamSubRole(sub)}
-                    className="group w-full text-left flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 cursor-pointer"
-                    style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0' }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = sub.hoverBg;
-                      el.style.border = `1.5px solid ${sub.hoverBorder}`;
-                      el.style.transform = 'translateY(-1px)';
-                      el.style.boxShadow = `0 8px 24px ${sub.hoverBg}`;
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = '#f8fafc';
-                      el.style.border = '1.5px solid #e2e8f0';
-                      el.style.transform = 'translateY(0)';
-                      el.style.boxShadow = 'none';
-                    }}
-                  >
-                    <div
-                      className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center"
-                      style={{
-                        background: `${sub.hoverBg}`,
-                        border: `1.5px solid ${sub.border}`,
-                      }}
-                    >
-                      <Icon className="w-5 h-5" style={{ color: sub.color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm">{sub.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{sub.description}</p>
-                    </div>
-                    <ArrowLeft className="w-4 h-4 text-slate-400 rotate-180 flex-shrink-0" style={{ color: sub.color }} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ══════════════════════════════════════════
-              STEP 2 — Login Form
-          ══════════════════════════════════════════ */}
-          {step === 'loginForm' && (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email address</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all"
-                  style={{ border: '1.5px solid #e2e8f0', background: '#f8fafc' }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = '1.5px solid #2563eb';
-                    e.currentTarget.style.background = '#fff';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = '1.5px solid #e2e8f0';
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-              </div>
-
-              {/* Password */}
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Password</label>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); alert('Password reset link sent to your email.'); }}
-                    className="text-xs font-semibold cursor-pointer"
-                    style={{ color: '#2563eb' }}
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full rounded-xl px-4 py-3 pr-11 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all"
-                    style={{ border: '1.5px solid #e2e8f0', background: '#f8fafc' }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.border = '1.5px solid #2563eb';
-                      e.currentTarget.style.background = '#fff';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.border = '1.5px solid #e2e8f0';
-                      e.currentTarget.style.background = '#f8fafc';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Login Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer mt-1"
-                style={{
-                  background: isLoading ? '#93c5fd' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  boxShadow: isLoading ? 'none' : '0 6px 20px rgba(37,99,235,0.35)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 28px rgba(37,99,235,0.45)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(37,99,235,0.35)';
-                }}
-              >
-                {isLoading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Logging in...
-                  </>
-                ) : 'Login'}
-              </button>
-            </form>
-          )}
-
-
-
-          {/* Footer */}
-          <p className="text-center text-[11px] text-slate-400 mt-6">
-            © 2026 Babel Global Inc. All rights reserved.
-          </p>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { CasesListView } from './components/cases/CasesListView';
 import { CaseDetailView } from './components/cases/CaseDetailView';
 import { ClientsView } from './components/clients/ClientsView';
+import { AdminManagementView } from './components/admin/AdminManagementView';
 import { TasksView } from './components/tasks/TasksView';
 import { DocumentsView } from './components/documents/DocumentsView';
 import { ReviewsView } from './components/reviews/ReviewsView';
@@ -27,6 +28,7 @@ import { NewRecommenderModal } from './components/modals/NewRecommenderModal';
 import { AppointmentBookingModal } from './components/modals/AppointmentBookingModal';
 import { ElectronicSignatureModal } from './components/modals/ElectronicSignatureModal';
 import { USCISFormQuestionnaireModal } from './components/modals/USCISFormQuestionnaireModal';
+import { ResumeBuildingModal } from './components/modals/ResumeBuildingModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { WhatsAppModal } from './components/communication/WhatsAppModal';
 
@@ -35,6 +37,7 @@ const TAB_TO_PATH: Record<NavTab, string> = {
   dashboard: '/dashboard',
   cases: '/cases',
   clients: '/clients',
+  adminManagement: '/admin-management',
   tasks: '/tasks',
   documents: '/documents',
   reviews: '/reviews',
@@ -53,6 +56,7 @@ const PATH_TO_TAB: Record<string, NavTab> = {
   '/dashboard': 'dashboard',
   '/cases': 'cases',
   '/clients': 'clients',
+  '/admin-management': 'adminManagement',
   '/tasks': 'tasks',
   '/documents': 'documents',
   '/reviews': 'reviews',
@@ -73,7 +77,8 @@ export default function App() {
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<UserRole>('admin');
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@juris-flow.com');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@babelglobal.com');
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
@@ -82,15 +87,12 @@ export default function App() {
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
 
-
-
-
   // System Administrative Access & Activity History Log State
   const [activityLogs, setActivityLogs] = useState<AuditLogEntry[]>([
     {
       id: 'log-1',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      userEmail: 'admin@juris-flow.com',
+      userEmail: 'admin@babelglobal.com',
       action: 'Super Admin Initialization',
       targetRole: 'admin',
       details: 'Super Administrator session initialized with unrestricted system access permissions.'
@@ -114,7 +116,14 @@ export default function App() {
   const [isNewCaseModalOpen, setIsNewCaseModalOpen] = useState(false);
   const [isNewDocModalOpen, setIsNewDocModalOpen] = useState(false);
   const [isNewRecModalOpen, setIsNewRecModalOpen] = useState(false);
+  const [isResumeBuildingModalOpen, setIsResumeBuildingModalOpen] = useState(false);
+  const [resumeBuildingCase, setResumeBuildingCase] = useState<CaseItem | null>(null);
   const [commViewMode, setCommViewMode] = useState<'hub' | 'whatsapp'>('whatsapp');
+
+  const handleOpenResumeBuilding = (c: CaseItem) => {
+    setResumeBuildingCase(c);
+    setIsResumeBuildingModalOpen(true);
+  };
 
   // Mobile navigation drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -135,20 +144,39 @@ export default function App() {
     lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
   });
 
-  // 1. Auto Login on mount if token exists
+  // 1. Auto Login on mount if token exists & fetch authenticated user profile
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
     if (token) {
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(window.atob(base64));
-        setIsAuthenticated(true);
-        setUserRole(payload.role);
-        setCurrentUserEmail(payload.email);
-      } catch (e) {
-        localStorage.removeItem('jwt_token');
-      }
+      const fetchCurrentUser = async () => {
+        try {
+          const res = await api.get('/auth/me');
+          if (res.success && res.user) {
+            setIsAuthenticated(true);
+            setUserRole(res.user.role as UserRole);
+            setCurrentUserEmail(res.user.email);
+            setCurrentUser(res.user);
+          } else {
+            localStorage.removeItem('jwt_token');
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+          }
+        } catch (e) {
+          try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            setIsAuthenticated(true);
+            setUserRole(payload.role as UserRole);
+            setCurrentUserEmail(payload.email);
+          } catch (err) {
+            localStorage.removeItem('jwt_token');
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+          }
+        }
+      };
+      fetchCurrentUser();
     }
   }, []);
 
@@ -282,8 +310,8 @@ export default function App() {
   }, [isAuthenticated, activeTab]);
 
   const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
-    superadmin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports', 'settings'],
-    admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports'],
+    superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'documents', 'reviews', 'communication', 'payments', 'reports', 'settings'],
+    admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'appointments', 'payments', 'templates', 'reports', 'settings'],
     writer: ['dashboard', 'cases', 'tasks', 'documents', 'communication', 'templates'],
     reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'reports'],
     client: ['clientPortal', 'tasks', 'documents', 'forms', 'payments', 'communication', 'appointments', 'postFiling', 'settings'],
@@ -342,7 +370,7 @@ export default function App() {
 
   const handleSaveSettings = async (updatedSettings: any) => {
     try {
-      const res = await api.patch('/settings', updatedSettings);
+      const res = await api.put('/settings', updatedSettings);
       if (res.success) {
         setSystemSettings(res.data);
         const settingsRes = await api.get('/settings');
@@ -391,17 +419,28 @@ export default function App() {
   };
 
   // Auth Handlers with automatic workspace routing & activity logging
-  const handleLogin = (role: UserRole, email: string) => {
+  const handleLogin = async (role: UserRole, email: string) => {
     setCurrentUserEmail(email);
     setIsAuthenticated(true);
     setUserRole(role);
     setSelectedCaseId(null);
 
+    try {
+      const res = await api.get('/auth/me');
+      if (res.success && res.user) {
+        setCurrentUser(res.user);
+        setUserRole(res.user.role as UserRole);
+        setCurrentUserEmail(res.user.email);
+      }
+    } catch (err) {
+      console.error('Error fetching current user profile on login:', err);
+    }
+
     const loginLog: AuditLogEntry = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       userEmail: email,
-      action: role === 'admin' ? 'Super Admin Authentication' : 'Account Sign In',
+      action: role === 'admin' ? 'Case Admin Authentication' : role === 'superadmin' ? 'Super Admin Authentication' : 'Account Sign In',
       targetRole: role,
       details: `Signed in to portal. Automatically routed to ${role.toUpperCase()} assigned workspace.`
     };
@@ -419,6 +458,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
     setIsAuthenticated(false);
+    setCurrentUser(null);
     navigate('/login');
   };
 
@@ -503,20 +543,22 @@ export default function App() {
   const handleBookAppointment = async (apptData: any) => {
     try {
       const payload = {
-        clientName: 'Dr. Alexander Vance',
-        clientEmail: 'client@babelglobal.com',
+        clientName: apptData.clientName || 'Dr. Alexander Vance',
+        clientEmail: apptData.clientEmail || 'client@babelglobal.com',
         type: apptData.type,
         specialist: apptData.specialist,
         date: apptData.date,
         time: apptData.time,
-        duration: '30 mins',
+        duration: apptData.duration || '30 mins',
         status: 'Upcoming',
-        meetingUrl: 'https://meet.babelglobal.com/call-892',
-        notes: apptData.notes
+        meetingUrl: apptData.meetingUrl || `https://meet.babelglobal.com/call-${Math.floor(100 + Math.random() * 900)}`,
+        notes: apptData.notes || ''
       };
       const data = await api.post('/appointments', payload);
       if (data.success) {
         setAppointments(prev => [...prev, data.data]);
+        const updated = await api.get('/appointments');
+        if (updated.success) setAppointments(updated.data);
       }
     } catch (err: any) {
       alert(`Booking failed: ${err.message}`);
@@ -540,23 +582,16 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans text-slate-800 antialiased overflow-hidden">
-      {/* Left Sidebar (Desktop & Mobile Drawer) */}
+    <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
+      {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigateToTab}
         userRole={userRole}
         setUserRole={handleRoleChange}
-        openAIAssistant={() => {
-          setIsMobileMenuOpen(false);
-          setIsAiModalOpen(true);
-        }}
-        openWhatsAppModal={() => {
-          setCommViewMode('whatsapp');
-        }}
-        openHubLogs={() => {
-          setCommViewMode('hub');
-        }}
+        openAIAssistant={() => setIsAiModalOpen(true)}
+        openWhatsAppModal={() => setCommViewMode('whatsapp')}
+        openHubLogs={() => setCommViewMode('hub')}
         activeCaseCount={roleFilteredCases.length}
         onLogout={handleLogout}
         isMobileOpen={isMobileMenuOpen}
@@ -567,6 +602,7 @@ export default function App() {
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         <Header
           userRole={userRole}
+          currentUser={currentUser}
           activeTab={activeTab}
           onNavigateTab={navigateToTab}
           openNewCaseModal={() => setIsNewCaseModalOpen(true)}
@@ -588,6 +624,7 @@ export default function App() {
               openAppointmentModal={() => setIsAppointmentModalOpen(true)}
               openSignModal={() => setIsSignModalOpen(true)}
               openQuestionnaireModal={() => setIsQuestionnaireModalOpen(true)}
+              openResumeBuildingModal={handleOpenResumeBuilding}
               activeNavTab={activeTab}
               onNavigateTab={navigateToTab}
               commViewMode={commViewMode}
@@ -607,6 +644,7 @@ export default function App() {
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 openNewDocModal={() => setIsNewDocModalOpen(true)}
                 openNewRecommenderModal={() => setIsNewRecModalOpen(true)}
+                openResumeBuildingModal={handleOpenResumeBuilding}
                 userRole={userRole}
               />
             ) : (
@@ -633,6 +671,7 @@ export default function App() {
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 openNewDocModal={() => setIsNewDocModalOpen(true)}
                 openNewRecommenderModal={() => setIsNewRecModalOpen(true)}
+                openResumeBuildingModal={handleOpenResumeBuilding}
                 userRole={userRole}
               />
             ) : (
@@ -645,7 +684,20 @@ export default function App() {
               />
             )
           ) : activeTab === 'clients' ? (
-            <ClientsView clients={clients} userRole={userRole} openNewCaseModal={() => setIsNewCaseModalOpen(true)} />
+            <ClientsView 
+              clients={clients} 
+              userRole={userRole} 
+              openNewCaseModal={() => setIsNewCaseModalOpen(true)} 
+              onUpdateClient={(updatedClient) => {
+                setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+              }}
+              onDeleteClient={(clientId) => {
+                setClients(prev => prev.filter(c => c.id !== clientId));
+                setCases(prev => prev.filter(c => c.clientId !== clientId));
+              }}
+            />
+          ) : activeTab === 'adminManagement' ? (
+            <AdminManagementView />
           ) : activeTab === 'tasks' ? (
             <TasksView
               tasks={tasks}
@@ -671,6 +723,7 @@ export default function App() {
             <AppointmentsView
               appointments={appointments}
               setAppointments={setAppointments}
+              clients={clients}
               userRole={userRole}
               openBookingModal={() => setIsAppointmentModalOpen(true)}
             />
@@ -700,6 +753,23 @@ export default function App() {
         isOpen={isNewCaseModalOpen && (userRole === 'superadmin' || userRole === 'admin')}
         onClose={() => setIsNewCaseModalOpen(false)}
         onAddCase={handleAddCase}
+        onOpenResumeBuilding={handleOpenResumeBuilding}
+      />
+
+      <ResumeBuildingModal
+        isOpen={isResumeBuildingModalOpen}
+        onClose={() => setIsResumeBuildingModalOpen(false)}
+        caseItem={resumeBuildingCase}
+        onComplete={async () => {
+          try {
+            const casesRes = await api.get('/cases');
+            if (casesRes.success) setCases(casesRes.data.map(mapCaseData));
+            const docsRes = await api.get('/documents');
+            if (docsRes.success) setDocuments(docsRes.data);
+          } catch (e) {
+            console.error(e);
+          }
+        }}
       />
 
       <NewDocModal
@@ -719,6 +789,7 @@ export default function App() {
       <AppointmentBookingModal
         isOpen={isAppointmentModalOpen}
         onClose={() => setIsAppointmentModalOpen(false)}
+        clients={clients}
         onBookAppointment={handleBookAppointment}
       />
 

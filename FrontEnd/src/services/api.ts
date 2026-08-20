@@ -1,4 +1,13 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const getBaseUrl = (): string => {
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/^["']|["']$/g, '').replace(/\/$/, '');
+  
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Fallback to live production Railway API
+  return 'https://immigrtion-case-management-production.up.railway.app/api';
+};
 
 interface RequestOptions {
   headers?: Record<string, string>;
@@ -8,7 +17,16 @@ interface RequestOptions {
 }
 
 const buildUrl = (endpoint: string, params?: Record<string, string | number>): string => {
-  const url = `${BASE_URL}${endpoint}`;
+  const baseUrl = getBaseUrl();
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  let url: string;
+  if (baseUrl.endsWith('/api') && formattedEndpoint.startsWith('/api/')) {
+    url = `${baseUrl}${formattedEndpoint.substring(4)}`;
+  } else {
+    url = `${baseUrl}${formattedEndpoint}`;
+  }
+
   if (!params) return url;
   
   const query = Object.entries(params)
@@ -75,6 +93,16 @@ export const api = {
       method: 'POST',
       headers: getHeaders(isMultipart),
       body: isMultipart ? body : JSON.stringify(body)
+    });
+    return handleResponse(response);
+  },
+
+  put: async (endpoint: string, body: any): Promise<any> => {
+    const url = buildUrl(endpoint);
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(body)
     });
     return handleResponse(response);
   },

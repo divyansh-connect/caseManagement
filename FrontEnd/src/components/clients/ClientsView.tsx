@@ -19,17 +19,117 @@ import {
 } from 'lucide-react';
 import { Client, UserRole } from '../../types';
 import { StatusBadge } from '../common/Badge';
+import { api } from '../../services/api';
 
 interface ClientsViewProps {
   clients: Client[];
   openNewCaseModal: () => void;
   userRole?: UserRole;
+  onUpdateClient?: (updatedClient: Client) => void;
+  onDeleteClient?: (clientId: string) => void;
 }
 
-export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseModal, userRole = 'admin' }) => {
+export const ClientsView: React.FC<ClientsViewProps> = ({ 
+  clients, 
+  openNewCaseModal, 
+  userRole = 'admin',
+  onUpdateClient,
+  onDeleteClient
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDegree, setSelectedDegree] = useState('all');
   const [activeProfileClient, setActiveProfileClient] = useState<Client | null>(null);
+
+  // Inline edit state variables
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editField, setEditField] = useState('');
+  const [editDegree, setEditDegree] = useState('Ph.D.');
+  const [editUniversity, setEditUniversity] = useState('');
+  const [editCitations, setEditCitations] = useState(0);
+  const [editPublications, setEditPublications] = useState(0);
+  const [editPatents, setEditPatents] = useState(0);
+  const [editStatus, setEditStatus] = useState('Active');
+
+  // Load client details into editing state on modal open
+  React.useEffect(() => {
+    if (activeProfileClient) {
+      setEditName(activeProfileClient.name);
+      setEditEmail(activeProfileClient.email);
+      setEditPhone(activeProfileClient.phone || '');
+      setEditCountry(activeProfileClient.countryOfBirth || '');
+      setEditField(activeProfileClient.currentField || '');
+      setEditDegree(activeProfileClient.highestDegree || 'Ph.D.');
+      setEditUniversity(activeProfileClient.university || '');
+      setEditCitations(activeProfileClient.citationsCount || 0);
+      setEditPublications(activeProfileClient.publicationsCount || 0);
+      setEditPatents(activeProfileClient.patentsCount || 0);
+      setEditStatus(activeProfileClient.status || 'Active');
+      setIsEditing(false);
+    }
+  }, [activeProfileClient]);
+
+  const handleSaveEdit = async () => {
+    if (!activeProfileClient) return;
+    if (!editName.trim() || !editEmail.trim() || !editField.trim()) {
+      alert('Name, Email, and Field of Endeavor are required.');
+      return;
+    }
+
+    try {
+      const res = await api.put(`/clients/${activeProfileClient.id}`, {
+        name: editName,
+        email: editEmail,
+        phone: editPhone,
+        countryOfBirth: editCountry,
+        currentField: editField,
+        highestDegree: editDegree,
+        university: editUniversity,
+        citationsCount: Number(editCitations),
+        publicationsCount: Number(editPublications),
+        patentsCount: Number(editPatents),
+        status: editStatus
+      });
+
+      if (res.success && res.data) {
+        alert('Client profile updated successfully.');
+        if (onUpdateClient) {
+          onUpdateClient(res.data);
+        }
+        setActiveProfileClient(res.data);
+        setIsEditing(false);
+      } else {
+        alert('Failed to update profile: ' + (res.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      alert(`Update failed: ${err.message}`);
+    }
+  };
+
+  const handleClearProfile = async () => {
+    if (!activeProfileClient) return;
+    if (!window.confirm(`Are you sure you want to clear/delete the profile for ${activeProfileClient.name}? This will permanently delete all associated case records, tasks, payments, and documents from the database.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/clients/${activeProfileClient.id}`);
+      if (res.success) {
+        alert('Client profile cleared successfully.');
+        if (onDeleteClient) {
+          onDeleteClient(activeProfileClient.id);
+        }
+        setActiveProfileClient(null);
+      } else {
+        alert('Failed to delete profile: ' + (res.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      alert(`Deletion failed: ${err.message}`);
+    }
+  };
 
   const filteredClients = clients.filter(c => {
     const matchesSearch = 
@@ -53,7 +153,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
           </p>
         </div>
 
-        {(userRole === 'superadmin' || userRole === 'admin') && (
+        {(userRole === 'admin' || userRole === 'superadmin') && (
           <button
             onClick={openNewCaseModal}
             className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
@@ -104,7 +204,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-bold text-slate-900 text-sm truncate">{client.name}</h3>
-                    <p className="text-[11px] text-slate-500 font-medium truncate">{client.countryOfBirth} • Joined {client.createdAt}</p>
+                    <p className="text-[11px] text-slate-500 font-medium truncate">{client.countryOfBirth} • Joined {client.createdAt ? client.createdAt.substring(0,10) : ''}</p>
                   </div>
                 </div>
                 <StatusBadge status={client.status} />
@@ -156,20 +256,48 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center shadow-md">
-                  {activeProfileClient.name.split(' ').map(n => n[0]).join('')}
+              <div className="flex items-center gap-3 w-full">
+                <div className="w-12 h-12 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center shadow-md shrink-0">
+                  {(editName || activeProfileClient.name).split(' ').map(n => n[0]).join('').substring(0, 2)}
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">{activeProfileClient.name}</h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {activeProfileClient.email} • {activeProfileClient.phone}
-                  </p>
-                </div>
+                {isEditing ? (
+                  <div className="space-y-1.5 w-full pr-4">
+                    <input 
+                      type="text" 
+                      value={editName} 
+                      onChange={(e) => setEditName(e.target.value)} 
+                      placeholder="Candidate Full Name"
+                      className="w-full p-1 bg-slate-50 border border-slate-200 rounded text-sm font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="email" 
+                        value={editEmail} 
+                        onChange={(e) => setEditEmail(e.target.value)} 
+                        placeholder="Email Address"
+                        className="w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                      />
+                      <input 
+                        type="text" 
+                        value={editPhone} 
+                        onChange={(e) => setEditPhone(e.target.value)} 
+                        placeholder="Phone Number"
+                        className="w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">{activeProfileClient.name}</h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {activeProfileClient.email} • {activeProfileClient.phone}
+                    </p>
+                  </div>
+                )}
               </div>
               <button 
                 onClick={() => setActiveProfileClient(null)} 
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -179,49 +307,179 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Country of Birth</span>
-                <p className="font-semibold text-slate-800">{activeProfileClient.countryOfBirth}</p>
+                {isEditing ? (
+                  <input 
+                    type="text" 
+                    value={editCountry} 
+                    onChange={(e) => setEditCountry(e.target.value)} 
+                    className="w-full p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                  />
+                ) : (
+                  <p className="font-semibold text-slate-800">{activeProfileClient.countryOfBirth}</p>
+                )}
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Field of Endeavor</span>
-                <p className="font-semibold text-blue-700">{activeProfileClient.currentField}</p>
+                {isEditing ? (
+                  <input 
+                    type="text" 
+                    value={editField} 
+                    onChange={(e) => setEditField(e.target.value)} 
+                    className="w-full p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                  />
+                ) : (
+                  <p className="font-semibold text-blue-700">{activeProfileClient.currentField}</p>
+                )}
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Highest Academic Qualification</span>
-                <p className="font-semibold text-slate-800">{activeProfileClient.highestDegree} ({activeProfileClient.university})</p>
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <select 
+                      value={editDegree} 
+                      onChange={(e) => setEditDegree(e.target.value)} 
+                      className="w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="Ph.D.">Ph.D.</option>
+                      <option value="Master's">Master's</option>
+                      <option value="Bachelor's + 5 yrs">Bachelor's + 5 yrs</option>
+                      <option value="Exceptional Ability">Exceptional Ability</option>
+                    </select>
+                    <input 
+                      type="text" 
+                      value={editUniversity} 
+                      onChange={(e) => setEditUniversity(e.target.value)} 
+                      placeholder="University"
+                      className="w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    />
+                  </div>
+                ) : (
+                  <p className="font-semibold text-slate-800">{activeProfileClient.highestDegree} ({activeProfileClient.university})</p>
+                )}
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Scholarly Impact</span>
-                <p className="font-semibold text-slate-800">
-                  {activeProfileClient.citationsCount || 0} Citations • {activeProfileClient.publicationsCount || 0} Papers • {activeProfileClient.patentsCount || 0} Patents
-                </p>
+                {isEditing ? (
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-medium">Cit:</span>
+                      <input 
+                        type="number" 
+                        value={editCitations} 
+                        onChange={(e) => setEditCitations(Math.max(0, parseInt(e.target.value) || 0))} 
+                        className="w-12 p-0.5 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none text-center" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-medium">Pub:</span>
+                      <input 
+                        type="number" 
+                        value={editPublications} 
+                        onChange={(e) => setEditPublications(Math.max(0, parseInt(e.target.value) || 0))} 
+                        className="w-12 p-0.5 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none text-center" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-[10px] text-slate-400 font-medium">Pat:</span>
+                      <input 
+                        type="number" 
+                        value={editPatents} 
+                        onChange={(e) => setEditPatents(Math.max(0, parseInt(e.target.value) || 0))} 
+                        className="w-12 p-0.5 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none text-center" 
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="font-semibold text-slate-800">
+                    {activeProfileClient.citationsCount || 0} Citations • {activeProfileClient.publicationsCount || 0} Papers • {activeProfileClient.patentsCount || 0} Patents
+                  </p>
+                )}
               </div>
+
+              {isEditing && (
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1 col-span-1 sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Status</span>
+                  <select 
+                    value={editStatus} 
+                    onChange={(e) => setEditStatus(e.target.value)} 
+                    className="w-full sm:w-auto p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Team & Workflow Summary */}
-            <div className="bg-blue-50/60 rounded-xl p-4 border border-blue-100 text-xs space-y-2">
-              <h4 className="font-bold text-slate-800">Immigration Petition Team Assignment</h4>
-              <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div>
-                  <span className="text-slate-500 block">Assigned Petition Drafter:</span>
-                  <span className="font-semibold text-slate-800">Petition Drafter 1</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Senior Reviewer:</span>
-                  <span className="font-semibold text-slate-800">Senior Reviewer</span>
+            {!isEditing && (
+              <div className="bg-blue-50/60 rounded-xl p-4 border border-blue-100 text-xs space-y-2">
+                <h4 className="font-bold text-slate-800">Immigration Petition Team Assignment</h4>
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-slate-500 block">Assigned Petition Drafter:</span>
+                    <span className="font-semibold text-slate-800">Petition Drafter 1</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Senior Reviewer:</span>
+                    <span className="font-semibold text-slate-800">Senior Reviewer</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setActiveProfileClient(null)}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
-              >
-                Close Profile
-              </button>
+            {/* Modal Actions */}
+            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between gap-3 items-stretch sm:items-center">
+              {/* Left Action Buttons (Edit/Delete) */}
+              {(userRole === 'superadmin' || userRole === 'admin') && (
+                <div className="flex gap-2 justify-start">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-lg cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        onClick={handleClearProfile}
+                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg cursor-pointer"
+                      >
+                        Clear Profile
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Right Action Button (Close) */}
+              {!isEditing && (
+                <button
+                  onClick={() => setActiveProfileClient(null)}
+                  className="px-5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-lg shadow-xs cursor-pointer sm:ml-auto"
+                >
+                  Close Profile
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -229,4 +487,5 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
     </div>
   );
 };
+
 

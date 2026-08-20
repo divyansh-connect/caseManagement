@@ -95,7 +95,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {userRole === 'client' && 'Immigration Petition Status'}
             </h1>
             <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-              14-stage national interest waiver workflow engine. Real-time petition tracking and case milestone management.
+              Unified national interest waiver workflow engine. Real-time petition tracking and case milestone management.
             </p>
           </div>
 
@@ -198,27 +198,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       </div>
 
-      {/* 14-Stage Category Pipeline Overview */}
+      {/* 6-Stage Category Pipeline Overview */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
-            <h2 className="font-bold text-slate-800 text-sm">14-Stage Workflow Funnel Distribution</h2>
+            <h2 className="font-bold text-slate-800 text-sm">6-Stage Workflow Funnel Distribution</h2>
             <p className="text-xs text-slate-500">Current case allocation across petition lifecycle stages</p>
           </div>
           <span className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">
-            View full 14-stage matrix →
+            View full workflow matrix →
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {[
-            { cat: 'Intake', stages: 'Stages 1 - 2', color: 'border-slate-300 bg-slate-50 text-slate-700' },
-            { cat: 'Evaluation', stages: 'Stages 3 - 5', color: 'border-amber-200 bg-amber-50/50 text-amber-800' },
-            { cat: 'Endeavor & Evidence', stages: 'Stages 6 - 8', color: 'border-indigo-200 bg-indigo-50/50 text-indigo-800' },
-            { cat: 'Drafting & Review', stages: 'Stages 9 - 12', color: 'border-purple-200 bg-purple-50/50 text-purple-800' },
-            { cat: 'Final Filing', stages: 'Stages 13 - 14', color: 'border-emerald-200 bg-emerald-50/50 text-emerald-800' }
+            { cat: 'Consultation & Onboarding', stages: 'Stage 1', color: 'border-slate-300 bg-slate-50 text-slate-700', stageIds: [1] },
+            { cat: 'Strategy & Recommenders', stages: 'Stage 2', color: 'border-amber-200 bg-amber-50/50 text-amber-800', stageIds: [2] },
+            { cat: 'Forms Preparation', stages: 'Stage 3', color: 'border-indigo-200 bg-indigo-50/50 text-indigo-800', stageIds: [3] },
+            { cat: 'Drafting & Review', stages: 'Stage 4', color: 'border-purple-200 bg-purple-50/50 text-purple-800', stageIds: [4] },
+            { cat: 'Package & Filing', stages: 'Stages 5 - 6', color: 'border-emerald-200 bg-emerald-50/50 text-emerald-800', stageIds: [5, 6, 7] }
           ].map(item => {
-            const count = categoryCounts[item.cat] || 0;
+            const count = cases.filter(c => item.stageIds.includes(c.currentStage)).length;
             return (
               <div key={item.cat} className={`p-3 rounded-lg border ${item.color} flex flex-col justify-between`}>
                 <div>
