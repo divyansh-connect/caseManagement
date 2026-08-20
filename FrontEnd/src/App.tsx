@@ -78,9 +78,10 @@ export default function App() {
   const location = useLocation();
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<UserRole>('admin');
+  const [userRole, setUserRole] = useState<UserRole>((localStorage.getItem('override_user_role') as UserRole) || 'admin');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@babelglobal.com');
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(null);
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
@@ -157,11 +158,13 @@ export default function App() {
           const res = await api.get('/auth/me');
           if (res.success && res.user) {
             setIsAuthenticated(true);
-            setUserRole(res.user.role as UserRole);
+            const savedRole = localStorage.getItem('override_user_role') as UserRole;
+            setUserRole(savedRole || (res.user.role as UserRole));
             setCurrentUserEmail(res.user.email);
             setCurrentUser(res.user);
           } else {
             localStorage.removeItem('jwt_token');
+            localStorage.removeItem('override_user_role');
             setIsAuthenticated(false);
             setCurrentUser(null);
           }
@@ -171,7 +174,8 @@ export default function App() {
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const payload = JSON.parse(window.atob(base64));
             setIsAuthenticated(true);
-            setUserRole(payload.role as UserRole);
+            const savedRole = localStorage.getItem('override_user_role') as UserRole;
+            setUserRole(savedRole || (payload.role as UserRole));
             setCurrentUserEmail(payload.email);
           } catch (err) {
             localStorage.removeItem('jwt_token');
@@ -403,31 +407,38 @@ export default function App() {
 
   // Helper to change role & switch to appropriate role workspace view + log "View As" activity
   const handleRoleChange = (role: UserRole) => {
-    const newLog: AuditLogEntry = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      userEmail: currentUserEmail,
-      action: 'View As / Role Switch',
-      targetRole: role,
-      details: `Super Admin accessed role workspace: ${role.toUpperCase()}`
-    };
-    setActivityLogs(prev => [newLog, ...prev]);
+    setIsSwitchingRole(true);
+    localStorage.setItem('override_user_role', role);
 
-    setUserRole(role);
-    setSelectedCaseId(null);
-    let defaultTab: NavTab = 'dashboard';
-    if (role === 'client') {
-      defaultTab = 'clientPortal';
-    } else if (role === 'writer') {
-      defaultTab = 'cases';
-    } else if (role === 'reviewer') {
-      defaultTab = 'reviews';
-    }
-    navigateToTab(defaultTab);
+    setTimeout(() => {
+      const newLog: AuditLogEntry = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        userEmail: currentUserEmail,
+        action: 'View As / Role Switch',
+        targetRole: role,
+        details: `Super Admin accessed role workspace: ${role.toUpperCase()}`
+      };
+      setActivityLogs(prev => [newLog, ...prev]);
+
+      setUserRole(role);
+      setSelectedCaseId(null);
+      let defaultTab: NavTab = 'dashboard';
+      if (role === 'client') {
+        defaultTab = 'clientPortal';
+      } else if (role === 'writer') {
+        defaultTab = 'cases';
+      } else if (role === 'reviewer') {
+        defaultTab = 'reviews';
+      }
+      navigateToTab(defaultTab);
+      setIsSwitchingRole(false);
+    }, 500);
   };
 
   // Auth Handlers with automatic workspace routing & activity logging
   const handleLogin = async (role: UserRole, email: string) => {
+    localStorage.removeItem('override_user_role');
     setCurrentUserEmail(email);
     setIsAuthenticated(true);
     setUserRole(role);
@@ -465,6 +476,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
+    localStorage.removeItem('override_user_role');
     setIsAuthenticated(false);
     setCurrentUser(null);
     navigate('/login');
@@ -622,6 +634,15 @@ export default function App() {
     return true;
   });
 
+  if (isSwitchingRole) {
+    return (
+      <div className="flex h-screen w-screen bg-slate-900 items-center justify-center flex-col space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <p className="text-sm font-semibold text-slate-300">Switching workspace view...</p>
+      </div>
+    );
+  }
+
   // If user is not authenticated or at /login route, render Login Page
   if (!isAuthenticated || location.pathname === '/login') {
     return <LoginPage onLogin={handleLogin} />;
@@ -648,6 +669,7 @@ export default function App() {
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         <Header
           userRole={userRole}
+          onChangeRole={currentUser?.role === 'superadmin' ? handleRoleChange : undefined}
           currentUser={currentUser}
           activeTab={activeTab}
           onNavigateTab={navigateToTab}

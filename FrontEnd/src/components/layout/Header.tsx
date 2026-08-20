@@ -20,6 +20,7 @@ import { NavTab } from './Sidebar';
 
 interface HeaderProps {
   userRole: UserRole;
+  onChangeRole?: (role: UserRole) => void;
   currentUser?: { id?: string; name?: string; email?: string; role?: UserRole; avatar?: string } | null;
   activeTab: NavTab;
   onNavigateTab?: (tab: NavTab) => void;
@@ -34,6 +35,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   userRole,
+  onChangeRole,
   currentUser,
   activeTab,
   onNavigateTab,
@@ -157,11 +159,29 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Hand Actions */}
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        {/* Role Pill */}
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-          <span>{getRoleLabel(userRole)}</span>
-        </div>
+        {/* Role Switcher Dropdown */}
+        {onChangeRole ? (
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+            <select
+              value={userRole}
+              onChange={(e) => onChangeRole(e.target.value as UserRole)}
+              className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+            >
+              <option value="superadmin">Super Administrator</option>
+              <option value="admin">Administrator</option>
+              <option value="writer">Petition Drafter</option>
+              <option value="reviewer">Senior Reviewer</option>
+              <option value="client">Client Account View</option>
+            </select>
+          </div>
+        ) : (
+          /* Role Pill */
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+            <span>{getRoleLabel(userRole)}</span>
+          </div>
+        )}
 
         {/* Action Buttons */}
         {userRole !== 'client' && (
