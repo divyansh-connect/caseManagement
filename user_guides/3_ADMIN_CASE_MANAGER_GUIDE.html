@@ -1,0 +1,236 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e293b;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px 30px;
+            background-color: #ffffff;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 24px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 8px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        h2 {
+            color: #1e3a8a;
+            font-size: 19px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 5px;
+            margin-top: 22px;
+            margin-bottom: 12px;
+        }
+        h3 {
+            color: #2563eb;
+            font-size: 15px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        p {
+            margin-top: 6px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        ul, ol {
+            margin-top: 6px;
+            margin-bottom: 10px;
+            padding-left: 24px;
+            font-size: 13px;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        blockquote {
+            background-color: #f1f5f9;
+            border-left: 4px solid #2563eb;
+            margin: 12px 0;
+            padding: 10px 16px;
+            font-style: italic;
+            font-size: 13px;
+        }
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 14px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            margin: 12px 0;
+        }
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 12px;
+        }
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 12px;
+            border: 1px solid #334155;
+        }
+        td {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+    </style>
+    </head><body>
+<h1>Administrator (Case Manager) Dashboard – User Operating Guide</h1>
+<h2>1. Introduction to Administrator Control</h2>
+<p>The <strong>Administrator Control Dashboard</strong> is the primary operational portal used by Case Managers and Legal Firm Administrators. It allows administrators to onboard clients, set up cases, assign Drafters and QA Reviewers, manage project tasks, monitor payment milestones, schedule strategy appointments, and coordinate final petition filing to USCIS.</p>
+<hr>
+<h2>2. Navigation Menu &amp; Working of Every Section</h2>
+<p>The Administrator sees a dedicated sidebar menu with the following tabs:</p>
+<pre><code>
+┌────────────────────────────────────────────────────────────────────────┐
+│ ADMINISTRATOR CONTROL                                                  │
+│                                                                        │
+│  [📊 Dashboard]       - Daily metrics, quick actions &amp; activity feed   │
+│  [👥 Clients]         - Onboard &amp; manage client profiles               │
+│  [💼 Cases]           - Create cases, assign teams &amp; track stages      │
+│  [📋 Tasks]           - Task assignment, priority &amp; due dates          │
+│  [📁 Documents]       - Evidence review &amp; document verification        │
+│  [✅ Reviews]         - QA audit signoffs &amp; petition approval queue    │
+│  [💬 Communication]   - In-app messaging &amp; WhatsApp live chat          │
+│  [💳 Payments]        - Payment milestones, invoices &amp; receipts        │
+│  [📑 Case Templates]  - Standardized petition templates library        │
+│  [🎓 Appointments]    - Consultation calendar &amp; video call booking     │
+│  [📈 Reports]         - Case velocity &amp; stage metrics                  │
+│  [⚙️ Settings]        - Firm preferences &amp; profile settings            │
+└────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2>3. Detailed Menu &amp; Button Directory for Administrator</h2>
+<h3>1. Dashboard (<code>Dashboard</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Daily operational control center.</li></ul>
+<ul><li><strong>What you see</strong>: Metric summary cards (<strong>Active Cases</strong>, <strong>Pending Reviews</strong>, <strong>Overdue Tasks</strong>, <strong>Recent Updates</strong>) and recent case cards.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Create New Case Button</strong> ➔ Opens <strong>New Case Creation Modal</strong>.</li></ul>
+<ul><li><strong>➕ Add New Client Button</strong> ➔ Opens <strong>New Client Form</strong>.</li></ul>
+<ul><li><strong>📅 Schedule Call Button</strong> ➔ Opens <strong>Appointment Booking Modal</strong>.</li></ul>
+<ul><li><strong>✨ Babel AI Petition Drafter</strong> (Top Header/Sidebar) ➔ Opens the AI Assistant Modal.</li></ul>
+<hr>
+<h3>2. Clients (<code>Clients</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Onboarding and managing client information.</li></ul>
+<ul><li><strong>What you see</strong>: Database of all registered clients, highest degrees, fields, citation counts, and status badges.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Add New Client Button</strong> ➔ Opens the onboarding modal to fill:</li></ul>
+<ul><li>Client Name, Email, Phone, Country of Birth.</li></ul>
+<ul><li>Current Field (e.g. <em>Artificial Intelligence</em>).</li></ul>
+<ul><li>Highest Degree (<em>Ph.D.</em>, <em>Master's</em>, <em>Bachelor's + 5 yrs</em>).</li></ul>
+<ul><li>University, Citations, Publications, and Patents counts.</li></ul>
+<ul><li><strong>👁️ View Profile Button</strong> (On client card) ➔ Opens full client overview.</li></ul>
+<ul><li><strong>✏️ Edit Client Button</strong> ➔ Modifies client details.</li></ul>
+<hr>
+<h3>3. Cases (<code>Cases</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Creating and managing immigration case files.</li></ul>
+<ul><li><strong>What you see</strong>: Filterable table/grid of cases showing Case Number, Client, Category (<em>EB-2 NIW</em>, <em>EB-1A</em>, <em>O-1</em>), Current Stage (1 to 14), Assigned Writer &amp; Reviewer, and Risk Level.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Create New Case Button</strong> ➔ Opens <strong>New Case Creation Modal</strong> to:</li></ul>
+<ol><li>Enter Case Number (e.g. <code>NIW-2026-104</code>).</li></ol>
+<ol><li>Select Client from dropdown.</li></ol>
+<ol><li>Choose Petition Category &amp; Field Category.</li></ol>
+<ol><li>Select Target Filing Date &amp; Service Center (<em>Nebraska</em> or <em>Texas</em>).</li></ol>
+<ol><li>Assign Petition Drafter &amp; Senior QA Reviewer.</li></ol>
+<ol><li>Evaluate Risk Level (<em>Low</em>, <em>Medium</em>, <em>High</em>).</li></ol>
+<ul><li><strong>🎓 Resume &amp; Profile Builder Button</strong> (Action button on case row) ➔ Opens <strong>Resume Building Modal</strong> to optimize CV and calculate citation percentiles.</li></ul>
+<ul><li><strong>👁️ Open Case Details Button</strong> ➔ Opens full Case Detail view showing:</li></ul>
+<ul><li><em>Dhanasar 3-Prong Specifications</em> (Prongs 1, 2, and 3).</li></ul>
+<ul><li><em>Recommenders List</em> &amp; status.</li></ul>
+<ul><li><em>Task List</em> &amp; <em>Document Exhibits</em>.</li></ul>
+<hr>
+<h3>4. Tasks (<code>Tasks</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Managing team to-do items and client action items.</li></ul>
+<ul><li><strong>What you see</strong>: Complete list of tasks, assigned roles, priority badges (<em>Urgent</em>, <em>High</em>, <em>Medium</em>, <em>Low</em>), due dates, and completion status checkboxes.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Add Task Button</strong> ➔ Opens Task Modal to assign work to Drafter, Reviewer, or Client.</li></ul>
+<ul><li><strong>✅ Mark as Completed Checkbox</strong> ➔ Toggles task completion.</li></ul>
+<ul><li><strong>🏷️ Filter by Assigned Role Dropdown</strong> ➔ Filters tasks by <em>Client</em>, <em>Writer</em>, or <em>Reviewer</em>.</li></ul>
+<hr>
+<h3>5. Documents (<code>Documents</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Reviewing client uploads and legal evidence.</li></ul>
+<ul><li><strong>What you see</strong>: File vault displaying file names, categories (<em>CV</em>, <em>Degree</em>, <em>Publication</em>, <em>Recommendation Letter</em>, <em>Forms</em>), exhibit numbers, file sizes, and status (<em>Pending Review</em>, <em>Verified</em>, <em>Needs Revision</em>, <em>Approved</em>).</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Upload Document Button</strong> ➔ Opens <strong>NewDocModal</strong> to upload PDFs/images and assign Exhibit Numbers.</li></ul>
+<ul><li><strong>📥 Download File Button</strong> ➔ Downloads file to local device.</li></ul>
+<ul><li><strong>🔄 Change Status Button</strong> ➔ Updates document verification status.</li></ul>
+<hr>
+<h3>6. Reviews &amp; Approvals (<code>Reviews</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Managing QA legal audit queue.</li></ul>
+<ul><li><strong>What you see</strong>: Submitted legal petition memorandums awaiting reviewer signoff.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>👁️ Inspect Petition Draft Button</strong> ➔ Opens legal review modal.</li></ul>
+<ul><li><strong>✅ Approve Package Signoff Button</strong> ➔ Grants final clearance for physical printing and shipment.</li></ul>
+<hr>
+<h3>7. Communication &amp; WhatsApp (<code>Communication</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Messaging clients and legal staff.</li></ul>
+<ul><li><strong>What you see</strong>: Case message threads and live chat logs.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>📱 WhatsApp Live Chat Button</strong> (Sidebar sub-menu) ➔ Opens <strong>WhatsApp Live Chat Modal</strong>.</li></ul>
+<ul><li><strong>💬 Messaging Hub Logs Button</strong> (Sidebar sub-menu) ➔ Opens full case communication logs.</li></ul>
+<ul><li><strong>✉️ Send Message Button</strong> ➔ Sends in-app message.</li></ul>
+<hr>
+<h3>8. Payments (<code>Payments</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Milestone billing and invoice management.</li></ul>
+<ul><li><strong>What you see</strong>: Paid, pending, and overdue payment milestones per case.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>💳 Record Payment Button</strong> ➔ Opens invoice payment modal to record offline/online payment.</li></ul>
+<ul><li><strong>📥 Download Receipt Button</strong> ➔ Downloads PDF receipt for client.</li></ul>
+<hr>
+<h3>9. Appointments (<code>Appointments</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Scheduling legal consultations and strategy calls.</li></ul>
+<ul><li><strong>What you see</strong>: Interactive calendar with booked time slots and consultation notes.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>📅 Book Consultation Button</strong> ➔ Opens <strong>Appointment Booking Modal</strong> to select date, time slot, and meeting link.</li></ul>
+<hr>
+<h3>10. Templates, Reports &amp; Settings (<code>Templates</code>, <code>Reports</code>, <code>Settings</code> Tabs)</h3>
+<ul><li><strong>Purpose</strong>: Template management, case velocity reports, and firm settings.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Create Template Button</strong> ➔ Adds new petition letter template.</li></ul>
+<ul><li><strong>📊 Export Velocity Report Button</strong> ➔ Downloads stage progress analytics.</li></ul>
+<ul><li><strong>⚙️ Save Settings Button</strong> ➔ Saves preferences.</li></ul>
+<hr>
+<p><em>Administrator Dashboard Operating Guide — Authoritative System Guide</em></p>
+</body></html>

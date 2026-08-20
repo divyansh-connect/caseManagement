@@ -137,7 +137,7 @@ Initializes a new case folder for a client.
   | Field | Type | Rules | Example |
   | :--- | :--- | :--- | :--- |
   | `clientId` | String | Required, valid client UUID | `"c-101"` |
-  | `petitionCategory` | String | Required, Enum: `EB-2 NIW`, `EB-1A`, `O-1`, `Immigration Editorial Services`, `Mexico TR Visa` | `"EB-2 NIW"` |
+  | `petitionCategory` | String | Required, Enum: `EB-2 NIW`, `EB-1A`, `O-1`, `Resume Building`, `Mexico TR Visa` | `"EB-2 NIW"` |
   | `fieldCategory` | String | Required, min 2 chars | `"Computational Oncology"` |
   | `assignedWriter` | String | Optional, string | `"Petition Drafter 1"` |
   | `assignedReviewer`| String | Optional, string | `"Senior Reviewer"` |
@@ -150,7 +150,7 @@ Initializes a new case folder for a client.
   ```typescript
   const createCaseSchema = z.object({
     clientId: z.string().uuid("Invalid client ID format"),
-    petitionCategory: z.enum(['EB-2 NIW', 'EB-1A', 'O-1', 'Immigration Editorial Services', 'Mexico TR Visa']),
+    petitionCategory: z.enum(['EB-2 NIW', 'EB-1A', 'O-1', 'Resume Building', 'Mexico TR Visa']),
     fieldCategory: z.string().min(2),
     assignedWriter: z.string().optional(),
     assignedReviewer: z.string().optional(),

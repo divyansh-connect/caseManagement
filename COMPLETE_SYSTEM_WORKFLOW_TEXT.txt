@@ -1,0 +1,115 @@
+================================================================================
+          IMMIGRATION CASE MANAGEMENT SYSTEM - COMPLETE WORKFLOW GUIDE
+================================================================================
+
+OVERVIEW: HOW THE SYSTEM WORKS & HOW ALL DASHBOARDS ARE CONNECTED
+--------------------------------------------------------------------------------
+The Immigration Case Management System is a centralized, role-based platform 
+that connects the Client, Case Manager (Admin), Petition Drafter (Legal Writer), 
+Senior QA Reviewer, and Super Admin into one seamless, transparent workflow.
+
+Every role has a dedicated Dashboard tailored to their specific responsibilities. 
+Data, documents, and tasks automatically flow between these dashboards from the 
+moment a client registers until the final petition is filed with USCIS.
+
+
+================================================================================
+1. ROLE & DASHBOARD BREAKDOWN (WHO DOES WHAT?)
+================================================================================
+
+1. SUPER ADMIN DASHBOARD
+   - Role: System Administrator & Managing Partner.
+   - What They Do: 
+     • Manages global firm settings, user role permissions, and access controls.
+     • Configures petition templates (EB-2 NIW, EB-1A, O-1, etc.) and AI drafting prompts.
+     • Monitors firm-wide audit logs, overall case velocity, and payment gateways.
+
+2. ADMIN / CASE MANAGER DASHBOARD
+   - Role: Operational Lead & Client Liaison.
+   - What They Do:
+     • Onboards new clients and creates official case files.
+     • Assigns dedicated Petition Drafters and Senior QA Reviewers to each case.
+     • Monitors case progress stages, risk levels, deadlines, and payment milestones.
+     • Coordinates client communication, calendar appointments, and package dispatch.
+
+3. PETITION DRAFTER / LEGAL WRITER DASHBOARD
+   - Role: Legal Writer & Evidence Specialist.
+   - What They Do:
+     • Accesses client uploaded records (CVs, degrees, publications, citation reports).
+     • Drafts Proposed Endeavor statements and custom expert recommendation letters.
+     • Uses built-in AI tools to summarize evidence and write the Petition Memorandum 
+       under legal standards (such as Dhanasar 3-Prong framework or EB-1A criteria).
+     • Sends completed drafts for factual review to the client and QA audit to the reviewer.
+
+4. SENIOR QA REVIEWER DASHBOARD
+   - Role: Quality Control & Senior Legal Auditor.
+   - What They Do:
+     • Audits drafted recommendation letters and petition memorandums for legal strength.
+     • Verifies exhibit indices, citation percentiles, and USCIS compliance.
+     • Approves drafts or requests revisions before final filing packaging.
+
+5. CLIENT DASHBOARD (CLIENT PORTAL)
+   - Role: Applicant / Client.
+   - What They Do:
+     • Tracks case progress in real-time across 6 client-friendly stages.
+     • Uploads core personal documents (CV, degrees, transcripts, signed letters).
+     • Fills out simplified online questionnaires (auto-transferred into USCIS forms).
+     • Reviews drafted petition memos for factual accuracy.
+     • Manages payments, books appointments, and tracks post-filing USCIS notices.
+
+
+================================================================================
+2. COMPLETE END-TO-END WORKFLOW (HOW DATA & TASKS FLOW)
+================================================================================
+
+STAGE 1: ONBOARDING & DOCUMENT COLLECTION
+-----------------------------------------
+• Admin creates the client profile and assigns a Drafter & Reviewer.
+• Client logs into the Client Dashboard, signs the Engagement Agreement, and selects a Payment Plan.
+• Client uploads initial credentials (CV, academic degrees, transcripts, publication lists).
+• System notifies Drafter that core documents are ready for review.
+
+STAGE 2: PROPOSED ENDEAVOR & RECOMMENDATION LETTERS
+---------------------------------------------------
+• Drafter formulates a tailored "Proposed Endeavor" (U.S. national importance statement) and sends it to the Client Dashboard for review & approval.
+• Client submits details/CVs of 3 to 5 expert recommenders.
+• Drafter writes customized recommendation letters and sends them to the Client Dashboard.
+• Client downloads the letters, obtains signatures on official letterheads, and uploads signed PDFs back to the portal.
+
+STAGE 3: QUESTIONNAIRES & USCIS FORMS PREPARATION
+-------------------------------------------------
+• Client completes a simplified online questionnaire in the Client Dashboard.
+• System automatically transfers questionnaire data onto official USCIS forms (Form I-140, ETA-9089, G-1145).
+• Admin verifies form details, and Client downloads, prints, signs in blue ink where required, and re-uploads signed pages.
+
+STAGE 4: PETITION MEMORANDUM DRAFTING & QA REVIEW
+-------------------------------------------------
+• Drafter authors the comprehensive 25-40 page Petition Memorandum linking client evidence to legal criteria (e.g., Dhanasar 3 Prongs for EB-2 NIW).
+• Drafter submits petition to Senior Reviewer Dashboard for legal QA audit.
+• Once QA approved, draft is shared with Client Dashboard for factual verification (dates, project titles, publication figures).
+• Client approves draft or provides factual feedback.
+
+STAGE 5: FINAL PACKAGE ASSEMBLY & SHIPMENT
+------------------------------------------
+• Client clears any remaining service fee balance on the Payments tab.
+• Admin prints, compiles, and indices all signed forms, petition memo, cover letter, and exhibit attachments into a physical filing binder.
+• Admin confirms shipping address with Client and dispatches package to designated USCIS Service Center via express courier.
+
+STAGE 6: POST-FILING & USCIS TRACKING
+-------------------------------------
+• Admin uploads express courier tracking number to Client Dashboard.
+• When USCIS mails official Form I-797 (Receipt Notice), Client uploads a photo/scan of the notice to the portal.
+• System extracts Receipt Number to enable 1-click live tracking on official USCIS online status portal.
+
+
+================================================================================
+3. SUMMARY OF HOW ALL DASHBOARDS STAY CONNECTED
+================================================================================
+
+1. Client Dashboard ──(Uploads Documents/Forms)──► Drafter & Admin Dashboards
+2. Drafter Dashboard ──(Drafts Letters & Petition)──► QA Reviewer & Client Dashboards
+3. QA Reviewer Dashboard ──(Legal Signoff)──► Admin Dashboard
+4. Admin Dashboard ──(Packages & Ships to USCIS)──► Client Dashboard (Tracking)
+5. Super Admin Dashboard ──(Oversees System, Templates & Fees)──► All Dashboards
+
+================================================================================

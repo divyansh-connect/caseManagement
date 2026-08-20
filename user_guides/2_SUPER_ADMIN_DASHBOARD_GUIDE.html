@@ -1,0 +1,215 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e293b;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px 30px;
+            background-color: #ffffff;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 24px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 8px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        h2 {
+            color: #1e3a8a;
+            font-size: 19px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 5px;
+            margin-top: 22px;
+            margin-bottom: 12px;
+        }
+        h3 {
+            color: #2563eb;
+            font-size: 15px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        p {
+            margin-top: 6px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        ul, ol {
+            margin-top: 6px;
+            margin-bottom: 10px;
+            padding-left: 24px;
+            font-size: 13px;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        blockquote {
+            background-color: #f1f5f9;
+            border-left: 4px solid #2563eb;
+            margin: 12px 0;
+            padding: 10px 16px;
+            font-style: italic;
+            font-size: 13px;
+        }
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 14px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            margin: 12px 0;
+        }
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 12px;
+        }
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 12px;
+            border: 1px solid #334155;
+        }
+        td {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+    </style>
+    </head><body>
+<h1>Super Admin Dashboard – User Operating Guide</h1>
+<h2>1. Introduction to Super Admin Control</h2>
+<p>The <strong>Super Admin Control</strong> workspace is the highest-level management portal in the Case Management Website. It provides complete oversight over firm-wide performance, administrative user access, active case velocity, quality control reviews, system security logs, and financial transactions.</p>
+<hr>
+<h2>2. Navigation Menu &amp; Working of Every Section</h2>
+<p>The Super Admin sees a customized left sidebar with the following menu items:</p>
+<pre><code>
+┌────────────────────────────────────────────────────────────────────────┐
+│ SUPER ADMINISTRATOR CONTROL                                            │
+│                                                                        │
+│  [📊 Dashboard]          - Firm-wide overview &amp; metrics               │
+│  [👥 Clients]            - Client database management                  │
+│  [👤 Admin Management]   - User access control &amp; audit logs            │
+│  [💼 All Cases]          - Master case list across the firm            │
+│  [📁 Documents]          - Global document vault &amp; evidence repository │
+│  [✅ Reviews &amp; Approvals]- QA signoffs &amp; petition audit queue          │
+│  [💬 Communication]      - Messaging hub &amp; WhatsApp live chat          │
+│  [💳 Payments]           - Revenue, invoices, &amp; billing milestones     │
+│  [📈 Reports]            - Stage velocity &amp; approval analytics        │
+│  [⚙️ Settings]           - Global system configuration &amp; firm details  │
+└────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2>3. Detailed Menu &amp; Button Directory for Super Admin</h2>
+<h3>1. Dashboard (<code>Dashboard</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Overview of all firm operations and high-level activity.</li></ul>
+<ul><li><strong>What you see</strong>: Active case cards, total clients counter, pending review count, active task count, and real-time activity log feed.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>✨ Babel AI Petition Drafter</strong> (Top Header/Sidebar) ➔ Opens the <strong>AI Assistant Modal</strong> to run AI legal analysis, summarize evidence, or generate template drafts.</li></ul>
+<ul><li><strong>🔔 Notifications Bell</strong> (Top Header Right) ➔ Opens the <strong>Notifications Panel</strong> showing recent system-wide updates.</li></ul>
+<ul><li><strong>👤 Role Switcher Dropdown</strong> (Top Header Right) ➔ Allows switching role view to Admin, Writer, Reviewer, or Client for demonstration.</li></ul>
+<ul><li><strong>➕ Create New Case Button</strong> ➔ Opens <strong>New Case Creation Modal</strong> to initialize a case across the firm.</li></ul>
+<ul><li><strong>➕ Add New Client Button</strong> ➔ Opens <strong>New Client Onboarding Modal</strong> to register a new client profile.</li></ul>
+<hr>
+<h3>2. Admin Management (<code>Admin Management</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Managing administrative staff accounts and auditing security activity logs.</li></ul>
+<ul><li><strong>What you see</strong>:</li></ul>
+<ul><li><strong>System Users Table</strong>: List of all Administrators, Drafters, and QA Reviewers, their email addresses, assigned roles, and status.</li></ul>
+<ul><li><strong>Audit Log Entries</strong>: Timestamped log of every action taken in the system (case creation, stage changes, document uploads, role modifications).</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Add New Admin / User Button</strong> ➔ Opens user registration modal to create new Admin, Writer, or Reviewer accounts.</li></ul>
+<ul><li><strong>✏️ Edit Role / Permissions Button</strong> (Next to user row) ➔ Opens permission editor to adjust user access rights.</li></ul>
+<ul><li><strong>🔒 Deactivate User Button</strong> (Next to user row) ➔ Temporarily suspends user access to the platform.</li></ul>
+<ul><li><strong>🔍 Search Activity Logs</strong> ➔ Filters system audit logs by user email or action keyword.</li></ul>
+<hr>
+<h3>3. All Cases (<code>All Cases</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Master view of every active, pending, or completed case across the entire firm.</li></ul>
+<ul><li><strong>What you see</strong>: Table and card grid of all cases showing Case Number, Client Name, Petition Category (EB-2 NIW, EB-1A, O-1), Current Stage (1 to 14), Assigned Writer &amp; Reviewer, and Risk Level.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Create New Case Button</strong> ➔ Opens the <strong>New Case Creation Modal</strong>.</li></ul>
+<ul><li><strong>🔍 Case Search Bar</strong> ➔ Live search by client name, case number, or field category.</li></ul>
+<ul><li><strong>🏷️ Filter by Petition Category Dropdown</strong> ➔ Filters cases by <em>EB-2 NIW</em>, <em>EB-1A</em>, <em>O-1</em>, <em>Resume Building</em>, etc.</li></ul>
+<ul><li><strong>🚦 Filter by Risk Level Dropdown</strong> ➔ Filters cases by <em>High Risk</em>, <em>Medium Risk</em>, or <em>Low Risk</em>.</li></ul>
+<ul><li><strong>👁️ View Case Details / Open Case Button</strong> (On case card/row) ➔ Opens full Case Detail view showing Dhanasar prongs, recommenders, tasks, and document exhibits.</li></ul>
+<hr>
+<h3>4. Clients (<code>Clients</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Comprehensive database of all registered clients and petitioners.</li></ul>
+<ul><li><strong>What you see</strong>: List of clients with their name, email, phone number, field of expertise, highest degree, publication count, and status (<em>Active</em>, <em>On Hold</em>, <em>Approved</em>, <em>Archived</em>).</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>➕ Add New Client Button</strong> ➔ Opens <strong>New Client Form</strong> to register a new client.</li></ul>
+<ul><li><strong>👁️ View Profile Button</strong> ➔ Opens client profile summary including linked cases and uploaded credentials.</li></ul>
+<ul><li><strong>✏️ Edit Client Button</strong> ➔ Opens client details modal to update contact info, field of expertise, or degree credentials.</li></ul>
+<hr>
+<h3>5. Reviews &amp; Approvals (<code>Reviews &amp; Approvals</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Oversight of quality control signoffs and petition reviews.</li></ul>
+<ul><li><strong>What you see</strong>: Queue of submitted recommendation letters and petition memorandums awaiting senior review.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>👁️ Review Submission Button</strong> ➔ Opens legal review modal to read petition drafts and reviewer notes.</li></ul>
+<ul><li><strong>✅ Approve Signoff Button</strong> ➔ Grants final legal approval for petition package assembly.</li></ul>
+<ul><li><strong>🔄 Request Revision Button</strong> ➔ Sends petition draft back to Drafter with specific comments.</li></ul>
+<hr>
+<h3>6. Communication (<code>Communication</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Firm-wide message management and WhatsApp live chat.</li></ul>
+<ul><li><strong>What you see</strong>: Active message threads per case, communication history, and live chat logs.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>💬 Messaging Hub Logs Button</strong> (Sidebar sub-menu) ➔ Displays full message logs between clients and legal teams.</li></ul>
+<ul><li><strong>📱 WhatsApp Live Chat Button</strong> (Sidebar sub-menu) ➔ Opens the <strong>WhatsApp Live Chat Modal</strong> for instant direct messaging.</li></ul>
+<ul><li><strong>✉️ Send Message Button</strong> ➔ Sends in-app notification and message to selected client or team member.</li></ul>
+<hr>
+<h3>7. Payments (<code>Payments</code> Tab)</h3>
+<ul><li><strong>Purpose</strong>: Overview of firm revenue, billing milestones, and payment processing.</li></ul>
+<ul><li><strong>What you see</strong>: Financial summary metrics (Total Revenue, Paid Amount, Pending Invoices, Overdue Payments) and invoice table.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>💳 Record Payment Button</strong> ➔ Opens payment entry modal to log received payments.</li></ul>
+<ul><li><strong>📥 Download Receipt Button</strong> (On invoice row) ➔ Downloads official payment receipt as PDF.</li></ul>
+<ul><li><strong>🏷️ Filter Payment Status Dropdown</strong> ➔ Filters list by <em>Paid</em>, <em>Pending</em>, or <em>Overdue</em>.</li></ul>
+<hr>
+<h3>8. Reports &amp; Settings (<code>Reports</code> &amp; <code>Settings</code> Tabs)</h3>
+<ul><li><strong>Purpose</strong>: Performance analytics and global firm settings.</li></ul>
+<ul><li><strong>What you see</strong>: Case velocity charts, stage distribution metrics, approval rates, global petition templates, and firm profile settings.</li></ul>
+<ul><li><strong>Buttons &amp; Their Actions</strong>:</li></ul>
+<ul><li><strong>📊 Export Report Button</strong> ➔ Downloads firm performance report as spreadsheet/PDF.</li></ul>
+<ul><li><strong>⚙️ Save System Settings Button</strong> ➔ Saves global firm name, logo, default service centers, and notification rules.</li></ul>
+<hr>
+<p><em>Super Admin Dashboard Operating Guide — Authoritative System Guide</em></p>
+</body></html>
