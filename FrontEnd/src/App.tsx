@@ -651,7 +651,7 @@ export default function App() {
           currentUser={currentUser}
           activeTab={activeTab}
           onNavigateTab={navigateToTab}
-          openNewCaseModal={() => setIsNewCaseModalOpen(true)}
+          openNewCaseModal={() => setIsNewCaseCreationModalOpen(true)}
           openNewDocModal={() => setIsNewDocModalOpen(true)}
           openAIAssistant={() => setIsAiModalOpen(true)}
           searchQuery={searchQuery}
