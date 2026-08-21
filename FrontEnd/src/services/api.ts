@@ -1,12 +1,11 @@
 const getBaseUrl = (): string => {
-  const envUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/^["']|["']$/g, '').replace(/\/$/, '');
-  
-  if (envUrl) {
-    return envUrl;
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
   }
-
-  // Fallback to live production Railway API
-  return 'https://immigrtion-case-management-production.up.railway.app/api';
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://case-management-production.up.railway.app/api';
+  }
+  return 'http://127.0.0.1:5001/api';
 };
 
 interface RequestOptions {
@@ -39,10 +38,15 @@ const buildUrl = (endpoint: string, params?: Record<string, string | number>): s
 
 const getHeaders = (isMultipart = false): Record<string, string> => {
   const token = localStorage.getItem('jwt_token');
+  const overrideRole = localStorage.getItem('override_user_role');
   const headers: Record<string, string> = {};
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (overrideRole) {
+    headers['X-User-Role'] = overrideRole;
   }
   
   if (!isMultipart) {
@@ -52,12 +56,64 @@ const getHeaders = (isMultipart = false): Record<string, string> => {
   return headers;
 };
 
-const handleResponse = async (response: Response): Promise<any> => {
+const performTokenRefresh = async (): Promise<boolean> => {
+  try {
+    const token = localStorage.getItem('jwt_token');
+    if (!token) return false;
+
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/auth/refresh`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.token) {
+        localStorage.setItem('jwt_token', data.token);
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    console.error('Failed to auto-refresh token:', err);
+    return false;
+  }
+};
+
+const requestWithRetry = async (
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  endpoint: string,
+  options?: { body?: any; params?: Record<string, string | number>; isMultipart?: boolean }
+): Promise<any> => {
+  const url = buildUrl(endpoint, options?.params);
+  const isMultipart = options?.isMultipart || false;
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers: getHeaders(isMultipart),
+    body: method !== 'GET' ? (isMultipart ? options?.body : JSON.stringify(options?.body)) : undefined
+  };
+
+  let response = await fetch(url, fetchOptions);
+
   if (response.status === 401) {
-    localStorage.removeItem('jwt_token');
-    // If we are not on login page, reload to trigger auth state reset
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
+    console.warn('Authentication token expired/invalid. Attempting background token refresh...');
+    const refreshSuccess = await performTokenRefresh();
+    if (refreshSuccess) {
+      console.log('Token refresh successful. Retrying request...');
+      fetchOptions.headers = getHeaders(isMultipart);
+      response = await fetch(url, fetchOptions);
+    } else {
+      console.error('Token refresh failed. Directing to login...');
+      localStorage.removeItem('jwt_token');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
   }
 
@@ -79,50 +135,22 @@ const handleResponse = async (response: Response): Promise<any> => {
 
 export const api = {
   get: async (endpoint: string, params?: Record<string, string | number>): Promise<any> => {
-    const url = buildUrl(endpoint, params);
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders()
-    });
-    return handleResponse(response);
+    return requestWithRetry('GET', endpoint, { params });
   },
 
   post: async (endpoint: string, body: any, isMultipart = false): Promise<any> => {
-    const url = buildUrl(endpoint);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getHeaders(isMultipart),
-      body: isMultipart ? body : JSON.stringify(body)
-    });
-    return handleResponse(response);
+    return requestWithRetry('POST', endpoint, { body, isMultipart });
   },
 
   put: async (endpoint: string, body: any): Promise<any> => {
-    const url = buildUrl(endpoint);
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify(body)
-    });
-    return handleResponse(response);
+    return requestWithRetry('PUT', endpoint, { body });
   },
 
   patch: async (endpoint: string, body: any): Promise<any> => {
-    const url = buildUrl(endpoint);
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(body)
-    });
-    return handleResponse(response);
+    return requestWithRetry('PATCH', endpoint, { body });
   },
 
   delete: async (endpoint: string): Promise<any> => {
-    const url = buildUrl(endpoint);
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: getHeaders()
-    });
-    return handleResponse(response);
+    return requestWithRetry('DELETE', endpoint);
   }
 };

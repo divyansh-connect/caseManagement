@@ -21,7 +21,9 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 
 export interface Client {
   id: string;
+  clientId?: string;
   name: string;
+  fullName?: string;
   email: string;
   phone: string;
   countryOfBirth: string;
@@ -31,6 +33,9 @@ export interface Client {
   citationsCount?: number;
   publicationsCount?: number;
   patentsCount?: number;
+  citationCount?: number;
+  paperCount?: number;
+  patentCount?: number;
   status: 'Active' | 'On Hold' | 'Approved' | 'Archived';
   avatar?: string;
   createdAt: string;

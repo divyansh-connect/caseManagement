@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'cases', label: userRole === 'writer' ? 'My Assigned Cases' : userRole === 'superadmin' ? 'All Cases' : 'Cases', icon: Briefcase, badge: activeCaseCount, roles: ['superadmin', 'admin', 'writer', 'reviewer'] },
     { id: 'tasks', label: userRole === 'writer' ? 'My Tasks' : 'Tasks', icon: CheckSquare, roles: ['admin', 'writer', 'reviewer', 'client'] },
     { id: 'documents', label: userRole === 'writer' ? 'Research & Evidence' : 'Documents', icon: FileText, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
-    { id: 'forms', label: userRole === 'reviewer' ? 'Forms Review' : 'Forms', icon: FileSpreadsheet, roles: ['reviewer', 'client'] },
+    { id: 'forms', label: userRole === 'reviewer' ? 'Forms Review' : userRole === 'writer' ? 'Forms & Checklists' : 'Forms', icon: FileSpreadsheet, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'reviews', label: userRole === 'reviewer' ? 'Assigned Reviews' : 'Reviews & Approvals', icon: FileCheck, roles: ['superadmin', 'admin', 'reviewer'] },
     { id: 'communication', label: userRole === 'writer' ? 'Messages' : userRole === 'reviewer' ? 'Messages' : 'Communication', icon: MessageSquare, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'payments', label: userRole === 'client' ? 'Agreement & Payments' : 'Payments', icon: CreditCard, roles: ['superadmin', 'admin', 'client'] },

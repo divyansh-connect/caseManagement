@@ -33,6 +33,7 @@ import { LoginPage } from './components/auth/LoginPage';
 import { WhatsAppModal } from './components/communication/WhatsAppModal';
 import { NewCaseCreationModal } from './components/modals/NewCaseCreationModal';
 import { NewClientOnboardingModal } from './components/modals/NewClientOnboardingModal';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 // Tab to URL Route Path Mapping
 const TAB_TO_PATH: Record<NavTab, string> = {
@@ -124,10 +125,36 @@ export default function App() {
   const [isNewCaseCreationModalOpen, setIsNewCaseCreationModalOpen] = useState(false);
   const [isNewClientOnboardingModalOpen, setIsNewClientOnboardingModalOpen] = useState(false);
   const [commViewMode, setCommViewMode] = useState<'hub' | 'whatsapp'>('whatsapp');
+  const [caseToDelete, setCaseToDelete] = useState<{ id: string; number: string } | null>(null);
+  const [caseDeleteSuccessMsg, setCaseDeleteSuccessMsg] = useState<string | null>(null);
 
   const handleOpenResumeBuilding = (c: CaseItem) => {
     setResumeBuildingCase(c);
     setIsResumeBuildingModalOpen(true);
+  };
+
+  const handleDeleteCase = (caseId: string, caseNumber: string) => {
+    setCaseToDelete({ id: caseId, number: caseNumber });
+  };
+
+  const confirmDeleteCase = async () => {
+    if (!caseToDelete) return;
+    try {
+      const res = await api.delete(`/cases/${caseToDelete.id}`);
+      if (res.success) {
+        setCases(prev => prev.filter(c => c.id !== caseToDelete.id));
+        setCaseDeleteSuccessMsg(`Case ${caseToDelete.number} deleted successfully.`);
+        if (selectedCaseId === caseToDelete.id) {
+          setSelectedCaseId(null);
+        }
+      } else {
+        alert(res.error || 'Failed to delete case');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete case');
+    } finally {
+      setCaseToDelete(null);
+    }
   };
 
   // Mobile navigation drawer state
@@ -214,6 +241,7 @@ export default function App() {
 
           case 'cases':
           case 'reviews':
+          case 'forms':
             const casesRes = await api.get('/cases');
             if (casesRes.success) {
               setCases(casesRes.data.map(mapCaseData));
@@ -290,7 +318,6 @@ export default function App() {
           // Client workspace tabs — fetch the client's own case via /cases/my-case
           case 'clientPortal':
           case 'postFiling':
-          case 'forms':
             const myCaseRes = await api.get('/cases/my-case');
             if (myCaseRes.success && myCaseRes.data) {
               const mapped = mapCaseData(myCaseRes.data);
@@ -688,6 +715,7 @@ export default function App() {
               caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
               documents={documents}
               messages={messages}
+              appointments={appointments}
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAppointmentModal={() => setIsAppointmentModalOpen(true)}
               openSignModal={() => setIsSignModalOpen(true)}
@@ -742,12 +770,14 @@ export default function App() {
                 openNewDocModal={() => setIsNewDocModalOpen(true)}
                 openNewRecommenderModal={() => setIsNewRecModalOpen(true)}
                 openResumeBuildingModal={handleOpenResumeBuilding}
+                onDeleteCase={handleDeleteCase}
                 userRole={userRole}
               />
             ) : (
               <CasesListView
                 cases={roleFilteredCases}
                 onSelectCase={handleSelectCase}
+                onDeleteCase={handleDeleteCase}
                 openNewCaseModal={() => setIsNewCaseModalOpen(true)}
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 userRole={userRole}
@@ -758,12 +788,25 @@ export default function App() {
               clients={clients} 
               userRole={userRole} 
               openNewCaseModal={() => setIsNewCaseModalOpen(true)} 
+              openNewClientOnboardingModal={() => setIsNewClientOnboardingModalOpen(true)}
               onUpdateClient={(updatedClient) => {
                 setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
               }}
-              onDeleteClient={(clientId) => {
+              onDeleteClient={async (clientId) => {
                 setClients(prev => prev.filter(c => c.id !== clientId));
                 setCases(prev => prev.filter(c => c.clientId !== clientId));
+                try {
+                  const [casesRes, tasksRes, clientsRes] = await Promise.all([
+                    api.get('/cases'),
+                    api.get('/tasks'),
+                    api.get('/clients')
+                  ]);
+                  if (casesRes.success) setCases(casesRes.data.map(mapCaseData));
+                  if (tasksRes.success) setTasks(tasksRes.data);
+                  if (clientsRes.success) setClients(clientsRes.data);
+                } catch (e) {
+                  console.error('Failed to refresh data after deletion:', e);
+                }
               }}
             />
           ) : activeTab === 'adminManagement' ? (
@@ -780,7 +823,7 @@ export default function App() {
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAIAssistant={() => setIsAiModalOpen(true)}
             />
-          ) : activeTab === 'reviews' ? (
+          ) : activeTab === 'reviews' || activeTab === 'forms' ? (
             <ReviewsView
               cases={roleFilteredCases}
               onSelectCase={handleSelectCase}
@@ -885,6 +928,56 @@ export default function App() {
         onClose={() => setIsNewClientOnboardingModalOpen(false)}
         onOnboardClient={handleOnboardClient}
       />
+
+      {/* React Confirm Delete Case Modal */}
+      {caseToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-4 mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Delete Case Record?</h3>
+            <p className="text-xs text-slate-600 text-center mb-6 leading-relaxed">
+              Are you sure you want to permanently delete case <strong className="text-slate-900 font-mono">{caseToDelete.number}</strong>? All associated tasks, documents, and recommenders will be removed.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCaseToDelete(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteCase}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Case Deleted Success Modal */}
+      {caseDeleteSuccessMsg && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-150">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Case Deleted</h3>
+            <p className="text-xs text-slate-600 text-center mb-6 leading-relaxed">
+              {caseDeleteSuccessMsg}
+            </p>
+            <button
+              onClick={() => setCaseDeleteSuccessMsg(null)}
+              className="w-full px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

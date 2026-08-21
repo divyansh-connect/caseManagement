@@ -15,7 +15,8 @@ import {
   X,
   ShieldCheck,
   CheckCircle2,
-  UserCheck
+  UserCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { Client, UserRole } from '../../types';
 import { StatusBadge } from '../common/Badge';
@@ -24,6 +25,7 @@ import { api } from '../../services/api';
 interface ClientsViewProps {
   clients: Client[];
   openNewCaseModal: () => void;
+  openNewClientOnboardingModal?: () => void;
   userRole?: UserRole;
   onUpdateClient?: (updatedClient: Client) => void;
   onDeleteClient?: (clientId: string) => void;
@@ -31,7 +33,8 @@ interface ClientsViewProps {
 
 export const ClientsView: React.FC<ClientsViewProps> = ({ 
   clients, 
-  openNewCaseModal, 
+  openNewCaseModal,
+  openNewClientOnboardingModal,
   userRole = 'admin',
   onUpdateClient,
   onDeleteClient
@@ -41,7 +44,17 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [activeProfileClient, setActiveProfileClient] = useState<Client | null>(null);
 
   // Inline edit state variables
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Custom confirmation and alert Modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Password reset inline states
+  const [newPasswordVal, setNewPasswordVal] = useState('');
+  const [resetSuccessMessage, setResetSuccessMessage] = useState('');
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -64,9 +77,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       setEditField(activeProfileClient.currentField || '');
       setEditDegree(activeProfileClient.highestDegree || 'Ph.D.');
       setEditUniversity(activeProfileClient.university || '');
-      setEditCitations(activeProfileClient.citationsCount || 0);
-      setEditPublications(activeProfileClient.publicationsCount || 0);
-      setEditPatents(activeProfileClient.patentsCount || 0);
+      setEditCitations(activeProfileClient.citationCount !== undefined ? activeProfileClient.citationCount : (activeProfileClient.citationsCount || 0));
+      setEditPublications(activeProfileClient.paperCount !== undefined ? activeProfileClient.paperCount : (activeProfileClient.publicationsCount || 0));
+      setEditPatents(activeProfileClient.patentCount !== undefined ? activeProfileClient.patentCount : (activeProfileClient.patentsCount || 0));
       setEditStatus(activeProfileClient.status || 'Active');
       setIsEditing(false);
     }
@@ -109,25 +122,31 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     }
   };
 
-  const handleClearProfile = async () => {
-    if (!activeProfileClient) return;
-    if (!window.confirm(`Are you sure you want to clear/delete the profile for ${activeProfileClient.name}? This will permanently delete all associated case records, tasks, payments, and documents from the database.`)) {
-      return;
-    }
+  const handleClearProfile = () => {
+    if (!activeProfileClient || isDeleting) return;
+    setDeleteError('');
+    setShowConfirmModal(true);
+  };
 
+  const confirmDeletion = async () => {
+    if (!activeProfileClient) return;
+    setDeleteError('');
+    setIsDeleting(true);
     try {
       const res = await api.delete(`/clients/${activeProfileClient.id}`);
       if (res.success) {
-        alert('Client profile cleared successfully.');
+        setShowConfirmModal(false);
+        setShowSuccessModal(true);
         if (onDeleteClient) {
-          onDeleteClient(activeProfileClient.id);
+          await onDeleteClient(activeProfileClient.id);
         }
-        setActiveProfileClient(null);
       } else {
-        alert('Failed to delete profile: ' + (res.error || 'Unknown error'));
+        setDeleteError('Failed to delete profile: ' + (res.error || 'Unknown error'));
       }
     } catch (err: any) {
-      alert(`Deletion failed: ${err.message}`);
+      setDeleteError(`Deletion failed: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -155,7 +174,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
         {(userRole === 'admin' || userRole === 'superadmin') && (
           <button
-            onClick={openNewCaseModal}
+            onClick={openNewClientOnboardingModal || openNewCaseModal}
             className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
@@ -219,15 +238,21 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                   <span className="text-[10px] text-slate-400 block font-medium">Citations</span>
-                  <span className="font-extrabold text-slate-800 text-xs">{client.citationsCount || 0}</span>
+                  <span className="font-extrabold text-slate-800 text-xs">
+                    {client.citationCount !== undefined ? client.citationCount : (client.citationsCount || 0)}
+                  </span>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                   <span className="text-[10px] text-slate-400 block font-medium">Papers</span>
-                  <span className="font-extrabold text-slate-800 text-xs">{client.publicationsCount || 0}</span>
+                  <span className="font-extrabold text-slate-800 text-xs">
+                    {client.paperCount !== undefined ? client.paperCount : (client.publicationsCount || 0)}
+                  </span>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                   <span className="text-[10px] text-slate-400 block font-medium">Patents</span>
-                  <span className="font-extrabold text-slate-800 text-xs">{client.patentsCount || 0}</span>
+                  <span className="font-extrabold text-slate-800 text-xs">
+                    {client.patentCount !== undefined ? client.patentCount : (client.patentsCount || 0)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -394,7 +419,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   </div>
                 ) : (
                   <p className="font-semibold text-slate-800">
-                    {activeProfileClient.citationsCount || 0} Citations • {activeProfileClient.publicationsCount || 0} Papers • {activeProfileClient.patentsCount || 0} Patents
+                    {activeProfileClient.citationCount !== undefined ? activeProfileClient.citationCount : (activeProfileClient.citationsCount || 0)} Citations • {activeProfileClient.paperCount !== undefined ? activeProfileClient.paperCount : (activeProfileClient.publicationsCount || 0)} Papers • {activeProfileClient.patentCount !== undefined ? activeProfileClient.patentCount : (activeProfileClient.patentsCount || 0)} Patents
                   </p>
                 )}
               </div>
@@ -412,6 +437,74 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     <option value="Completed">Completed</option>
                   </select>
                 </div>
+              )}
+
+              {!isEditing && (userRole === 'admin' || userRole === 'superadmin') && (
+                <>
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between col-span-1 sm:col-span-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 font-semibold">Account status</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const newStatus = activeProfileClient.status === 'Active' ? 'Inactive' : 'Active';
+                          const res = await api.put(`/clients/${activeProfileClient.id}`, { status: newStatus });
+                          if (res.success && res.data) {
+                            if (onUpdateClient) onUpdateClient(res.data);
+                            setActiveProfileClient(res.data);
+                          }
+                        } catch (err: any) {
+                          alert('Failed to update status: ' + err.message);
+                        }
+                      }}
+                      className={`px-3 py-1 text-[10px] font-extrabold rounded-full border cursor-pointer transition-colors ${
+                        activeProfileClient.status === 'Active'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                      }`}
+                    >
+                      {activeProfileClient.status === 'Active' ? 'Active (Green)' : 'Inactive (Red)'}
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 col-span-1 sm:col-span-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 font-semibold block">Reset Client Password</span>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="password"
+                        placeholder="Enter new password"
+                        value={newPasswordVal}
+                        onChange={(e) => setNewPasswordVal(e.target.value)}
+                        className="flex-1 p-1.5 bg-white border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newPasswordVal || newPasswordVal.length < 6) {
+                            alert('Password must be at least 6 characters.');
+                            return;
+                          }
+                          try {
+                            const res = await api.put(`/clients/${activeProfileClient.id}`, { password: newPasswordVal });
+                            if (res.success) {
+                              setResetSuccessMessage('Password reset successfully.');
+                              setNewPasswordVal('');
+                              setTimeout(() => setResetSuccessMessage(''), 3000);
+                            }
+                          } catch (err: any) {
+                            alert('Failed to reset password: ' + err.message);
+                          }
+                        }}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg cursor-pointer transition-colors"
+                      >
+                        Reset Password
+                      </button>
+                    </div>
+                    {resetSuccessMessage && (
+                      <p className="text-[10px] font-bold text-emerald-600 mt-1">{resetSuccessMessage}</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
@@ -462,9 +555,10 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       </button>
                       <button
                         onClick={handleClearProfile}
-                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg cursor-pointer"
+                        disabled={isDeleting}
+                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg cursor-pointer disabled:opacity-50"
                       >
-                        Clear Profile
+                        {isDeleting ? 'Deleting...' : 'Clear Profile'}
                       </button>
                     </>
                   )}
@@ -481,6 +575,74 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Custom React Delete Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-scaleUp">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center border border-rose-100 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Delete Client Profile</h3>
+            </div>
+            
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Are you sure you want to clear/delete the profile for <strong className="text-slate-800 font-semibold">{activeProfileClient?.name}</strong>? This will permanently delete all associated case records, tasks, payments, and documents from the database. This action cannot be undone.
+            </p>
+
+            {deleteError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs rounded-xl font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-lg cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletion}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom React Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-900">Success</h3>
+              <p className="text-xs text-slate-500">Client profile deleted successfully.</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowSuccessModal(false);
+                setActiveProfileClient(null);
+              }}
+              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

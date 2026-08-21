@@ -25,7 +25,8 @@ import {
   ArrowUp,
   ArrowDown,
   ShieldCheck,
-  Slash
+  Slash,
+  Trash2
 } from 'lucide-react';
 import { CaseItem, StageId, CaseDocument, Recommender, CaseMessage, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
@@ -154,6 +155,7 @@ interface CaseDetailViewProps {
   openNewDocModal: () => void;
   openNewRecommenderModal: () => void;
   openResumeBuildingModal?: (caseItem: CaseItem) => void;
+  onDeleteCase?: (caseId: string, caseNumber: string) => void;
   userRole: UserRole;
 }
 
@@ -167,6 +169,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   openNewDocModal,
   openNewRecommenderModal,
   openResumeBuildingModal,
+  onDeleteCase,
   userRole,
 }) => {
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
@@ -343,6 +346,16 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
+          {(userRole === 'superadmin' || userRole === 'admin') && onDeleteCase && (
+            <button
+              onClick={() => onDeleteCase(caseData.id, caseData.caseNumber)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-600 hover:text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete Case</span>
+            </button>
+          )}
+
           <button
             onClick={openAIAssistant}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer"
@@ -490,7 +503,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                 }`}
               >
                 {/* Stage Header (Collapsible) */}
-                <button
+                <div
                   onClick={() => setExpandedStage(isExpanded ? -1 : stage.id)}
                   className={`w-full flex items-center gap-3 p-4 text-left transition-colors cursor-pointer ${
                     isActive
@@ -572,7 +585,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                     )}
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                   </div>
-                </button>
+                </div>
 
                 {/* Stage Body (Tasks) */}
                 {isExpanded && (

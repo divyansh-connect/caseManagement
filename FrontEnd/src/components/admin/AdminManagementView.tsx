@@ -43,12 +43,14 @@ export const AdminManagementView: React.FC = () => {
     name: '',
     email: '',
     password: '',
+    role: 'admin',
     status: 'Active' as 'Active' | 'Inactive'
   });
 
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
 
   // Default seed admin list fallback if initial DB load is empty
   const defaultAdmins: AdminUser[] = [
@@ -84,7 +86,8 @@ export const AdminManagementView: React.FC = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', password: '', status: 'Active' });
+    setFormData({ name: '', email: '', password: '', role: 'admin', status: 'Active' });
+    setConfirmPassword('');
     setFormError(null);
     setFormSuccess(null);
   };
@@ -100,6 +103,7 @@ export const AdminManagementView: React.FC = () => {
       name: admin.name,
       email: admin.email,
       password: '', // leave empty unless updating
+      role: admin.role || 'admin',
       status: admin.status
     });
     setFormError(null);
@@ -112,8 +116,13 @@ export const AdminManagementView: React.FC = () => {
     setFormError(null);
     setFormSuccess(null);
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim() || !confirmPassword.trim()) {
       setFormError('Please fill out all required fields.');
+      return;
+    }
+
+    if (formData.password !== confirmPassword) {
+      setFormError('Passwords do not match.');
       return;
     }
 
@@ -474,13 +483,33 @@ export const AdminManagementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Account Role</label>
-                <input
-                  type="text"
-                  disabled
-                  value="Administrator / Case Manager (admin)"
-                  className="w-full bg-slate-100 text-slate-500 font-medium border border-slate-200 rounded-lg px-3 py-2 cursor-not-allowed"
-                />
+                <label className="block font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                <div className="relative">
+                  <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm password"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Account Role *</label>
+                <select
+                  value={formData.role}
+                  onChange={e => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                >
+                  <option value="admin">Administrator / Case Manager</option>
+                  <option value="writer">Case Writer / Petition Drafter</option>
+                  <option value="reviewer">Legal Reviewer</option>
+                  <option value="superadmin">Super Administrator</option>
+                </select>
               </div>
 
               <div>

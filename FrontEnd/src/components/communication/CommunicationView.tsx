@@ -163,6 +163,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           isFullPage={true}
           onClose={() => setActiveViewMode('hub')}
           defaultClientName={selectedCase?.clientName}
+          cases={cases}
+          messages={messages}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

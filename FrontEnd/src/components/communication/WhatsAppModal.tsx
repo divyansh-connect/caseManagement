@@ -18,11 +18,15 @@ import {
   FileText
 } from 'lucide-react';
 
+import { CaseItem, CaseMessage } from '../../types';
+
 interface WhatsAppModalProps {
   isOpen?: boolean;
   onClose?: () => void;
   defaultClientName?: string;
   isFullPage?: boolean;
+  cases?: CaseItem[];
+  messages?: CaseMessage[];
 }
 
 interface ChatContact {
@@ -158,7 +162,9 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
   isOpen = true,
   onClose,
   defaultClientName,
-  isFullPage = true
+  isFullPage = true,
+  cases,
+  messages
 }) => {
   const [contacts, setContacts] = useState<ChatContact[]>(INITIAL_CONTACTS);
   const [selectedContactId, setSelectedContactId] = useState<string>('c1');
@@ -168,6 +174,45 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
   const [showMobileChat, setShowMobileChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Dynamically load real DB cases into contacts list
+  useEffect(() => {
+    if (cases && cases.length > 0) {
+      const dynamicContacts: ChatContact[] = cases.map((c, index) => ({
+        id: c.id,
+        name: c.clientName,
+        phone: c.clientEmail || '+1 (555) 012-3456',
+        role: `${c.petitionCategory || 'EB-2 NIW'} Candidate`,
+        avatarBg: index % 2 === 0 ? 'bg-blue-600' : 'bg-purple-600',
+        lastMsg: 'Active conversation thread',
+        lastTime: c.lastUpdated ? c.lastUpdated.substring(0, 10) : 'Active',
+        unreadCount: 0,
+        online: true
+      }));
+      setContacts(dynamicContacts);
+      if (!selectedContactId || !cases.find(c => c.id === selectedContactId)) {
+        setSelectedContactId(cases[0].id);
+      }
+    }
+  }, [cases]);
+
+  // Dynamically load real DB messages into messagesMap
+  useEffect(() => {
+    if (messages && messages.length > 0 && cases && cases.length > 0) {
+      const map: Record<string, WhatsAppMessage[]> = {};
+      messages.forEach((m) => {
+        if (!map[m.caseId]) map[m.caseId] = [];
+        map[m.caseId].push({
+          id: m.id,
+          sender: m.senderRole === 'client' ? 'client' : 'me',
+          text: m.content,
+          timestamp: m.timestamp || 'Just now',
+          status: 'read'
+        });
+      });
+      setMessagesMap(prev => ({ ...prev, ...map }));
+    }
+  }, [messages, cases]);
+
   // Sync selected contact if defaultClientName changes or matches
   useEffect(() => {
     if (defaultClientName) {
@@ -176,7 +221,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         setSelectedContactId(matched.id);
       }
     }
-  }, [defaultClientName]);
+  }, [defaultClientName, contacts]);
 
   const activeContact = contacts.find(c => c.id === selectedContactId) || contacts[0];
   const activeMessages = messagesMap[activeContact.id] || [];

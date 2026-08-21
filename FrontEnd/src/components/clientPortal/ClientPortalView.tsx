@@ -34,7 +34,7 @@ import {
   ArrowRight,
   X
 } from 'lucide-react';
-import { CaseItem, CaseDocument, CaseMessage, CaseTask } from '../../types';
+import { CaseItem, CaseDocument, CaseMessage, CaseTask, AppointmentItem } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
 
@@ -42,6 +42,7 @@ interface ClientPortalViewProps {
   caseData: CaseItem;
   documents: CaseDocument[];
   messages: CaseMessage[];
+  appointments?: AppointmentItem[];
   openNewDocModal: () => void;
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
@@ -213,6 +214,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   caseData,
   documents,
   messages: initialMessages,
+  appointments = [],
   openNewDocModal,
   openAppointmentModal,
   openSignModal,
@@ -1124,16 +1126,57 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             )}
           </div>
 
-          <div className="p-5 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center justify-between text-xs">
-            <div className="space-y-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white">Upcoming Session</span>
-              <h4 className="font-bold text-slate-900 text-sm">Recommender Strategy &amp; Endeavor Review Call</h4>
-              <p className="text-slate-600">March 8, 2026 at 2:00 PM EST (Google Meet)</p>
+          {appointments && appointments.length > 0 ? (
+            <div className="space-y-4">
+              {appointments.map((app) => (
+                <div key={app.id} className="p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        app.status === 'Completed' ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                      }`}>
+                        {app.status || 'Upcoming Session'}
+                      </span>
+                      <span className="text-[10px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        Specialist: {app.specialist}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-900 text-sm">{app.type}</h4>
+                    <p className="text-slate-600 font-medium">📅 {app.date} at {app.time} ({app.duration || '45 mins'})</p>
+                    {app.notes && (
+                      <p className="text-[11px] text-slate-500 italic mt-1">Note: {app.notes}</p>
+                    )}
+                  </div>
+                  <a
+                    href={app.meetingUrl || 'https://meet.google.com'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto text-center shrink-0"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join Google Meet</span>
+                  </a>
+                </div>
+              ))}
             </div>
-            <button className="px-4 py-2 bg-white text-blue-700 font-bold border border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer">
-              Join Call
-            </button>
-          </div>
+          ) : (
+            <div className="p-5 bg-blue-50/60 rounded-2xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+              <div className="space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white">Upcoming Session</span>
+                <h4 className="font-bold text-slate-900 text-sm">Recommender Strategy &amp; Endeavor Review Call</h4>
+                <p className="text-slate-600">March 8, 2026 at 2:00 PM EST (Google Meet)</p>
+              </div>
+              <a
+                href="https://meet.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 bg-white text-blue-700 font-bold border border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer inline-flex items-center gap-1.5 shrink-0"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>Join Call</span>
+              </a>
+            </div>
+          )}
         </div>
       )}
 
