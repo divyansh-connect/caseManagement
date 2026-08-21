@@ -37,6 +37,7 @@ import {
 import { CaseItem, CaseDocument, CaseMessage, CaseTask, AppointmentItem } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
+import { api } from '../../services/api';
 
 interface ClientPortalViewProps {
   caseData: CaseItem;
@@ -225,6 +226,29 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   commViewMode = 'whatsapp',
   setCommViewMode
 }) => {
+  const [fetchedCase, setFetchedCase] = useState<CaseItem | null>(null);
+
+  React.useEffect(() => {
+    if (!caseData && !fetchedCase) {
+      api.get('/cases/my-case').then(res => {
+        if (res.success && res.data) {
+          setFetchedCase({
+            ...res.data,
+            clientName: res.data.client?.name || 'Client Candidate',
+            clientEmail: res.data.client?.email || '',
+            dhanasar: res.data.dhanasarProngs || { prong1: {}, prong2: {}, prong3: {} },
+            recommenders: res.data.recommenders || [],
+            documentsCount: res.data.documents?.length || 0,
+            notes: res.data.notes || '',
+            lastUpdated: res.data.lastUpdated ? res.data.lastUpdated.substring(0, 16).replace('T', ' ') : ''
+          });
+        }
+      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err));
+    }
+  }, [caseData, fetchedCase]);
+
+  const activeCase = caseData || fetchedCase;
+
   const currentTab = activeNavTab ? (NAV_TO_PORTAL_TAB[activeNavTab] || 'overview') : 'overview';
   const [internalTab, setInternalTab] = useState<ClientPortalTab>(currentTab);
 
@@ -240,18 +264,39 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [stage1FlowMode, setStage1FlowMode] = useState<'standard' | 'evidence_first'>('standard');
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'sms' | 'whatsapp' | null>(null);
   const [messages, setMessages] = useState<CaseMessage[]>(() => {
-    return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
+    const target = caseData || fetchedCase;
+    return target ? initialMessages.filter(m => m.caseId === target.id) : [];
   });
   const [newMsg, setNewMsg] = useState('');
 
+  if (!activeCase) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] p-6">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="space-y-1">
+            <p className="text-slate-800 font-bold text-sm">Loading your case profile...</p>
+            <p className="text-slate-500 text-xs">Fetching latest petition status & document records</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+          >
+            Refresh Case Profile
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMsg.trim() || !caseData) return;
+    if (!newMsg.trim() || !activeCase) return;
 
     const msg: CaseMessage = {
       id: `msg-${Date.now()}`,
-      caseId: caseData.id,
-      senderName: caseData.clientName,
+      caseId: activeCase.id,
+      senderName: activeCase.clientName,
       senderRole: 'client',
       content: newMsg,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
@@ -292,50 +337,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     dynamicDescription = 'Please review, correct, and approve the proposed endeavor statement we have provided.';
   }
 
-  const clientDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
-
-  const [fetchedCase, setFetchedCase] = useState<CaseItem | null>(null);
-
-  React.useEffect(() => {
-    if (!caseData && !fetchedCase) {
-      api.get('/cases/my-case').then(res => {
-        if (res.success && res.data) {
-          setFetchedCase({
-            ...res.data,
-            clientName: res.data.client?.name || 'Client Candidate',
-            clientEmail: res.data.client?.email || '',
-            dhanasar: res.data.dhanasarProngs || { prong1: {}, prong2: {}, prong3: {} },
-            recommenders: res.data.recommenders || [],
-            documentsCount: res.data.documents?.length || 0,
-            notes: res.data.notes || '',
-            lastUpdated: res.data.lastUpdated ? res.data.lastUpdated.substring(0, 16).replace('T', ' ') : ''
-          });
-        }
-      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err));
-    }
-  }, [caseData, fetchedCase]);
-
-  const activeCase = caseData || fetchedCase;
-
-  if (!activeCase) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] p-6">
-        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <div className="space-y-1">
-            <p className="text-slate-800 font-bold text-sm">Loading your case profile...</p>
-            <p className="text-slate-500 text-xs">Fetching latest petition status & document records</p>
-          </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
-          >
-            Refresh Case Profile
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const clientDocs = activeCase ? documents.filter(d => d.caseId === activeCase.id) : [];
 
   // Status badge styling helper
   const getStatusBadge = (status: ClientStageGroup['tasks'][0]['status']) => {
