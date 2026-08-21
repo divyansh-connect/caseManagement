@@ -3,7 +3,7 @@ const getBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL.replace(/\/$/, '');
   }
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://case-management-production.up.railway.app/api';
+    return 'https://immigrtion-case-management-production.up.railway.app/api';
   }
   return 'http://127.0.0.1:5001/api';
 };
