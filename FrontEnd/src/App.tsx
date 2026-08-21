@@ -221,6 +221,25 @@ export default function App() {
 
     const loadDataForTab = async () => {
       try {
+        // If user is a client, always ensure their case is loaded via /cases/my-case
+        if (userRole === 'client') {
+          const myCaseRes = await api.get('/cases/my-case');
+          if (myCaseRes.success && myCaseRes.data) {
+            const mapped = mapCaseData(myCaseRes.data);
+            setCases(prev => {
+              const exists = prev.find(c => c.id === mapped.id);
+              return exists
+                ? prev.map(c => (c.id === mapped.id ? mapped : c))
+                : [mapped, ...prev];
+            });
+            const myDocsRes = await api.get('/documents');
+            if (myDocsRes.success) setDocuments(myDocsRes.data);
+            const myMsgsRes = await api.get('/messages');
+            if (myMsgsRes.success) setMessages(myMsgsRes.data);
+          }
+          return;
+        }
+
         switch (activeTab) {
           case 'dashboard':
             // Dashboard needs stats, cases, tasks and clients (for new case dropdown)
@@ -315,27 +334,6 @@ export default function App() {
             }
             break;
 
-          // Client workspace tabs — fetch the client's own case via /cases/my-case
-          case 'clientPortal':
-          case 'postFiling':
-            const myCaseRes = await api.get('/cases/my-case');
-            if (myCaseRes.success && myCaseRes.data) {
-              const mapped = mapCaseData(myCaseRes.data);
-              setCases(prev => {
-                // Replace existing entry if present, otherwise prepend
-                const exists = prev.find(c => c.id === mapped.id);
-                return exists
-                  ? prev.map(c => (c.id === mapped.id ? mapped : c))
-                  : [mapped, ...prev];
-              });
-              // Also load documents and messages for client portal tabs
-              const myDocsRes = await api.get('/documents');
-              if (myDocsRes.success) setDocuments(myDocsRes.data);
-              const myMsgsRes = await api.get('/messages');
-              if (myMsgsRes.success) setMessages(myMsgsRes.data);
-            }
-            break;
-
           default:
             break;
 
@@ -346,7 +344,7 @@ export default function App() {
     };
 
     loadDataForTab();
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, activeTab, userRole]);
 
   const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
     superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'documents', 'reviews', 'communication', 'payments', 'reports', 'settings'],

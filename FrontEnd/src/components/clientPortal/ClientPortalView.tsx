@@ -294,12 +294,44 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   const clientDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
 
-  if (!caseData) {
+  const [fetchedCase, setFetchedCase] = useState<CaseItem | null>(null);
+
+  React.useEffect(() => {
+    if (!caseData && !fetchedCase) {
+      api.get('/cases/my-case').then(res => {
+        if (res.success && res.data) {
+          setFetchedCase({
+            ...res.data,
+            clientName: res.data.client?.name || 'Client Candidate',
+            clientEmail: res.data.client?.email || '',
+            dhanasar: res.data.dhanasarProngs || { prong1: {}, prong2: {}, prong3: {} },
+            recommenders: res.data.recommenders || [],
+            documentsCount: res.data.documents?.length || 0,
+            notes: res.data.notes || '',
+            lastUpdated: res.data.lastUpdated ? res.data.lastUpdated.substring(0, 16).replace('T', ' ') : ''
+          });
+        }
+      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err));
+    }
+  }, [caseData, fetchedCase]);
+
+  const activeCase = caseData || fetchedCase;
+
+  if (!activeCase) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center justify-center min-h-[50vh] p-6">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium text-sm">Loading your case profile...</p>
+          <div className="space-y-1">
+            <p className="text-slate-800 font-bold text-sm">Loading your case profile...</p>
+            <p className="text-slate-500 text-xs">Fetching latest petition status & document records</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+          >
+            Refresh Case Profile
+          </button>
         </div>
       </div>
     );
@@ -343,12 +375,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   Case Overview
                 </span>
                 <h1 className="text-xl font-bold text-slate-900 mt-3 tracking-tight">
-                  {caseData.clientName}
+                  {activeCase.clientName}
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">
-                  Filing: <strong className="text-slate-800">{caseData.petitionCategory || 'EB-2 NIW'}</strong>
+                  Filing: <strong className="text-slate-800">{activeCase.petitionCategory || 'EB-2 NIW'}</strong>
                   <span className="mx-2 text-slate-300">|</span>
-                  Field: <strong className="text-blue-700">{caseData.fieldCategory}</strong>
+                  Field: <strong className="text-blue-700">{activeCase.fieldCategory}</strong>
                 </p>
               </div>
 
@@ -356,9 +388,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                   <span className="text-slate-500 font-medium">Petition Drafter:</span>
                   <div className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${caseData.assignedWriter ? 'bg-blue-500' : 'bg-red-500'}`} />
-                    <span className={`font-bold ${caseData.assignedWriter ? 'text-blue-700' : 'text-red-600'}`}>
-                      {caseData.assignedWriter || 'Not Assigned'}
+                    <span className={`w-2 h-2 rounded-full ${activeCase.assignedWriter ? 'bg-blue-500' : 'bg-red-500'}`} />
+                    <span className={`font-bold ${activeCase.assignedWriter ? 'text-blue-700' : 'text-red-600'}`}>
+                      {activeCase.assignedWriter || 'Not Assigned'}
                     </span>
                   </div>
                 </div>
@@ -366,9 +398,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                   <span className="text-slate-500 font-medium">Reviewer:</span>
                   <div className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${caseData.assignedReviewer ? 'bg-blue-500' : 'bg-red-500'}`} />
-                    <span className={`font-bold ${caseData.assignedReviewer ? 'text-blue-700' : 'text-red-600'}`}>
-                      {caseData.assignedReviewer || 'Not Assigned'}
+                    <span className={`w-2 h-2 rounded-full ${activeCase.assignedReviewer ? 'bg-blue-500' : 'bg-red-500'}`} />
+                    <span className={`font-bold ${activeCase.assignedReviewer ? 'text-blue-700' : 'text-red-600'}`}>
+                      {activeCase.assignedReviewer || 'Not Assigned'}
                     </span>
                   </div>
                 </div>
@@ -396,7 +428,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           {/* Dedicated Resume Building Banner */}
-          {caseData.petitionCategory === 'Resume Building' && (
+          {activeCase.petitionCategory === 'Resume Building' && (
             <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-emerald-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-800/80 rounded-xl text-emerald-300 shrink-0">
@@ -409,7 +441,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </div>
               {openResumeBuildingModal && (
                 <button
-                  onClick={() => openResumeBuildingModal(caseData)}
+                  onClick={() => openResumeBuildingModal(activeCase)}
                   className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs shrink-0 cursor-pointer shadow-md transition-all flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
