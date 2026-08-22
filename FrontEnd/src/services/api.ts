@@ -127,7 +127,7 @@ const requestWithRetry = async (
   }
 
   if (!response.ok) {
-    throw new Error(data.error || `Request failed with status ${response.status}`);
+    throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
   }
 
   return data;

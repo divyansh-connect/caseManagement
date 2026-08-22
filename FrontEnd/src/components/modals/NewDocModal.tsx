@@ -14,7 +14,8 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
   const [file, setFile] = useState<File | null>(null);
   const [docName, setDocName] = useState('');
   const [exhibitNum, setExhibitNum] = useState('Exhibit 104');
-  const [category, setCategory] = useState<CaseDocument['category']>('Publication');
+  const [category, setCategory] = useState<string>('Publication');
+  const [customTitle, setCustomTitle] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,9 +24,18 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
       return;
     }
 
+    if (category === 'Others' && !customTitle.trim()) {
+      alert('Please enter a document title');
+      return;
+    }
+
+    const finalCategory = category === 'Others' ? (customTitle.trim() || 'Others') : category;
+    const finalName = category === 'Others' ? (customTitle.trim() || file.name) : file.name;
+
     const formData = new FormData();
     formData.append('caseId', caseId);
-    formData.append('category', category);
+    formData.append('category', finalCategory);
+    formData.append('name', finalName);
     formData.append('file', file);
 
     try {
@@ -33,10 +43,15 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
       if (data.success) {
         const newDoc: CaseDocument = {
           ...data.data,
+          name: finalName,
+          category: finalCategory,
           exhibitNumber: exhibitNum
         };
         onAddDoc(newDoc);
         onClose();
+        setFile(null);
+        setCustomTitle('');
+        setCategory('Publication');
       } else {
         alert('Upload failed');
       }
@@ -80,7 +95,7 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
             <label className="block text-slate-700 font-bold mb-1">Evidence Category</label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
+              onChange={(e) => setCategory(e.target.value)}
               className="w-full max-w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
             >
               <option value="CV">CV / Bio</option>
@@ -89,9 +104,24 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
               <option value="Citation Report">Citation Index Report</option>
               <option value="Recommendation Letter">Recommendation Letter</option>
               <option value="Expert Opinion">Expert Opinion Assessment</option>
+              <option value="Others">Others</option>
             </select>
           </div>
         </div>
+
+        {category === 'Others' && (
+          <div className="animate-fadeIn">
+            <label className="block text-slate-700 font-bold mb-1">Document Title *</label>
+            <input
+              type="text"
+              required
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              placeholder="Enter document title"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            />
+          </div>
+        )}
 
         <div className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-2">
           <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-semibold cursor-pointer">

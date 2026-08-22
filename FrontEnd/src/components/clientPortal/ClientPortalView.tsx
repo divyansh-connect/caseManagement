@@ -115,11 +115,11 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     internalStages: [1, 2, 3, 4, 5],
     tasks: [
       { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-2', name: 'Upload existing CV: [Preliminary profile assessment]', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st1-2', name: 'Upload existing CV', assignedTo: 'Client', status: 'Approved/Completed' },
       { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Payment before documentation', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-5', name: 'Documentation: [Upload supporting documents, Identify missing documents & Resume/CV, preparation or improvement, when required, Documentation and Qualification Review, categorize academic, employment, publication, award, membership, media, citation, judging, contribution, and other records, Approve the evidence checklist for drafting]', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Payment after evidence assessment & profile improvement', assignedTo: 'Client', status: 'Not Applicable' }
+      { id: 'st1-4a', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st1-5', name: 'Documentation', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st1-4b', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Applicable' }
     ]
   },
   {
@@ -128,8 +128,8 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Proposed endeavor development & expert recommender letters',
     internalStages: [6, 7, 8],
     tasks: [
-      { id: 'st2-1', name: 'Review or develop the proposed endeavor: [Send the proposed endeavor to the client for review, correction, and approval]', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st2-2', name: 'Identify suitable recommenders: [Provide the client with the recommended categories of people who should write letters, Client provides each recommender’s CV, relationship information, and relevant accomplishments]', assignedTo: 'Client', status: 'Awaiting Client', deadline: 'Mar 10, 2026' },
+      { id: 'st2-1', name: 'Review or develop the proposed endeavor', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st2-2', name: 'Identify suitable recommenders', assignedTo: 'Client', status: 'Awaiting Client', deadline: 'Mar 10, 2026' },
       { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Under Review' },
       { id: 'st2-4', name: 'Client reviews the letters and sends them to the recommenders', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st2-5', name: 'Client uploads the signed letters on official letterhead', assignedTo: 'Client', status: 'Not Started' },
@@ -330,12 +330,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     };
   }
 
-  let dynamicDescription = `Action required: ${nextActionTask.name}. Please click the button to complete this task.`;
-  if (nextActionTask.name.includes('suitable recommenders')) {
-    dynamicDescription = 'Please provide the names, institutional details, and CVs of 3 to 5 expert recommenders who can attest to your proposed endeavor.';
-  } else if (nextActionTask.name.includes('proposed endeavor')) {
-    dynamicDescription = 'Please review, correct, and approve the proposed endeavor statement we have provided.';
-  }
+  let dynamicDescription = '';
 
   const clientDocs = activeCase ? documents.filter(d => d.caseId === activeCase.id) : [];
 
@@ -662,16 +657,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     <div className="p-5 border-t border-slate-100 divide-y divide-slate-100 space-y-3">
                       {stageGroup.id === 1 && (
                         <div className="mb-4 space-y-3">
-                          <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-300/80 text-amber-900 text-xs flex items-start gap-2.5 shadow-2xs">
-                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                            <div className="space-y-1">
-                              <span className="font-bold text-amber-950 block">Flexibility &amp; Custom Workflow Policy:</span>
-                              <p className="text-[11.5px] leading-relaxed text-amber-800">
-                                The order must be flexible. Some clients may need to upload their evidence first so we can prepare or improve their profile before completing the agreement and main payment. <strong className="text-amber-950 font-bold">For standard cases</strong>, payment is made first before uploading the required documents.
-                              </p>
-                            </div>
-                          </div>
-
                           {/* Interactive Flow Switch Buttons */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
@@ -769,24 +754,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         stageGroup.id === 1 ? (
                           stage1FlowMode === 'standard' ? stageGroup.tasks : [
                             { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-2', name: 'Upload existing CV: [Preliminary profile assessment]', assignedTo: 'Client', status: 'Approved/Completed' },
+                            { id: 'st1-2', name: 'Upload existing CV', assignedTo: 'Client', status: 'Approved/Completed' },
                             { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client', status: 'Not Applicable' },
-                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client', status: 'Awaiting Client' },
-                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client', status: 'Not Started' }
+                            { id: 'st1-4a', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Applicable' },
+                            { id: 'st1-5', name: 'Documentation', assignedTo: 'Client', status: 'Awaiting Client' },
+                            { id: 'st1-4b', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Started' }
                           ]
                         ) : stageGroup.tasks
                       ).map((task) => (
-                        <div key={task.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div className="space-y-1">
+                        <div key={task.id} className="pt-3.5 pb-3.5 border-b border-slate-100 last:border-b-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs w-full overflow-hidden">
+                          <div className="space-y-1 min-w-0 flex-1 pr-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-slate-800">{task.name}</span>
-                              {task.flowLabel && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 text-amber-900 border border-amber-300">
-                                  {task.flowLabel}
-                                </span>
-                              )}
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.assignedTo === 'Client'
+                              <span className="font-bold text-slate-800 text-xs sm:text-sm leading-snug break-words max-w-full">
+                                {task.name.replace(/:\s*\[.*?\]/g, '').replace(/\[.*?\]/g, '').trim()}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${task.assignedTo === 'Client'
                                   ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                   : 'bg-slate-100 text-slate-600'
                                 }`}>
@@ -798,12 +780,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center pt-1 sm:pt-0">
                             {getStatusBadge(task.status)}
                             {task.status === 'Awaiting Client' && (
                               <button
                                 onClick={openNewDocModal}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg cursor-pointer transition-colors"
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg cursor-pointer transition-colors whitespace-nowrap"
                               >
                                 Action Now
                               </button>

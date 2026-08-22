@@ -58,6 +58,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [otpVal, setOtpVal] = useState('');
   const [newResetPassword, setNewResetPassword] = useState('');
   const [confirmResetPassword, setConfirmResetPassword] = useState('');
+  const [otpNotice, setOtpNotice] = useState('');
   const [resetSuccessMsg, setResetSuccessMsg] = useState('');
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -398,6 +399,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     const endpoint = accountType === 'admin' ? '/auth/admin/forgot-password' : '/auth/forgot-password';
                     const data = await api.post(endpoint, { email: forgotEmail });
                     if (data.success) {
+                      setOtpNotice(data.message || `Check your email inbox for your 6-digit OTP code (use test code 123456).`);
                       setStep('resetPasswordForm');
                     } else {
                       setError(data.error || 'Failed to request password reset');
@@ -475,7 +477,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               >
                 <div className="mb-4">
                   <h2 className="text-xl font-bold text-slate-900">Reset Password</h2>
-                  <p className="text-xs text-slate-500 mt-1">Check your email for the simulated OTP code (use 123456 to test).</p>
+                  <p className="text-xs text-blue-600 font-medium mt-1.5 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                    {otpNotice || 'Check your email inbox for your 6-digit OTP code (use test code 123456).'}
+                  </p>
                 </div>
 
                 {resetSuccessMsg && (

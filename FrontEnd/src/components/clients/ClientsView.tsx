@@ -67,6 +67,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [editPatents, setEditPatents] = useState(0);
   const [editStatus, setEditStatus] = useState('Active');
 
+  // Team assignment states
+  const [assignedWriter, setAssignedWriter] = useState('Petition Drafter 1');
+  const [assignedReviewer, setAssignedReviewer] = useState('Senior Reviewer');
+  const [teamSaveSuccess, setTeamSaveSuccess] = useState('');
+  const [isSavingTeam, setIsSavingTeam] = useState(false);
+
   // Load client details into editing state on modal open
   React.useEffect(() => {
     if (activeProfileClient) {
@@ -81,9 +87,38 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       setEditPublications(activeProfileClient.paperCount !== undefined ? activeProfileClient.paperCount : (activeProfileClient.publicationsCount || 0));
       setEditPatents(activeProfileClient.patentCount !== undefined ? activeProfileClient.patentCount : (activeProfileClient.patentsCount || 0));
       setEditStatus(activeProfileClient.status || 'Active');
+      setAssignedWriter((activeProfileClient as any).assignedWriter || (activeProfileClient as any).assignedDrafter || 'Petition Drafter 1');
+      setAssignedReviewer((activeProfileClient as any).assignedReviewer || 'Senior Reviewer');
+      setTeamSaveSuccess('');
       setIsEditing(false);
     }
   }, [activeProfileClient]);
+
+  const handleSaveTeamAssignment = async () => {
+    if (!activeProfileClient) return;
+    setIsSavingTeam(true);
+    try {
+      const res = await api.put(`/clients/${activeProfileClient.id}`, {
+        assignedWriter,
+        assignedReviewer
+      });
+      if (res.success && res.data) {
+        const updatedClient = {
+          ...res.data,
+          assignedWriter,
+          assignedReviewer
+        };
+        setActiveProfileClient(updatedClient);
+        if (onUpdateClient) onUpdateClient(updatedClient);
+        setTeamSaveSuccess('Team assignment updated successfully!');
+        setTimeout(() => setTeamSaveSuccess(''), 3000);
+      }
+    } catch (err: any) {
+      alert('Failed to update team assignment: ' + (err.message || 'Error'));
+    } finally {
+      setIsSavingTeam(false);
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!activeProfileClient) return;
@@ -277,44 +312,44 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
       {/* Client Profile Summary Modal */}
       {activeProfileClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 sm:space-y-6 shadow-2xl border border-slate-200 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
             {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3 w-full">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center shadow-md shrink-0">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3 sm:pb-4 gap-2">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-600 text-white font-bold text-sm sm:text-base flex items-center justify-center shadow-md shrink-0">
                   {(editName || activeProfileClient.name).split(' ').map(n => n[0]).join('').substring(0, 2)}
                 </div>
                 {isEditing ? (
-                  <div className="space-y-1.5 w-full pr-4">
+                  <div className="space-y-1.5 w-full pr-2">
                     <input 
                       type="text" 
                       value={editName} 
                       onChange={(e) => setEditName(e.target.value)} 
                       placeholder="Candidate Full Name"
-                      className="w-full p-1 bg-slate-50 border border-slate-200 rounded text-sm font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500" 
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                       <input 
                         type="email" 
                         value={editEmail} 
                         onChange={(e) => setEditEmail(e.target.value)} 
                         placeholder="Email Address"
-                        className="w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                        className="w-full sm:w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
                       />
                       <input 
                         type="text" 
                         value={editPhone} 
                         onChange={(e) => setEditPhone(e.target.value)} 
                         placeholder="Phone Number"
-                        className="w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                        className="w-full sm:w-1/2 p-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500" 
                       />
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">{activeProfileClient.name}</h2>
-                    <p className="text-xs text-slate-500 font-medium">
+                  <div className="min-w-0">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">{activeProfileClient.name}</h2>
+                    <p className="text-xs text-slate-500 font-medium truncate">
                       {activeProfileClient.email} • {activeProfileClient.phone}
                     </p>
                   </div>
@@ -329,8 +364,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             </div>
 
             {/* Profile Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Country of Birth</span>
                 {isEditing ? (
                   <input 
@@ -344,7 +379,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 )}
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Field of Endeavor</span>
                 {isEditing ? (
                   <input 
@@ -358,14 +393,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 )}
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Highest Academic Qualification</span>
                 {isEditing ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <select 
                       value={editDegree} 
                       onChange={(e) => setEditDegree(e.target.value)} 
-                      className="w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full sm:w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="Ph.D.">Ph.D.</option>
                       <option value="Master's">Master's</option>
@@ -377,7 +412,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       value={editUniversity} 
                       onChange={(e) => setEditUniversity(e.target.value)} 
                       placeholder="University"
-                      className="w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                      className="w-full sm:w-1/2 p-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500" 
                     />
                   </div>
                 ) : (
@@ -385,10 +420,10 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                 )}
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Scholarly Impact</span>
                 {isEditing ? (
-                  <div className="flex gap-1.5 items-center">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                     <div className="flex items-center gap-1 min-w-0">
                       <span className="text-[10px] text-slate-400 font-medium">Cit:</span>
                       <input 
@@ -425,7 +460,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               </div>
 
               {isEditing && (
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1 col-span-1 sm:col-span-2">
+                <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-1 col-span-1 sm:col-span-2">
                   <span className="text-[10px] uppercase font-bold text-slate-400">Status</span>
                   <select 
                     value={editStatus} 
@@ -441,7 +476,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
               {!isEditing && (userRole === 'admin' || userRole === 'superadmin') && (
                 <>
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between col-span-1 sm:col-span-2">
+                  <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 flex items-center justify-between col-span-1 sm:col-span-2">
                     <span className="text-[10px] uppercase font-bold text-slate-400 font-semibold">Account status</span>
                     <button
                       type="button"
@@ -467,15 +502,15 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     </button>
                   </div>
 
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 col-span-1 sm:col-span-2">
+                  <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 space-y-2 col-span-1 sm:col-span-2">
                     <span className="text-[10px] uppercase font-bold text-slate-400 font-semibold block">Reset Client Password</span>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                       <input
                         type="password"
                         placeholder="Enter new password"
                         value={newPasswordVal}
                         onChange={(e) => setNewPasswordVal(e.target.value)}
-                        className="flex-1 p-1.5 bg-white border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full sm:flex-1 p-2 bg-white border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <button
                         type="button"
@@ -495,7 +530,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                             alert('Failed to reset password: ' + err.message);
                           }
                         }}
-                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg cursor-pointer transition-colors"
+                        className="w-full sm:w-auto px-4 py-2.5 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-[10px] rounded-lg cursor-pointer transition-colors text-center shrink-0"
                       >
                         Reset Password
                       </button>
@@ -508,39 +543,22 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               )}
             </div>
 
-            {/* Team & Workflow Summary */}
-            {!isEditing && (
-              <div className="bg-blue-50/60 rounded-xl p-4 border border-blue-100 text-xs space-y-2">
-                <h4 className="font-bold text-slate-800">Immigration Petition Team Assignment</h4>
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div>
-                    <span className="text-slate-500 block">Assigned Petition Drafter:</span>
-                    <span className="font-semibold text-slate-800">Petition Drafter 1</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Senior Reviewer:</span>
-                    <span className="font-semibold text-slate-800">Senior Reviewer</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Modal Actions */}
-            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between gap-3 items-stretch sm:items-center">
+            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between gap-2.5 sm:gap-3 items-stretch sm:items-center pb-6 sm:pb-0">
               {/* Left Action Buttons (Edit/Delete) */}
               {(userRole === 'superadmin' || userRole === 'admin') && (
-                <div className="flex gap-2 justify-start">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   {isEditing ? (
                     <>
                       <button
                         onClick={handleSaveEdit}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer text-center"
                       >
                         Save Changes
                       </button>
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-lg cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2.5 sm:py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-lg cursor-pointer text-center"
                       >
                         Cancel
                       </button>
@@ -549,14 +567,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     <>
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer text-center"
                       >
                         Edit Profile
                       </button>
                       <button
                         onClick={handleClearProfile}
                         disabled={isDeleting}
-                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg cursor-pointer disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg cursor-pointer disabled:opacity-50 text-center"
                       >
                         {isDeleting ? 'Deleting...' : 'Clear Profile'}
                       </button>
@@ -569,7 +587,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
               {!isEditing && (
                 <button
                   onClick={() => setActiveProfileClient(null)}
-                  className="px-5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-lg shadow-xs cursor-pointer sm:ml-auto"
+                  className="w-full sm:w-auto px-5 py-2.5 sm:py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-lg shadow-xs cursor-pointer text-center sm:ml-auto"
                 >
                   Close Profile
                 </button>
