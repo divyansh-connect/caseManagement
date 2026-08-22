@@ -36,7 +36,7 @@ const buildUrl = (endpoint: string, params?: Record<string, string | number>): s
   return query ? `${url}?${query}` : url;
 };
 
-const getHeaders = (isMultipart = false): Record<string, string> => {
+const getHeaders = (isMultipart = false, hasBody = false): Record<string, string> => {
   const token = localStorage.getItem('jwt_token');
   const overrideRole = localStorage.getItem('override_user_role');
   const headers: Record<string, string> = {};
@@ -49,7 +49,7 @@ const getHeaders = (isMultipart = false): Record<string, string> => {
     headers['X-User-Role'] = overrideRole;
   }
   
-  if (!isMultipart) {
+  if (!isMultipart && hasBody) {
     headers['Content-Type'] = 'application/json';
   }
   
@@ -66,8 +66,7 @@ const performTokenRefresh = async (): Promise<boolean> => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`
       }
     });
 
@@ -92,11 +91,12 @@ const requestWithRetry = async (
 ): Promise<any> => {
   const url = buildUrl(endpoint, options?.params);
   const isMultipart = options?.isMultipart || false;
+  const hasBody = method !== 'GET' && options?.body !== undefined;
 
   const fetchOptions: RequestInit = {
     method,
-    headers: getHeaders(isMultipart),
-    body: method !== 'GET' ? (isMultipart ? options?.body : JSON.stringify(options?.body)) : undefined
+    headers: getHeaders(isMultipart, hasBody),
+    body: hasBody ? (isMultipart ? options?.body : JSON.stringify(options?.body)) : undefined
   };
 
   let response = await fetch(url, fetchOptions);
