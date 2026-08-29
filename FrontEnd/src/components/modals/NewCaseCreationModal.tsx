@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Briefcase, Search } from 'lucide-react';
 import { Client } from '../../types';
-
+import { api } from '../../services/api';
 interface NewCaseCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,7 +18,7 @@ export const NewCaseCreationModal: React.FC<NewCaseCreationModalProps> = ({
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
   const [petitionCategory, setPetitionCategory] = useState('EB-2 NIW');
-  const [assignedWriter, setAssignedWriter] = useState('Sarah Jenkins');
+  const [assignedWriter, setAssignedWriter] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [notes, setNotes] = useState('');
   const [targetFilingDate, setTargetFilingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -27,6 +27,21 @@ export const NewCaseCreationModal: React.FC<NewCaseCreationModalProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/users').then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          const activeMembers = res.data.filter((u: any) => u.status === 'Active');
+          setTeamMembers(activeMembers);
+          if (activeMembers.length > 0 && !assignedWriter) {
+            setAssignedWriter(activeMembers[0].name);
+          }
+        }
+      }).catch(err => console.warn('Failed to fetch team members', err));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -172,15 +187,21 @@ export const NewCaseCreationModal: React.FC<NewCaseCreationModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Assigned Lawyer/Writer</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Assigned Babel Global Team</label>
               <select
                 value={assignedWriter}
                 onChange={e => setAssignedWriter(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
               >
-                <option value="Sarah Jenkins">Sarah Jenkins (Lawyer)</option>
-                <option value="Michael Chang">Michael Chang (Writer)</option>
-                <option value="David Miller">David Miller (Senior Attorney)</option>
+                {teamMembers.length > 0 ? (
+                  teamMembers.map(member => (
+                    <option key={member.id} value={member.name}>
+                      {member.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No active members found</option>
+                )}
               </select>
             </div>
           </div>

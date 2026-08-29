@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'clients', label: 'Clients', icon: Users, roles: ['superadmin', 'admin'] },
     { id: 'adminManagement', label: 'Admin Management', icon: UserCheck, roles: ['superadmin'] },
     { id: 'cases', label: userRole === 'writer' ? 'My Assigned Cases' : userRole === 'superadmin' ? 'All Cases' : 'Cases', icon: Briefcase, badge: activeCaseCount, roles: ['superadmin', 'admin', 'writer', 'reviewer'] },
-    { id: 'tasks', label: userRole === 'writer' ? 'My Tasks' : 'Tasks', icon: CheckSquare, roles: ['admin', 'writer', 'reviewer', 'client'] },
+    { id: 'tasks', label: userRole === 'writer' ? 'My Tasks' : 'Tasks', icon: CheckSquare, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'documents', label: userRole === 'writer' ? 'Research & Evidence' : 'Documents', icon: FileText, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'forms', label: userRole === 'reviewer' ? 'Forms Review' : userRole === 'writer' ? 'Forms & Checklists' : 'Forms', icon: FileSpreadsheet, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'reviews', label: userRole === 'reviewer' ? 'Assigned Reviews' : 'Reviews & Approvals', icon: FileCheck, roles: ['superadmin', 'admin', 'reviewer'] },

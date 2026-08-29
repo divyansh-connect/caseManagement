@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { CaseTask, StageId, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
@@ -13,18 +13,52 @@ interface NewTaskModalProps {
 export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask }) => {
   const [title, setTitle] = useState('');
   const [stageId, setStageId] = useState<StageId>(1);
-  const [assignedToName, setAssignedToName] = useState('Sarah Jenkins');
+  const [assignedToName, setAssignedToName] = useState('');
   const [assignedRole, setAssignedRole] = useState<UserRole>('writer');
   const [dueDate, setDueDate] = useState('2025-03-15');
   const [priority, setPriority] = useState<CaseTask['priority']>('medium');
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [cases, setCases] = useState<any[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch users
+      api.get('/users').then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          const activeMembers = res.data.filter((u: any) => u.status === 'Active');
+          setTeamMembers(activeMembers);
+          if (activeMembers.length > 0 && !assignedToName) {
+            setAssignedToName(activeMembers[0].name);
+            setAssignedRole(activeMembers[0].role as UserRole || 'writer');
+          }
+        }
+      }).catch(err => console.warn('Failed to fetch team members', err));
+
+      // Fetch cases
+      api.get('/cases').then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          setCases(res.data);
+          if (res.data.length > 0 && !selectedCaseId) {
+            setSelectedCaseId(res.data[0].id);
+          }
+        }
+      }).catch(err => console.warn('Failed to fetch cases', err));
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
+    if (!selectedCaseId) {
+      alert('You must have at least one case in the system before you can create a task.');
+      return;
+    }
+
     try {
       const data = await api.post('/tasks', {
-        caseId: 'case-101', // Default target case file
+        caseId: selectedCaseId,
         title: title.trim(),
         assignedRole,
         assignedToName,
@@ -48,6 +82,26 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Editorial Workflow Task" subtitle="Assign task to petition writers, editorial researchers, or senior reviewers">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <div>
+          <label className="block text-slate-700 font-bold mb-1">Target Case *</label>
+          <select
+            value={selectedCaseId}
+            onChange={(e) => setSelectedCaseId(e.target.value)}
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            {cases.length > 0 ? (
+              cases.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.caseNumber} - {c.client?.name || c.clientName || 'Unknown Client'}
+                </option>
+              ))
+            ) : (
+              <option value="">No cases available (Create a case first)</option>
+            )}
+          </select>
+        </div>
+
         <div>
           <label className="block text-slate-700 font-bold mb-1">Task Title / Description *</label>
           <input
@@ -99,15 +153,22 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
               onChange={(e) => {
                 const name = e.target.value;
                 setAssignedToName(name);
-                if (name.includes('David')) setAssignedRole('reviewer');
-                else setAssignedRole('writer');
+                const selectedMember = teamMembers.find(m => m.name === name);
+                if (selectedMember) {
+                  setAssignedRole(selectedMember.role as UserRole || 'writer');
+                }
               }}
               className="w-full max-w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
             >
-              <option value="Sarah Jenkins">Sarah Jenkins (Petition Writer)</option>
-              <option value="David Miller, Esq.">David Miller, Esq. (Senior Reviewer)</option>
-              <option value="Marcus Vance">Marcus Vance (Editorial Researcher)</option>
-              <option value="Intake Desk">Intake Desk (Staff)</option>
+              {teamMembers.length > 0 ? (
+                teamMembers.map(member => (
+                  <option key={member.id} value={member.name}>
+                    {member.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">No active members found</option>
+              )}
             </select>
           </div>
 
