@@ -88,9 +88,9 @@ export const Header: React.FC<HeaderProps> = ({
     if (currentUser?.name) return currentUser.name;
     if (userRole === 'superadmin') return 'Super Administrator';
     if (userRole === 'admin') return 'Case Administrator';
-    if (userRole === 'writer') return 'Petition Drafter 1';
+    if (userRole === 'writer') return 'Petition Drafter';
     if (userRole === 'reviewer') return 'Senior Reviewer';
-    if (userRole === 'client') return 'Dr. Alexander Vance';
+    if (userRole === 'client') return 'Client Account';
     return 'Authenticated User';
   };
 

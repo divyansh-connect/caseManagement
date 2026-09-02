@@ -374,7 +374,7 @@ export default function App() {
       }
       const caseIdFromUrl = path.replace('/cases/', '');
       if (userRole === 'writer') {
-        const isAssigned = cases.some(c => c.id === caseIdFromUrl && (c.assignedWriter.includes('Petition Drafter 1') || c.assignedWriter.includes('Drafter 1')));
+        const isAssigned = cases.some(c => c.id === caseIdFromUrl && (c.assignedWriter.toLowerCase().includes('writer') || c.assignedWriter.toLowerCase().includes('drafter') || c.assignedWriter === currentUser?.name));
         if (!isAssigned) {
           navigate('/cases', { replace: true });
           return;
@@ -654,7 +654,7 @@ export default function App() {
   // Filter cases accessible to current user role (Drafters can only access cases assigned to them)
   const roleFilteredCases = cases.filter(c => {
     if (userRole === 'writer') {
-      return c.assignedWriter.includes('Petition Drafter 1') || c.assignedWriter.includes('Drafter 1');
+      return c.assignedWriter.toLowerCase().includes('writer') || c.assignedWriter.toLowerCase().includes('drafter') || c.assignedWriter === currentUser?.name;
     }
     return true;
   });

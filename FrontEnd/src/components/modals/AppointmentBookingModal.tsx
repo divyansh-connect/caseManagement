@@ -192,8 +192,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
                 <option value="Senior Reviewer">Senior Reviewer</option>
-                <option value="Petition Drafter 1">Petition Drafter 1</option>
-                <option value="Petition Drafter 2">Petition Drafter 2</option>
+                <option value="Petition Drafter">Petition Drafter</option>
                 <option value="Lead Immigration Specialist">Lead Immigration Specialist</option>
               </select>
             </div>

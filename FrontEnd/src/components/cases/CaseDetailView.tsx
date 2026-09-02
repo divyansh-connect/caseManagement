@@ -625,7 +625,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                           {/* Task name + assignment */}
                           <div className="flex-1 min-w-0">
                             <div className={`font-semibold text-slate-800 leading-snug ${isNA ? 'line-through text-slate-400' : ''}`}>
-                              {task.name}
+                              {task.name.replace(/:\s*\[.*?\]/g, '').replace(/\[.*?\]/g, '').trim()}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${

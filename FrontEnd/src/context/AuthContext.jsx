@@ -36,13 +36,13 @@ export const AuthProvider = ({ children }) => {
     let email = "admin@babelglobal.com";
 
     if (newRole === USER_ROLES.WRITER) {
-      name = "Petition Drafter 1";
+      name = "Petition Drafter";
       email = "writer@babelglobal.com";
     } else if (newRole === USER_ROLES.REVIEWER) {
       name = "Senior Reviewer";
       email = "reviewer@babelglobal.com";
     } else if (newRole === USER_ROLES.CLIENT) {
-      name = "Dr. Alexander Vance (Client)";
+      name = "Client Account";
       email = "client@babelglobal.com";
     }
 

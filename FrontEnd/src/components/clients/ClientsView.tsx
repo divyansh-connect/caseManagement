@@ -68,8 +68,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [editStatus, setEditStatus] = useState('Active');
 
   // Team assignment states
-  const [assignedWriter, setAssignedWriter] = useState('Petition Drafter 1');
-  const [assignedReviewer, setAssignedReviewer] = useState('Senior Reviewer');
+  const [assignedWriter, setAssignedWriter] = useState('Unassigned');
+  const [assignedReviewer, setAssignedReviewer] = useState('Unassigned');
   const [teamSaveSuccess, setTeamSaveSuccess] = useState('');
   const [isSavingTeam, setIsSavingTeam] = useState(false);
 
@@ -87,8 +87,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       setEditPublications(activeProfileClient.paperCount !== undefined ? activeProfileClient.paperCount : (activeProfileClient.publicationsCount || 0));
       setEditPatents(activeProfileClient.patentCount !== undefined ? activeProfileClient.patentCount : (activeProfileClient.patentsCount || 0));
       setEditStatus(activeProfileClient.status || 'Active');
-      setAssignedWriter((activeProfileClient as any).assignedWriter || (activeProfileClient as any).assignedDrafter || 'Petition Drafter 1');
-      setAssignedReviewer((activeProfileClient as any).assignedReviewer || 'Senior Reviewer');
+      setAssignedWriter((activeProfileClient as any).assignedWriter || (activeProfileClient as any).assignedDrafter || 'Unassigned');
+      setAssignedReviewer((activeProfileClient as any).assignedReviewer || 'Unassigned');
       setTeamSaveSuccess('');
       setIsEditing(false);
     }

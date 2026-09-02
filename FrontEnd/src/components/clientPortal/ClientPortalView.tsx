@@ -674,7 +674,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                                   }`}
                               >
-                                Standard Flow (Payment First)
+                                Standard Onboarding Mode
                               </button>
                               <button
                                 onClick={(e) => {
@@ -686,7 +686,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                                   }`}
                               >
-                                Evidence-First Flow (Upload Evidence First)
+                                Evidence-First Onboarding Mode
                               </button>
                             </div>
                           </div>

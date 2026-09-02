@@ -69,7 +69,11 @@ export const AdminManagementView: React.FC = () => {
     try {
       const res = await api.get('/users');
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setAdmins(res.data);
+        const mapped = res.data.map((u: any) => ({
+          ...u,
+          status: u.status || 'Active'
+        }));
+        setAdmins(mapped);
       } else {
         setAdmins(defaultAdmins);
       }
@@ -222,6 +226,24 @@ export const AdminManagementView: React.FC = () => {
       }
     } catch (err) {
       setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, status: newStatus } : a));
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: string, adminName: string) => {
+    if (!window.confirm(`Are you sure you want to delete administrator account "${adminName}"?`)) {
+      return;
+    }
+    try {
+      const res = await api.delete(`/users/${adminId}`);
+      if (res.success) {
+        setAdmins(prev => prev.filter(a => a.id !== adminId));
+      } else {
+        // Local removal fallback
+        setAdmins(prev => prev.filter(a => a.id !== adminId));
+      }
+    } catch (err: any) {
+      // Local removal fallback if network connection issue
+      setAdmins(prev => prev.filter(a => a.id !== adminId));
     }
   };
 
@@ -379,7 +401,7 @@ export const AdminManagementView: React.FC = () => {
                     onClick={() => handleToggleStatus(admin)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
                       admin.status === 'Active'
-                        ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
                         : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
                     }`}
                   >
@@ -394,6 +416,15 @@ export const AdminManagementView: React.FC = () => {
                         <span>Activate</span>
                       </>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Delete Administrator Account"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>

@@ -119,8 +119,8 @@ export const CaseProvider = ({ children }) => {
         clientId: selectedClient?.id || 'client-101',
         petitionCategory: newCase.petitionCategory || 'EB-2 NIW',
         fieldCategory: newCase.fieldCategory || 'Computer Science',
-        assignedWriter: 'Petition Drafter 1',
-        assignedReviewer: 'Senior Reviewer',
+        assignedWriter: 'Unassigned',
+        assignedReviewer: 'Unassigned',
         riskLevel: 'low',
         targetFilingDate: '2026-06-15',
         uscisServiceCenter: 'Nebraska (NSC)',
@@ -134,7 +134,7 @@ export const CaseProvider = ({ children }) => {
           lastName: selectedClient?.lastName || 'User',
           clientName: selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : 'Unknown',
           clientEmail: selectedClient?.email || '',
-          assignedStaff: 'Petition Drafter 1',
+          assignedStaff: 'Unassigned',
           status: 'Active'
         };
         setCases(prev => [caseData, ...prev]);
