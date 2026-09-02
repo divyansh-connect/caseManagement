@@ -347,7 +347,7 @@ export default function App() {
   }, [isAuthenticated, activeTab, userRole]);
 
   const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
-    superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'documents', 'reviews', 'communication', 'payments', 'reports', 'settings'],
+    superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'tasks', 'documents', 'reviews', 'communication', 'payments', 'reports', 'settings'],
     admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'appointments', 'payments', 'templates', 'reports', 'settings'],
     writer: ['dashboard', 'cases', 'tasks', 'documents', 'communication', 'templates'],
     reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'reports'],

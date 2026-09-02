@@ -30,6 +30,16 @@ const TEAM_SUB_ROLES: {
     borderHoverClass: 'hover:border-purple-500 hover:bg-purple-50/40',
   },
   {
+    label: 'Administrator',
+    description: 'Manage users, assign tasks & oversee daily operations',
+    email: 'admin@babelglobal.com',
+    role: 'admin',
+    icon: ShieldAlert,
+    colorClass: 'text-blue-600',
+    bgClass: 'bg-blue-100/70 border-blue-200/50',
+    borderHoverClass: 'hover:border-blue-500 hover:bg-blue-50/40',
+  },
+  {
     label: 'Super Administrator',
     description: 'Full system control, staff permissions & workflow management',
     email: 'superadmin@babelglobal.com',
@@ -78,7 +88,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
     setIsLoading(true);
     try {
-      const endpoint = accountType === 'admin' ? '/auth/admin/login' : '/auth/login';
+      const isAdmin = accountType === 'admin' || selectedSubRole?.role === 'admin';
+      const endpoint = isAdmin ? '/auth/admin/login' : '/auth/login';
       const data = await api.post(endpoint, { email: emailVal, password: passwordVal });
       if (data.success) {
         localStorage.setItem('jwt_token', data.token);
@@ -233,33 +244,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         Babel Global Team
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5 font-normal">
-                        Super Admin · Case Writer / Researcher
+                        Drafter/Researcher · Administrator · Super Administrator
                       </p>
                     </div>
                   </div>
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
-                </button>
-
-                {/* Administrator Login Option */}
-                <button
-                  type="button"
-                  onClick={() => handleAccountType('admin')}
-                  className="w-full flex items-center justify-between p-4 sm:p-5 rounded-2xl border border-slate-200/90 hover:border-amber-500 bg-slate-50/60 hover:bg-amber-50/40 transition-all duration-200 group text-left shadow-sm hover:shadow-md cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-100/70 border border-amber-200/50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                      <ShieldAlert className="w-6 h-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-base group-hover:text-amber-600 transition-colors">
-                        Administrator Login
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5 font-normal">
-                        Verify credentials to access admin features
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </button>
 
                 {/* Client Option */}
@@ -396,7 +385,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   setIsLoading(true);
                   setError('');
                   try {
-                    const endpoint = accountType === 'admin' ? '/auth/admin/forgot-password' : '/auth/forgot-password';
+                    const isAdmin = accountType === 'admin' || selectedSubRole?.role === 'admin';
+                    const endpoint = isAdmin ? '/auth/admin/forgot-password' : '/auth/forgot-password';
                     const data = await api.post(endpoint, { email: forgotEmail });
                     if (data.success) {
                       setOtpNotice(data.message || `Check your email inbox for your 6-digit OTP code (use test code 123456).`);
@@ -452,7 +442,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   setIsLoading(true);
                   setError('');
                   try {
-                    const endpoint = accountType === 'admin' ? '/auth/admin/reset-password' : '/auth/reset-password';
+                    const isAdmin = accountType === 'admin' || selectedSubRole?.role === 'admin';
+                    const endpoint = isAdmin ? '/auth/admin/reset-password' : '/auth/reset-password';
                     const data = await api.post(endpoint, {
                       email: forgotEmail,
                       password: newResetPassword,
