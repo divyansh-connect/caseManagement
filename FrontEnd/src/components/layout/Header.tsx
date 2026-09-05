@@ -22,6 +22,7 @@ interface HeaderProps {
   userRole: UserRole;
   onChangeRole?: (role: UserRole) => void;
   currentUser?: { id?: string; name?: string; email?: string; role?: UserRole; avatar?: string } | null;
+  simulatedClient?: { name?: string; email?: string };
   activeTab: NavTab;
   onNavigateTab?: (tab: NavTab) => void;
   openNewCaseModal: () => void;
@@ -37,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   userRole,
   onChangeRole,
   currentUser,
+  simulatedClient,
   activeTab,
   onNavigateTab,
   openNewCaseModal,
@@ -84,29 +86,33 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const isSimulatingClient = userRole === 'client' && currentUser?.role !== 'client';
+
   const getUserName = () => {
+    if (isSimulatingClient && simulatedClient?.name) return simulatedClient.name;
     if (currentUser?.name) return currentUser.name;
     if (userRole === 'superadmin') return 'Super Administrator';
     if (userRole === 'admin') return 'Case Administrator';
     if (userRole === 'writer') return 'Petition Drafter 1';
     if (userRole === 'reviewer') return 'Senior Reviewer';
-    if (userRole === 'client') return 'Dr. Alexander Vance';
+    if (userRole === 'client') return isSimulatingClient && simulatedClient?.email ? simulatedClient.email.split('@')[0] : currentUser?.email?.split('@')[0] || 'Client User';
     return 'Authenticated User';
   };
 
   const getUserEmail = () => {
+    if (isSimulatingClient && simulatedClient?.email) return simulatedClient.email;
     if (currentUser?.email) return currentUser.email;
     if (userRole === 'superadmin') return 'superadmin@babelglobal.com';
     if (userRole === 'admin') return 'admin@babelglobal.com';
     if (userRole === 'writer') return 'writer@babelglobal.com';
     if (userRole === 'reviewer') return 'reviewer@babelglobal.com';
-    if (userRole === 'client') return 'client@babelglobal.com';
     return 'user@babelglobal.com';
   };
 
   const getInitials = (name?: string, role?: UserRole) => {
-    if (name && name.trim().length > 0) {
-      const parts = name.trim().split(/\s+/);
+    const finalName = isSimulatingClient && simulatedClient?.name ? simulatedClient.name : name;
+    if (finalName && finalName.trim().length > 0) {
+      const parts = finalName.trim().split(/\s+/);
       if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }

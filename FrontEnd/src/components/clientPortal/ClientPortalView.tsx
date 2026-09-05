@@ -44,6 +44,7 @@ interface ClientPortalViewProps {
   documents: CaseDocument[];
   messages: CaseMessage[];
   appointments?: AppointmentItem[];
+  tasks?: CaseTask[];
   openNewDocModal: () => void;
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
@@ -224,9 +225,38 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   activeNavTab,
   onNavigateTab,
   commViewMode = 'whatsapp',
-  setCommViewMode
+  setCommViewMode,
+  tasks = []
 }) => {
   const [fetchedCase, setFetchedCase] = useState<CaseItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(!caseData);
+
+  const clientTasks = tasks.filter(t => t.caseId === (caseData?.id || fetchedCase?.id));
+  
+  const dynamicStages = CLIENT_STAGES.map(stage => {
+    const stageTasks = clientTasks.filter(t => t.stageId === stage.id);
+    let updatedTasks = stage.tasks;
+    
+    // If backend tasks exist for this stage, map them over. 
+    // Otherwise, for a truly dynamic feel where "data should not be there", we could clear it,
+    // but typically we'd want to leave the structure empty if there are no tasks.
+    if (stageTasks.length > 0) {
+      updatedTasks = stageTasks.map(t => ({
+        id: t.id,
+        name: t.title,
+        assignedTo: t.assignedRole === 'client' ? 'Client' : 'Babel Global Team',
+        status: t.completed ? 'Approved/Completed' : (t.assignedRole === 'client' ? 'Awaiting Client' : 'Not Started'),
+        deadline: t.dueDate
+      }));
+    } else {
+      updatedTasks = [];
+    }
+    
+    return {
+      ...stage,
+      tasks: updatedTasks
+    };
+  });
 
   React.useEffect(() => {
     if (!caseData && !fetchedCase) {
@@ -243,7 +273,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             lastUpdated: res.data.lastUpdated ? res.data.lastUpdated.substring(0, 16).replace('T', ' ') : ''
           });
         }
-      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err));
+      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err))
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
   }, [caseData, fetchedCase]);
 
@@ -269,7 +302,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   });
   const [newMsg, setNewMsg] = useState('');
 
-  if (!activeCase) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh] p-6">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -278,11 +311,28 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <p className="text-slate-800 font-bold text-sm">Loading your case profile...</p>
             <p className="text-slate-500 text-xs">Fetching latest petition status & document records</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeCase) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="bg-white rounded-2xl p-10 max-w-md w-full border border-slate-200 shadow-sm text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-2 border border-slate-100">
+            <FolderOpen className="w-8 h-8 text-slate-400" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">No Active Case Found</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Welcome to the Client Portal! You do not have an active immigration case assigned to you yet. 
+            Please wait for your assigned attorney or petition drafter to set up your case profile.
+          </p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+            className="mt-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-xs cursor-pointer transition-colors"
           >
-            Refresh Case Profile
+            Refresh Dashboard
           </button>
         </div>
       </div>
@@ -308,7 +358,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Dynamic Next Action Calculation
   let nextActionTask: any = null;
-  for (const stage of CLIENT_STAGES) {
+  for (const stage of dynamicStages) {
     if (stage.isOptional) continue;
     const pendingClientTask = stage.tasks.find(
       (t) => t.assignedTo === 'Client' && (t.status === 'Not Started' || t.status === 'Awaiting Client' || t.status === 'Revision Required')
@@ -408,7 +458,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center sm:text-right">
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Current Case Stage</span>
                 <span className="text-sm font-extrabold text-slate-800">
-                  Stage 2: Strategy &amp; Recommenders
+                  {dynamicStages.find(s => s.id === activeCase.currentStage)?.title || `Stage ${activeCase.currentStage}`}
                 </span>
               </div>
 
@@ -509,7 +559,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
             {/* 6 Stage Horizontal Bar */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-              {CLIENT_STAGES.filter(st => !st.isOptional).map((st) => {
+              {dynamicStages.filter(st => !st.isOptional).map((st) => {
                 const isCompleted = st.id < 2;
                 const isCurrent = st.id === 2;
                 return (
@@ -587,7 +637,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           <div className="space-y-4">
-            {CLIENT_STAGES.map((stageGroup) => {
+            {dynamicStages.map((stageGroup) => {
               const isExpanded = expandedStage === stageGroup.id;
               const isCompleted = stageGroup.id < 2;
               const isCurrent = stageGroup.id === 2;
@@ -642,7 +692,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-end mr-2">
                         <span className="text-xs font-bold text-slate-800">
-                          {Math.round((stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length / stageGroup.tasks.length) * 100)}% Completed
+                          {stageGroup.tasks.length > 0 ? Math.round((stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length / stageGroup.tasks.length) * 100) : 0}% Completed
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium">
                           {stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length} / {stageGroup.tasks.length} Tasks

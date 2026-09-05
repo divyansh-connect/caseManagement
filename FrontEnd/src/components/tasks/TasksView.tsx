@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   Filter,
   Layers,
-  List
+  List,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { CaseTask, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
@@ -28,6 +30,8 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
   const [activeView, setActiveView] = useState<'list' | 'kanban'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<CaseTask | null>(null);
 
   // Sync state if initialTasks changes
   React.useEffect(() => {
@@ -51,9 +55,26 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
   };
 
   const handleCreateTask = (newTask: CaseTask) => {
-    // Simply let the list reload from state
     if (onAddTask) {
       onAddTask(newTask);
+    }
+  };
+
+  const handleUpdateTask = (updatedTask: CaseTask) => {
+    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    try {
+      const data = await api.delete(`/tasks/${taskId}`);
+      if (data.success) {
+        setTasks(tasks.filter(t => t.id !== taskId));
+      } else {
+        alert('Failed to delete task');
+      }
+    } catch (err) {
+      console.error('Error deleting task:', err);
     }
   };
 
@@ -161,6 +182,23 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
                     }`}>
                       {task.priority}
                     </span>
+                    <button 
+                      onClick={() => {
+                        setEditingTask(task);
+                        setIsNewTaskModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                      title="Edit Task"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                      title="Delete Task"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -220,8 +258,13 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
       {/* New Task Form Modal */}
       <NewTaskModal
         isOpen={isNewTaskModalOpen}
-        onClose={() => setIsNewTaskModalOpen(false)}
+        onClose={() => {
+          setIsNewTaskModalOpen(false);
+          setEditingTask(null);
+        }}
         onAddTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
+        initialData={editingTask}
       />
     </div>
   );
