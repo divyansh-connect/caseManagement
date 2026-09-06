@@ -32,6 +32,7 @@ import {
   Shield,
   Smartphone,
   ArrowRight,
+  Trash2,
   X
 } from 'lucide-react';
 import { CaseItem, CaseDocument, CaseMessage, CaseTask, AppointmentItem } from '../../types';
@@ -44,7 +45,9 @@ interface ClientPortalViewProps {
   documents: CaseDocument[];
   messages: CaseMessage[];
   appointments?: AppointmentItem[];
+  tasks?: CaseTask[];
   openNewDocModal: () => void;
+  onDeleteDoc?: (docId: string) => void;
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
   openQuestionnaireModal?: () => void;
@@ -114,11 +117,11 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Profile assessment, engagement agreement, flexible payment & document collection',
     internalStages: [1, 2, 3, 4, 5],
     tasks: [
-      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-2', name: 'Upload existing CV', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-4a', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-5', name: 'Documentation', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-2', name: 'Upload existing CV', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-4a', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-5', name: 'Documentation', assignedTo: 'Client', status: 'Awaiting Client' },
       { id: 'st1-4b', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Applicable' }
     ]
   },
@@ -128,9 +131,9 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Proposed endeavor development & expert recommender letters',
     internalStages: [6, 7, 8],
     tasks: [
-      { id: 'st2-1', name: 'Review or develop the proposed endeavor', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st2-2', name: 'Identify suitable recommenders', assignedTo: 'Client', status: 'Awaiting Client', deadline: 'Mar 10, 2026' },
-      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st2-1', name: 'Review or develop the proposed endeavor', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st2-2', name: 'Identify suitable recommenders', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st2-4', name: 'Client reviews the letters and sends them to the recommenders', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st2-5', name: 'Client uploads the signed letters on official letterhead', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st2-6', name: 'Staff reviews and approves the completed letters', assignedTo: 'Babel Global Team', status: 'Not Started' }
@@ -142,9 +145,9 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'USCIS questionnaires & official form packages (I-140, ETA-9089, G-1145)',
     internalStages: [9],
     tasks: [
-      { id: 'st3-1', name: 'Client completes a simplified questionnaire', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st3-2', name: 'Information is transferred to the applicable forms', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st3-3', name: 'Staff reviews the information', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st3-1', name: 'Client completes a simplified questionnaire', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st3-2', name: 'Information is transferred to the applicable forms', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st3-3', name: 'Staff reviews the information', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st3-4', name: 'Client makes corrections or provides missing details', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st3-5', name: 'Client reviews and signs the completed forms where required with blue ink', assignedTo: 'Client', status: 'Not Started' }
     ]
@@ -155,8 +158,8 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Legal petition memorandum drafting under Dhanasar 3-Prong framework',
     internalStages: [9, 10, 11, 12],
     tasks: [
-      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Under Review', deadline: 'Mar 15, 2026' },
+      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st4-3', name: 'Senior QA Reviewer', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st4-4', name: 'Provide draft to client for factual review & approval', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st4-5', name: 'Final revisions & petition approval for packaging', assignedTo: 'Babel Global Team', status: 'Not Started' }
@@ -217,6 +220,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   messages: initialMessages,
   appointments = [],
   openNewDocModal,
+  onDeleteDoc,
   openAppointmentModal,
   openSignModal,
   openQuestionnaireModal,
@@ -224,9 +228,69 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   activeNavTab,
   onNavigateTab,
   commViewMode = 'whatsapp',
-  setCommViewMode
+  setCommViewMode,
+  tasks = []
 }) => {
   const [fetchedCase, setFetchedCase] = useState<CaseItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(!caseData);
+  const [localDocs, setLocalDocs] = useState<CaseDocument[]>(documents || []);
+  const [formUploadStates, setFormUploadStates] = useState<Record<string, { uploaded: boolean; fileName?: string; uploadedAt?: string }>>({});
+
+  React.useEffect(() => {
+    if (documents && documents.length > 0) {
+      setLocalDocs(documents);
+    }
+  }, [documents]);
+
+  const handleDeleteDocument = (docId: string, docName: string) => {
+    if (window.confirm(`Kya aap "${docName}" document ko delete karna chahte hain?`)) {
+      setLocalDocs(prev => prev.filter(d => d.id !== docId));
+      if (onDeleteDoc) {
+        onDeleteDoc(docId);
+      }
+    }
+  };
+
+  const handleFormSignatureUpload = (formId: string, formName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFormUploadStates(prev => ({
+      ...prev,
+      [formId]: {
+        uploaded: true,
+        fileName: file.name,
+        uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    }));
+  };
+
+  const clientTasks = tasks.filter(t => t.caseId === (caseData?.id || fetchedCase?.id));
+  
+  const dynamicStages = CLIENT_STAGES.map(stage => {
+    const stageTasks = clientTasks.filter(t => t.stageId === stage.id);
+    let updatedTasks = stage.tasks;
+    
+    // If backend tasks exist for this stage, map them over. 
+    // Otherwise, for a truly dynamic feel where "data should not be there", we could clear it,
+    // but typically we'd want to leave the structure empty if there are no tasks.
+    if (stageTasks.length > 0) {
+      updatedTasks = stageTasks.map(t => ({
+        id: t.id,
+        name: t.title,
+        assignedTo: t.assignedRole === 'client' ? 'Client' : 'Babel Global Team',
+        status: t.completed ? 'Approved/Completed' : (t.assignedRole === 'client' ? 'Awaiting Client' : 'Not Started'),
+        deadline: t.dueDate
+      }));
+    } else {
+      updatedTasks = [];
+    }
+    
+    return {
+      ...stage,
+      tasks: updatedTasks
+    };
+  });
 
   React.useEffect(() => {
     if (!caseData && !fetchedCase) {
@@ -243,7 +307,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             lastUpdated: res.data.lastUpdated ? res.data.lastUpdated.substring(0, 16).replace('T', ' ') : ''
           });
         }
-      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err));
+      }).catch(err => console.error('Error fetching fallback case in ClientPortalView:', err))
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
   }, [caseData, fetchedCase]);
 
@@ -269,7 +336,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   });
   const [newMsg, setNewMsg] = useState('');
 
-  if (!activeCase) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh] p-6">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -278,11 +345,28 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <p className="text-slate-800 font-bold text-sm">Loading your case profile...</p>
             <p className="text-slate-500 text-xs">Fetching latest petition status & document records</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeCase) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="bg-white rounded-2xl p-10 max-w-md w-full border border-slate-200 shadow-sm text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-2 border border-slate-100">
+            <FolderOpen className="w-8 h-8 text-slate-400" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">No Active Case Found</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Welcome to the Client Portal! You do not have an active immigration case assigned to you yet. 
+            Please wait for your assigned attorney or petition drafter to set up your case profile.
+          </p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+            className="mt-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-xs cursor-pointer transition-colors"
           >
-            Refresh Case Profile
+            Refresh Dashboard
           </button>
         </div>
       </div>
@@ -308,7 +392,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Dynamic Next Action Calculation
   let nextActionTask: any = null;
-  for (const stage of CLIENT_STAGES) {
+  for (const stage of dynamicStages) {
     if (stage.isOptional) continue;
     const pendingClientTask = stage.tasks.find(
       (t) => t.assignedTo === 'Client' && (t.status === 'Not Started' || t.status === 'Awaiting Client' || t.status === 'Revision Required')
@@ -408,7 +492,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center sm:text-right">
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Current Case Stage</span>
                 <span className="text-sm font-extrabold text-slate-800">
-                  Stage 2: Strategy &amp; Recommenders
+                  {dynamicStages.find(s => s.id === activeCase.currentStage)?.title || `Stage ${activeCase.currentStage}`}
                 </span>
               </div>
 
@@ -509,7 +593,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
             {/* 6 Stage Horizontal Bar */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-              {CLIENT_STAGES.filter(st => !st.isOptional).map((st) => {
+              {dynamicStages.filter(st => !st.isOptional).map((st) => {
                 const isCompleted = st.id < 2;
                 const isCurrent = st.id === 2;
                 return (
@@ -587,7 +671,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           <div className="space-y-4">
-            {CLIENT_STAGES.map((stageGroup) => {
+            {dynamicStages.map((stageGroup) => {
               const isExpanded = expandedStage === stageGroup.id;
               const isCompleted = stageGroup.id < 2;
               const isCurrent = stageGroup.id === 2;
@@ -642,7 +726,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-end mr-2">
                         <span className="text-xs font-bold text-slate-800">
-                          {Math.round((stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length / stageGroup.tasks.length) * 100)}% Completed
+                          {stageGroup.tasks.length > 0 ? Math.round((stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length / stageGroup.tasks.length) * 100) : 0}% Completed
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium">
                           {stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length} / {stageGroup.tasks.length} Tasks
@@ -750,18 +834,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           </div>
                         </div>
                       )}
-                      {(
-                        stageGroup.id === 1 ? (
-                          stage1FlowMode === 'standard' ? stageGroup.tasks : [
-                            { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-2', name: 'Upload existing CV', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-4a', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Applicable' },
-                            { id: 'st1-5', name: 'Documentation', assignedTo: 'Client', status: 'Awaiting Client' },
-                            { id: 'st1-4b', name: 'Select a payment plan and make payment', assignedTo: 'Client', status: 'Not Started' }
-                          ]
-                        ) : stageGroup.tasks
-                      ).map((task) => (
+                      {stageGroup.tasks.map((task) => (
                         <div key={task.id} className="pt-3.5 pb-3.5 border-b border-slate-100 last:border-b-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs w-full overflow-hidden">
                           <div className="space-y-1 min-w-0 flex-1 pr-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -822,7 +895,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {clientDocs.map(doc => (
+            {(localDocs.length > 0 ? localDocs : (documents || [])).map(doc => (
               <div key={doc.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
@@ -834,7 +907,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     {doc.status}
                   </span>
@@ -847,10 +920,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                       link.click();
                       document.body.removeChild(link);
                     }}
-                    className="p-2 text-slate-400 hover:text-blue-600 cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 cursor-pointer rounded-lg hover:bg-slate-100 transition-colors"
                     title="Download File"
                   >
                     <Download className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer rounded-lg hover:bg-rose-50 transition-colors"
+                    title="Delete File"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -905,71 +986,103 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
           {/* NIW Form Package Checklist */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm">Required Form Package Checklist for EB-2 NIW</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm">Required Form Package Checklist for EB-2 NIW</h3>
+                <p className="text-xs text-slate-500">Track and upload signed government petition forms</p>
+              </div>
+              <button
+                onClick={openNewDocModal}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg flex items-center gap-1.5 self-start sm:self-auto cursor-pointer transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <span>Upload General Form / Document</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Form I-140</span>
-                  <span className="text-[11px] text-slate-500">Immigrant Petition for Alien Workers</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Prepared</span>
-              </div>
+              {[
+                { id: 'i140', name: 'Form I-140', desc: 'Immigrant Petition for Alien Workers', initialStatus: 'Prepared', badgeBg: 'bg-emerald-100 text-emerald-800' },
+                { id: 'g1145', name: 'Form G-1145', desc: 'E-Notification of Application/Petition Acceptance', initialStatus: 'Prepared', badgeBg: 'bg-emerald-100 text-emerald-800' },
+                { id: 'g1650', name: 'Form G-1650 / G-1450', desc: 'ACH or Credit Card Authorization (Complete applicable)', initialStatus: 'Prepared', badgeBg: 'bg-emerald-100 text-emerald-800' },
+                { id: 'i907', name: 'Form I-907 (Optional)', desc: 'Request for Premium Processing Service', initialStatus: 'Not Started', badgeBg: 'bg-slate-100 text-slate-600' },
+                { id: 'eta9089', name: 'Form ETA 9089', desc: 'Application for Permanent Employment Certification', initialStatus: 'Prepared', badgeBg: 'bg-emerald-100 text-emerald-800' },
+                { id: 'eta9089_a', name: 'ETA Form 9089, Appendix A', desc: 'Required for NIW', initialStatus: 'Pending Blue Ink Signature', badgeBg: 'bg-amber-100 text-amber-800', requiresSignature: true },
+                { id: 'eta9089_c', name: 'ETA Form 9089, Appendix C', desc: 'Only when additional space is required', initialStatus: 'Not Applicable', badgeBg: 'bg-slate-100 text-slate-600' },
+                { id: 'eta9089_final', name: 'ETA Form 9089 Final Determination', desc: 'Includes required signature in Page 2, Section B', initialStatus: 'Pending Blue Ink Signature', badgeBg: 'bg-amber-100 text-amber-800', requiresSignature: true },
+              ].map((formItem) => {
+                const formState = formUploadStates[formItem.id];
+                const isUploaded = formState?.uploaded;
+                const fileName = formState?.fileName;
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Form G-1145</span>
-                  <span className="text-[11px] text-slate-500">E-Notification of Application/Petition Acceptance</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Prepared</span>
-              </div>
+                return (
+                  <div key={formItem.id} className="p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 flex flex-col justify-between gap-2.5 transition-all">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-bold text-slate-800 block">{formItem.name}</span>
+                        <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">{formItem.desc}</span>
+                      </div>
+                      {isUploaded ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 shrink-0">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Signed &amp; Uploaded
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${formItem.badgeBg}`}>
+                          {formItem.initialStatus}
+                        </span>
+                      )}
+                    </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Form G-1650 / G-1450</span>
-                  <span className="text-[11px] text-slate-500">ACH or Credit Card Authorization (Complete applicable)</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Prepared</span>
-              </div>
+                    {fileName && (
+                      <div className="text-[11px] bg-white p-2 rounded-lg border border-slate-200 text-slate-600 flex items-center justify-between font-mono">
+                        <span className="truncate flex items-center gap-1.5 min-w-0 flex-1">
+                          <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="truncate">{fileName}</span>
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-[10px] text-emerald-600 font-bold">✓ Verified</span>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Kya aap ${formItem.name} ki signed file delete karna chahte hain?`)) {
+                                setFormUploadStates(prev => {
+                                  const copy = { ...prev };
+                                  delete copy[formItem.id];
+                                  return copy;
+                                });
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete Signed Copy"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Form I-907 (Optional)</span>
-                  <span className="text-[11px] text-slate-500">Request for Premium Processing Service</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Not Started</span>
-              </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 mt-1">
+                      <label className="cursor-pointer px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 hover:border-blue-300 font-bold text-[11px] rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs">
+                        <Upload className="w-3 h-3 text-blue-600" />
+                        <span>{isUploaded ? 'Re-upload Signed Copy' : 'Upload Signed Copy'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          className="hidden"
+                          onChange={(e) => handleFormSignatureUpload(formItem.id, formItem.name, e)}
+                        />
+                      </label>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Form ETA 9089</span>
-                  <span className="text-[11px] text-slate-500">Application for Permanent Employment Certification</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Prepared</span>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">ETA Form 9089, Appendix A</span>
-                  <span className="text-[11px] text-slate-500">Required for NIW</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Pending Blue Ink Signature</span>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">ETA Form 9089, Appendix C</span>
-                  <span className="text-[11px] text-slate-500">Only when additional space is required</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Not Applicable</span>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">ETA Form 9089 Final Determination</span>
-                  <span className="text-[11px] text-slate-500">Includes required signature in Page 2, Section B</span>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Pending Blue Ink Signature</span>
-              </div>
+                      {formItem.requiresSignature && !isUploaded && (
+                        <span className="text-[10px] text-amber-700 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 text-amber-600" />
+                          Blue ink signature needed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -7,10 +7,12 @@ import { api } from '../../services/api';
 interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddTask: (task: CaseTask) => void;
+  onAddTask?: (task: CaseTask) => void;
+  onUpdateTask?: (task: CaseTask) => void;
+  initialData?: CaseTask | null;
 }
 
-export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask }) => {
+export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask, onUpdateTask, initialData }) => {
   const [title, setTitle] = useState('');
   const [stageId, setStageId] = useState<StageId>(1);
   const [assignedToName, setAssignedToName] = useState('');
@@ -23,12 +25,29 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
 
   useEffect(() => {
     if (isOpen) {
+      if (initialData) {
+        setTitle(initialData.title);
+        setStageId(initialData.stageId);
+        setAssignedToName(initialData.assignedToName);
+        setAssignedRole(initialData.assignedRole);
+        setDueDate(initialData.dueDate);
+        setPriority(initialData.priority);
+        setSelectedCaseId(initialData.caseId || '');
+      } else {
+        setTitle('');
+        setStageId(1);
+        setDueDate('2025-03-15');
+        setPriority('medium');
+        setAssignedToName('');
+        setSelectedCaseId('');
+      }
+
       // Fetch users
       api.get('/users').then(res => {
         if (res.success && Array.isArray(res.data)) {
           const activeMembers = res.data.filter((u: any) => u.status === 'Active');
           setTeamMembers(activeMembers);
-          if (activeMembers.length > 0 && !assignedToName) {
+          if (activeMembers.length > 0 && !initialData) {
             setAssignedToName(activeMembers[0].name);
             setAssignedRole(activeMembers[0].role as UserRole || 'writer');
           }
@@ -39,13 +58,13 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
       api.get('/cases').then(res => {
         if (res.success && Array.isArray(res.data)) {
           setCases(res.data);
-          if (res.data.length > 0 && !selectedCaseId) {
+          if (res.data.length > 0 && !initialData) {
             setSelectedCaseId(res.data[0].id);
           }
         }
       }).catch(err => console.warn('Failed to fetch cases', err));
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,30 +76,45 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
     }
 
     try {
-      const data = await api.post('/tasks', {
-        caseId: selectedCaseId,
+      const payload = {
         title: title.trim(),
-        assignedRole,
-        assignedToName,
         stageId,
+        assignedToName,
+        assignedRole,
         dueDate,
-        priority
-      });
+        priority,
+        caseId: selectedCaseId
+      };
 
-      if (data.success) {
-        onAddTask(data.data);
-        setTitle('');
-        onClose();
+      if (initialData) {
+        const data = await api.patch(`/tasks/${initialData.id}`, payload);
+        if (data.success && onUpdateTask) {
+          onUpdateTask(data.data);
+          onClose();
+        } else {
+          alert('Failed to update task');
+        }
       } else {
-        alert('Failed to create task');
+        const data = await api.post('/tasks', payload);
+        if (data.success && onAddTask) {
+          onAddTask(data.data);
+          onClose();
+        } else {
+          alert('Failed to create task');
+        }
       }
-    } catch (err: any) {
-      alert(`Connection error: ${err.message}`);
+    } catch (err) {
+      console.error('Error saving task:', err);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Editorial Workflow Task" subtitle="Assign task to petition writers, editorial researchers, or senior reviewers">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={initialData ? "Edit Editorial Workflow Task" : "Create New Editorial Workflow Task"} 
+      subtitle={initialData ? "Modify task details" : "Assign task to petition writers, editorial researchers, or senior reviewers"}
+    >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div>
           <label className="block text-slate-700 font-bold mb-1">Target Case *</label>
@@ -153,13 +187,18 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
               onChange={(e) => {
                 const name = e.target.value;
                 setAssignedToName(name);
-                const selectedMember = teamMembers.find(m => m.name === name);
-                if (selectedMember) {
-                  setAssignedRole(selectedMember.role as UserRole || 'writer');
+                if (name === 'Client') {
+                  setAssignedRole('client');
+                } else {
+                  const selectedMember = teamMembers.find(m => m.name === name);
+                  if (selectedMember) {
+                    setAssignedRole(selectedMember.role as UserRole || 'writer');
+                  }
                 }
               }}
               className="w-full max-w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
             >
+              <option value="Client" className="font-bold text-blue-600">👤 Client (Action Item)</option>
               {teamMembers.length > 0 ? (
                 teamMembers.map(member => (
                   <option key={member.id} value={member.name}>
@@ -167,7 +206,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
                   </option>
                 ))
               ) : (
-                <option value="">No active members found</option>
+                <option value="">Loading team...</option>
               )}
             </select>
           </div>
@@ -187,8 +226,11 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
           <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-semibold cursor-pointer">
             Cancel
           </button>
-          <button type="submit" className="w-full sm:w-auto px-5 py-2 rounded-lg bg-blue-600 text-white font-bold shadow-sm hover:bg-blue-700 cursor-pointer">
-            Create Task
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm text-xs"
+          >
+            {initialData ? "Save Changes" : "Create Task"}
           </button>
         </div>
       </form>

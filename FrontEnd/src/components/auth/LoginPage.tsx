@@ -5,7 +5,7 @@ import loginBg from '../../assets/login-bg.png';
 import { api } from '../../services/api';
 
 interface LoginPageProps {
-  onLogin: (role: UserRole, email: string) => void;
+  onLogin: (role: UserRole, email: string, userObj?: any) => void;
 }
 
 // ── Team sub-roles ────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (data.success) {
         localStorage.setItem('jwt_token', data.token);
         const role = data.user.role as UserRole;
-        onLogin(role, data.user.email);
+        onLogin(role, data.user.email, data.user);
       } else {
         setError('Authentication failed');
       }

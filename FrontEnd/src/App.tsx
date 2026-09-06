@@ -79,6 +79,7 @@ export default function App() {
   const location = useLocation();
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(!!localStorage.getItem('jwt_token'));
   const [userRole, setUserRole] = useState<UserRole>((localStorage.getItem('override_user_role') as UserRole) || 'admin');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@babelglobal.com');
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(null);
@@ -209,9 +210,13 @@ export default function App() {
             setIsAuthenticated(false);
             setCurrentUser(null);
           }
+        } finally {
+          setIsAuthLoading(false);
         }
       };
       fetchCurrentUser();
+    } else {
+      setIsAuthLoading(false);
     }
   }, []);
 
@@ -461,23 +466,15 @@ export default function App() {
     }, 500);
   };
 
-  // Auth Handlers with automatic workspace routing & activity logging
-  const handleLogin = async (role: UserRole, email: string) => {
+  const handleLogin = (role: UserRole, email: string, userObj?: any) => {
     localStorage.removeItem('override_user_role');
     setCurrentUserEmail(email);
     setIsAuthenticated(true);
     setUserRole(role);
     setSelectedCaseId(null);
 
-    try {
-      const res = await api.get('/auth/me');
-      if (res.success && res.user) {
-        setCurrentUser(res.user);
-        setUserRole(res.user.role as UserRole);
-        setCurrentUserEmail(res.user.email);
-      }
-    } catch (err) {
-      console.error('Error fetching current user profile on login:', err);
+    if (userObj) {
+      setCurrentUser(userObj);
     }
 
     const loginLog: AuditLogEntry = {
@@ -651,10 +648,13 @@ export default function App() {
   // Current active case detail object
   const activeCase = cases.find(c => c.id === selectedCaseId);
 
-  // Filter cases accessible to current user role (Drafters can only access cases assigned to them)
+  // Filter cases accessible to current user role
   const roleFilteredCases = cases.filter(c => {
     if (userRole === 'writer') {
-      return c.assignedWriter.toLowerCase().includes('writer') || c.assignedWriter.toLowerCase().includes('drafter') || c.assignedWriter === currentUser?.name;
+      return c.assignedWriter?.toLowerCase().includes('writer') || c.assignedWriter?.toLowerCase().includes('drafter') || c.assignedWriter?.includes(currentUser?.name || '') || c.assignedWriter === currentUser?.name;
+    }
+    if (userRole === 'reviewer') {
+      return c.assignedReviewer?.includes(currentUser?.name || '') || c.assignedReviewer?.includes('Senior Reviewer');
     }
     return true;
   });
@@ -668,10 +668,21 @@ export default function App() {
     );
   }
 
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen bg-slate-900 items-center justify-center flex-col space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <p className="text-sm font-semibold text-slate-300">Authenticating session...</p>
+      </div>
+    );
+  }
+
   // If user is not authenticated or at /login route, render Login Page
   if (!isAuthenticated || location.pathname === '/login') {
     return <LoginPage onLogin={handleLogin} />;
   }
+
+  const activeCaseData = roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0];
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
@@ -696,6 +707,7 @@ export default function App() {
           userRole={userRole}
           onChangeRole={currentUser?.role === 'superadmin' ? handleRoleChange : undefined}
           currentUser={currentUser}
+          simulatedClient={activeCaseData ? { name: activeCaseData.clientName, email: activeCaseData.clientEmail } : undefined}
           activeTab={activeTab}
           onNavigateTab={navigateToTab}
           openNewCaseModal={() => setIsNewCaseCreationModalOpen(true)}
@@ -710,10 +722,11 @@ export default function App() {
         <main className="flex-1 p-3 sm:p-6 overflow-y-auto max-w-full">
           {userRole === 'client' || activeTab === 'clientPortal' ? (
             <ClientPortalView
-              caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+              caseData={activeCaseData}
               documents={documents}
               messages={messages}
               appointments={appointments}
+              tasks={tasks}
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAppointmentModal={() => setIsAppointmentModalOpen(true)}
               openSignModal={() => setIsSignModalOpen(true)}
@@ -727,7 +740,7 @@ export default function App() {
           ) : activeTab === 'dashboard' ? (
             selectedCaseId ? (
               <CaseDetailView
-                caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+                caseData={activeCaseData}
                 documents={documents}
                 messages={messages}
                 onBack={() => {
