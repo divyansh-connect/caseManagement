@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { FileText, CheckCircle2, User, Landmark, GraduationCap, Briefcase, Save } from 'lucide-react';
+import { CaseItem } from '../../types';
 
 interface USCISFormQuestionnaireModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientName?: string;
+  caseData?: any;
   onSave?: () => void;
 }
 
@@ -13,7 +15,8 @@ export const USCISFormQuestionnaireModal: React.FC<USCISFormQuestionnaireModalPr
   isOpen,
   onClose,
   clientName = 'Client Candidate',
-  onSave
+  caseData,
+  onSave,
 }) => {
   const [activeSection, setActiveSection] = useState<'bio' | 'edu' | 'work' | 'uscis'>('bio');
 
@@ -22,21 +25,37 @@ export const USCISFormQuestionnaireModal: React.FC<USCISFormQuestionnaireModalPr
   const [dob, setDob] = useState('1988-06-14');
   const [countryBirth, setCountryBirth] = useState('Germany');
   const [countryCitizenship, setCountryCitizenship] = useState('Germany');
-  const [alienRegNo, setAlienRegNo] = useState('A-098-214-389');
+  const [alienRegNo, setAlienRegNo] = useState(caseData?.passportNumber ? `A-${caseData.passportNumber}` : 'A-098-214-389');
   const [ssn, setSsn] = useState('XXX-XX-4819');
   
   // Education
-  const [degree, setDegree] = useState('Ph.D. in Computational Physics');
+  const [degree, setDegree] = useState(caseData?.fieldOfEndeavor ? `Ph.D. in ${caseData.fieldOfEndeavor}` : 'Ph.D. in Computational Physics');
   const [institution, setInstitution] = useState('Massachusetts Institute of Technology');
   const [gradYear, setGradYear] = useState('2018');
 
   // Employment & US Entry
   const [currentEmployer, setCurrentEmployer] = useState('Quantum Labs Inc.');
-  const [jobTitle, setJobTitle] = useState('Lead Quantum Algorithm Research Engineer');
-  const [usVisaClass, setUsVisaClass] = useState('O-1A Nonimmigrant');
+  const [jobTitle, setJobTitle] = useState(caseData?.fieldOfEndeavor ? `Lead ${caseData.fieldOfEndeavor} Principal Specialist` : 'Lead Quantum Algorithm Research Engineer');
+  const [usVisaClass, setUsVisaClass] = useState(caseData?.petitionCategory ? `${caseData.petitionCategory} Immigrant` : 'O-1A Nonimmigrant');
   const [i94Number, setI94Number] = useState('98210481920');
 
   const [isSaved, setIsSaved] = useState(false);
+
+  React.useEffect(() => {
+    if (caseData) {
+      if (caseData.clientName) setFullName(caseData.clientName);
+      if (caseData.passportNumber) setAlienRegNo(`A-${caseData.passportNumber}`);
+      if (caseData.fieldOfEndeavor) {
+        setDegree(`Ph.D. in ${caseData.fieldOfEndeavor}`);
+        setJobTitle(`Lead ${caseData.fieldOfEndeavor} Principal Specialist`);
+      }
+      if (caseData.petitionCategory) {
+        setUsVisaClass(`${caseData.petitionCategory} Immigrant`);
+      }
+    } else if (clientName && clientName !== 'Client Candidate') {
+      setFullName(clientName);
+    }
+  }, [caseData, clientName]);
 
   if (!isOpen) return null;
 

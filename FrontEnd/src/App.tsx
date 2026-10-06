@@ -129,20 +129,30 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Centralized case data properties mapper
-  const mapCaseData = (c: any) => ({
-    ...c,
-    clientName: c.client?.name || 'Unknown',
-    clientEmail: c.client?.email || '',
-    dhanasar: c.dhanasarProngs || {
-      prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
-      prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
-      prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
-    },
-    recommenders: c.recommenders || [],
-    documentsCount: c.documents?.length || 0,
-    notes: c.notes || '',
-    lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
-  });
+  const mapCaseData = (c: any) => {
+    let stage = Number(c.currentStage) || 1;
+    if (stage > 7) {
+      if (stage >= 9 && stage <= 12) stage = 4;
+      else if (stage >= 13) stage = 5;
+      else stage = 1;
+    }
+
+    return {
+      ...c,
+      currentStage: stage,
+      clientName: c.client?.name || 'Unknown',
+      clientEmail: c.client?.email || '',
+      dhanasar: c.dhanasarProngs || {
+        prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
+        prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
+        prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
+      },
+      recommenders: c.recommenders || [],
+      documentsCount: c.documents?.length || 0,
+      notes: c.notes || '',
+      lastUpdated: c.lastUpdated ? c.lastUpdated.substring(0, 16).replace('T', ' ') : ''
+    };
+  };
 
   // 1. Auto Login on mount if token exists & fetch authenticated user profile
   useEffect(() => {
@@ -219,6 +229,20 @@ export default function App() {
             const tasksRes = await api.get('/tasks');
             if (tasksRes.success) {
               setTasks(tasksRes.data);
+            }
+            if (userRole === 'client') {
+              const myCaseRes = await api.get('/cases/my-case');
+              if (myCaseRes.success && myCaseRes.data) {
+                const mapped = mapCaseData(myCaseRes.data);
+                setCases(prev => {
+                  const exists = prev.find(c => c.id === mapped.id);
+                  return exists
+                    ? prev.map(c => (c.id === mapped.id ? mapped : c))
+                    : [mapped, ...prev];
+                });
+              }
+              const myDocsRes = await api.get('/documents');
+              if (myDocsRes.success) setDocuments(myDocsRes.data);
             }
             break;
 
@@ -516,6 +540,17 @@ export default function App() {
     }
   };
 
+  const handleClientUpdated = async () => {
+    try {
+      const clientsRes = await api.get('/clients');
+      if (clientsRes.success) {
+        setClients(clientsRes.data);
+      }
+    } catch (error) {
+      console.error('Error refreshing clients:', error);
+    }
+  };
+
   const handleAddDoc = (newDocOrDocs: CaseDocument | CaseDocument[]) => {
     const docsArray = Array.isArray(newDocOrDocs) ? newDocOrDocs : [newDocOrDocs];
     setDocuments(prev => [...docsArray, ...prev]);
@@ -622,6 +657,8 @@ export default function App() {
               caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
               documents={documents}
               messages={messages}
+              appointments={appointments}
+              payments={payments}
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAppointmentModal={() => setIsAppointmentModalOpen(true)}
               openSignModal={() => setIsSignModalOpen(true)}
@@ -657,6 +694,7 @@ export default function App() {
                 openNewCaseModal={() => setIsNewCaseModalOpen(true)}
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 userRole={userRole}
+                onNavigateTab={navigateToTab}
               />
             )
           ) : activeTab === 'cases' ? (
@@ -686,13 +724,19 @@ export default function App() {
               />
             )
           ) : activeTab === 'clients' ? (
-            <ClientsView clients={clients} userRole={userRole} openNewCaseModal={() => setIsNewCaseModalOpen(true)} />
+            <ClientsView 
+              clients={clients} 
+              userRole={userRole} 
+              openNewCaseModal={() => setIsNewCaseModalOpen(true)} 
+              onClientUpdated={handleClientUpdated}
+            />
           ) : activeTab === 'adminManagement' ? (
             <AdminManagementView />
           ) : activeTab === 'tasks' ? (
             <TasksView
               tasks={tasks}
               userRole={userRole}
+              cases={roleFilteredCases}
               onAddTask={(newTask) => setTasks([newTask, ...tasks])}
             />
           ) : activeTab === 'documents' ? (
@@ -721,7 +765,15 @@ export default function App() {
           ) : activeTab === 'payments' ? (
             <PaymentsView payments={payments} cases={cases} />
           ) : activeTab === 'templates' ? (
-            <TemplatesView templates={templates} openAIAssistant={() => setIsAiModalOpen(true)} />
+            <TemplatesView 
+              templates={templates} 
+              cases={roleFilteredCases}
+              onRefreshCases={async () => {
+                const casesRes = await api.get('/cases');
+                if (casesRes.success) setCases(casesRes.data.map(mapCaseData));
+              }}
+              openAIAssistant={() => setIsAiModalOpen(true)} 
+            />
           ) : activeTab === 'reports' ? (
             <ReportsView />
           ) : activeTab === 'settings' ? (
@@ -768,6 +820,7 @@ export default function App() {
         onClose={() => setIsNewDocModalOpen(false)}
         onAddDoc={handleAddDoc}
         caseId={selectedCaseId || cases[0]?.id}
+        cases={roleFilteredCases}
       />
 
       <NewRecommenderModal
@@ -787,11 +840,14 @@ export default function App() {
       <ElectronicSignatureModal
         isOpen={isSignModalOpen}
         onClose={() => setIsSignModalOpen(false)}
+        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || 'Dr. Alexander Vance'}
       />
 
       <USCISFormQuestionnaireModal
         isOpen={isQuestionnaireModalOpen}
         onClose={() => setIsQuestionnaireModalOpen(false)}
+        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || 'Dr. Alexander Vance'}
+        caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
       />
     </div>
   );

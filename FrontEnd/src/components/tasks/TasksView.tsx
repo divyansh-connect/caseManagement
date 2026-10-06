@@ -12,7 +12,7 @@ import {
   Layers,
   List
 } from 'lucide-react';
-import { CaseTask, UserRole } from '../../types';
+import { CaseItem, CaseTask, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { NewTaskModal } from '../modals/NewTaskModal';
 import { api } from '../../services/api';
@@ -20,10 +20,11 @@ import { api } from '../../services/api';
 interface TasksViewProps {
   tasks: CaseTask[];
   userRole: UserRole;
+  cases?: CaseItem[];
   onAddTask?: (task: CaseTask) => void;
 }
 
-export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userRole, onAddTask }) => {
+export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userRole, cases = [], onAddTask }) => {
   const [tasks, setTasks] = useState<CaseTask[]>(initialTasks);
   const [activeView, setActiveView] = useState<'list' | 'kanban'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -125,7 +126,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
 
           <div className="divide-y divide-slate-100">
             {filteredTasks.map(task => {
-              const stageObj = WORKFLOW_STAGES.find(s => s.id === task.stageId);
+              const stageObj = WORKFLOW_STAGES.find(s => s.id === task.stageId) || WORKFLOW_STAGES.find(s => s.id === ((task.stageId % 7) || 1)) || WORKFLOW_STAGES[0];
               return (
                 <div key={task.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors">
                   <div className="flex items-start gap-3 min-w-0">
@@ -222,6 +223,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
         isOpen={isNewTaskModalOpen}
         onClose={() => setIsNewTaskModalOpen(false)}
         onAddTask={handleCreateTask}
+        cases={cases}
       />
     </div>
   );

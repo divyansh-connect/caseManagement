@@ -30,6 +30,7 @@ import {
 import { CaseItem, StageId, CaseDocument, Recommender, CaseMessage, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { StageBadge, RiskBadge, StatusBadge } from '../common/Badge';
+import { api } from '../../services/api';
 
 export type TaskStatus = 
   | 'Not Started' 
@@ -299,21 +300,27 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
     setExpandedStage(stageId);
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessageText.trim()) return;
 
-    const newMsg: CaseMessage = {
-      id: `msg-${Date.now()}`,
-      caseId: caseData.id,
-      senderName: userRole === 'client' ? caseData.clientName : userRole === 'reviewer' ? 'David Miller, Esq.' : 'Sarah Jenkins',
-      senderRole: userRole,
-      content: newMessageText,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-
-    setMessages([...messages, newMsg]);
+    const contentToSend = newMessageText.trim();
     setNewMessageText('');
+
+    try {
+      const res = await api.post('/messages', {
+        caseId: caseData.id,
+        senderName: userRole === 'client' ? caseData.clientName : userRole === 'reviewer' ? 'David Miller, Esq.' : 'Sarah Jenkins',
+        senderRole: userRole,
+        content: contentToSend
+      });
+
+      if (res.success && res.data) {
+        setMessages(prev => [...prev, res.data]);
+      }
+    } catch (err: any) {
+      console.error('Failed to send message:', err.message);
+    }
   };
 
   const handleAiRefineProng = (prongNum: number) => {
@@ -959,7 +966,22 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                         <StatusBadge status={doc.status} />
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer">
+                        <button 
+                          onClick={() => {
+                            if (doc.fileUrl) {
+                              const link = document.createElement('a');
+                              link.href = doc.fileUrl;
+                              link.target = '_blank';
+                              link.rel = 'noopener noreferrer';
+                              link.setAttribute('download', doc.name);
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
+                          }}
+                          className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                          title="Download document"
+                        >
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       </td>
@@ -995,7 +1017,21 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                       {doc.category}
                     </span>
 
-                    <button className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 cursor-pointer">
+                    <button 
+                      onClick={() => {
+                        if (doc.fileUrl) {
+                          const link = document.createElement('a');
+                          link.href = doc.fileUrl;
+                          link.target = '_blank';
+                          link.rel = 'noopener noreferrer';
+                          link.setAttribute('download', doc.name);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                    >
                       <Download className="w-3.5 h-3.5" />
                       <span>Download</span>
                     </button>

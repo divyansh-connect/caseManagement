@@ -50,30 +50,18 @@ export const AdminManagementView: React.FC = () => {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Default seed admin list fallback if initial DB load is empty
-  const defaultAdmins: AdminUser[] = [
-    {
-      id: 'admin-1',
-      name: 'Case Administrator',
-      email: 'admin@babelglobal.com',
-      role: 'admin',
-      status: 'Active',
-      createdAt: '2025-01-15'
-    }
-  ];
-
   const fetchAdmins = async () => {
     setLoading(true);
     try {
       const res = await api.get('/users');
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         setAdmins(res.data);
       } else {
-        setAdmins(defaultAdmins);
+        setAdmins([]);
       }
     } catch (err: any) {
-      console.warn('Using local admin view fallback:', err.message);
-      setAdmins(defaultAdmins);
+      console.error('Error fetching admin accounts from backend:', err.message);
+      setAdmins([]);
     } finally {
       setLoading(false);
     }
@@ -136,21 +124,7 @@ export const AdminManagementView: React.FC = () => {
         setFormError(res.error || 'Failed to create Admin account.');
       }
     } catch (err: any) {
-      // Fallback local update if API connection is offline
-      const newAdmin: AdminUser = {
-        id: `admin-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        role: 'admin',
-        status: formData.status,
-        createdAt: new Date().toISOString().substring(0, 10)
-      };
-      setAdmins(prev => [newAdmin, ...prev]);
-      setFormSuccess('Admin account created successfully!');
-      setTimeout(() => {
-        setIsCreateModalOpen(false);
-        resetForm();
-      }, 1000);
+      setFormError(err.message || 'Failed to connect to server.');
     } finally {
       setIsSubmitting(false);
     }
@@ -185,34 +159,20 @@ export const AdminManagementView: React.FC = () => {
         setFormError(res.error || 'Failed to update Admin account.');
       }
     } catch (err: any) {
-      // Fallback local update
-      setAdmins(prev => prev.map(a => a.id === selectedAdmin.id ? {
-        ...a,
-        name: formData.name,
-        email: formData.email,
-        status: formData.status
-      } : a));
-      setFormSuccess('Admin updated successfully!');
-      setTimeout(() => {
-        setIsEditModalOpen(false);
-        resetForm();
-      }, 1000);
+      setFormError(err.message || 'Failed to connect to server.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleToggleStatus = async (admin: AdminUser) => {
-    const newStatus = admin.status === 'Active' ? 'Inactive' : 'Active';
     try {
       const res = await api.patch(`/users/${admin.id}/status`, {});
       if (res.success && res.data) {
         setAdmins(prev => prev.map(a => a.id === admin.id ? res.data : a));
-      } else {
-        setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, status: newStatus } : a));
       }
-    } catch (err) {
-      setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, status: newStatus } : a));
+    } catch (err: any) {
+      console.error('Failed to toggle admin status:', err.message);
     }
   };
 

@@ -96,11 +96,16 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 </div>
               </div>
             ))}
+            {pendingReviewCases.length === 0 && (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No draft cases currently awaiting review.
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right: Review Workbench */}
-        {selectedCase && (
+        {selectedCase ? (
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -117,30 +122,63 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 </button>
               </div>
 
-              {/* RFE Risk Scoring Banner */}
-              <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm shrink-0">
-                    94%
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Dhanasar Strength Assessment</div>
-                    <div className="text-slate-500 text-[11px] leading-snug">Prong 1: Strong • Prong 2: High Citation Count (418) • Prong 3: Clear PERM Waiver Urgency</div>
-                  </div>
-                </div>
+              {/* Dynamic RFE Risk & Strength Scoring Banner */}
+              {(() => {
+                const isLow = selectedCase.riskLevel === 'low';
+                const isMed = selectedCase.riskLevel === 'medium';
+                const score = isLow ? 94 : isMed ? 76 : 58;
+                const riskColor = isLow 
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                  : isMed 
+                  ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                  : 'bg-rose-100 text-rose-800 border-rose-200';
+                const scoreBadgeColor = isLow
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : isMed
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-rose-100 text-rose-700';
+                const riskLabel = isLow
+                  ? 'Low RFE Probability'
+                  : isMed
+                  ? 'Moderate RFE Risk'
+                  : 'High RFE Vulnerability';
 
-                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded font-semibold text-xs border border-emerald-200 shrink-0 self-start sm:self-auto">
-                  Low RFE Probability
-                </span>
-              </div>
+                const prong1Status = isLow ? 'Strong' : isMed ? 'Moderate' : 'Needs Evidentiary Support';
+                const prong2Status = selectedCase.recommenders?.length ? `${selectedCase.recommenders.length} Recommenders On File` : 'Evidence Pending';
+                const petitionTitle = selectedCase.petitionCategory || 'EB-2 NIW';
+
+                return (
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl font-bold flex items-center justify-center text-sm shrink-0 ${scoreBadgeColor}`}>
+                        {score}%
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800">{petitionTitle} Strength Assessment</div>
+                        <div className="text-slate-500 text-[11px] leading-snug">
+                          Prong 1: {prong1Status} • Prong 2: {prong2Status} • Field: {selectedCase.fieldCategory || 'Specialized Industry'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className={`px-2.5 py-1 rounded font-semibold text-xs border shrink-0 self-start sm:self-auto ${riskColor}`}>
+                      {riskLabel}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Memo Text Preview */}
               <div className="space-y-3">
-                <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">Draft Memorandum Excerpt (Prong 1)</h4>
+                <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                  Draft Memorandum Excerpt ({selectedCase.petitionCategory || 'EB-2 NIW'})
+                </h4>
                 <div className="p-3.5 sm:p-4 bg-slate-900 text-slate-200 font-mono text-xs rounded-xl leading-relaxed max-h-48 overflow-y-auto">
-                  {selectedCase.dhanasar.prong1.endeavorSummary}
+                  {selectedCase.dhanasar?.prong1?.endeavorSummary 
+                    ? selectedCase.dhanasar.prong1.endeavorSummary 
+                    : `Petitioner presents ${selectedCase.clientName}'s proposed endeavor in the specialized field of ${selectedCase.fieldCategory}.`}
                   <br /><br />
-                  [ARGUMENT II.A]: Candidate's endeavor directly advances Executive Order 14028 regarding Cybersecurity Infrastructure Modernization. The substantial merit is substantiated by Exhibit 105 ($1.2M NSF SBIR Phase I Grant) and Exhibit 201 (MIT Advisory Letter).
+                  [ARGUMENT II.A]: Candidate's endeavor directly advances national priorities and technological innovation in {selectedCase.fieldCategory}. The substantial merit is substantiated by verified evidentiary exhibits ({selectedCase.documentsCount || 0} documents on record) and expert advisory credentials.
                 </div>
               </div>
 
@@ -172,6 +210,10 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="lg:col-span-2 bg-white rounded-xl p-8 border border-slate-200 text-center text-slate-500 text-xs flex items-center justify-center">
+            No case selected for review.
           </div>
         )}
       </div>

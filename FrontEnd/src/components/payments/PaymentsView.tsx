@@ -43,7 +43,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
   const [syncSuccessMsg, setSyncSuccessMsg] = useState('');
 
   // Sync Form State
-  const [syncCaseId, setSyncCaseId] = useState(cases[0]?.id || 'case-101');
+  const [syncCaseId, setSyncCaseId] = useState(cases[0]?.id || '');
   const [syncDescription, setSyncDescription] = useState('Milestone 3: USCIS Petition Assembly & Filing Fee');
   const [syncAmount, setSyncAmount] = useState('2500');
   const [syncDueDate, setSyncDueDate] = useState('2026-03-25');
@@ -55,6 +55,12 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
   React.useEffect(() => {
     setPaymentsList(initialPayments);
   }, [initialPayments]);
+
+  React.useEffect(() => {
+    if (cases.length > 0 && !syncCaseId) {
+      setSyncCaseId(cases[0].id);
+    }
+  }, [cases, syncCaseId]);
 
   // Handle Sync Zoho Invoice Submit
   const handleSyncSubmit = async (e: React.FormEvent) => {
@@ -76,7 +82,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
         setIsSyncing(false);
         setIsSyncModalOpen(false);
 
-        setSyncSuccessMsg(`Successfully synced Zoho Books Invoice #${`INV-ZB-2026-${Math.floor(100 + Math.random() * 900)}`} for ${selectedCase.clientName}`);
+        setSyncSuccessMsg(`Successfully synced Zoho Books Invoice #${`INV-ZB-2026-${Math.floor(100 + Math.random() * 900)}`} for ${selectedCase?.clientName || 'Candidate'}`);
         setTimeout(() => setSyncSuccessMsg(''), 4000);
       }
     } catch (err: any) {
@@ -91,8 +97,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
     const zbInvoiceNo = `INV-ZB-2026-0${891 + idx}`;
     setSelectedInvoiceForPdf({
       invoiceNo: zbInvoiceNo,
-      clientName: c?.clientName || 'Dr. Elena Rostova',
-      caseNumber: c?.caseNumber || 'NIW-2025-069',
+      clientName: c?.clientName || 'Candidate',
+      caseNumber: c?.caseNumber || '',
       description: payment.description,
       amount: payment.amount,
       dueDate: payment.dueDate,
@@ -193,7 +199,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-5 py-4 font-semibold text-slate-800">
-                      {c?.clientName || 'Dr. Elena Rostova'}
+                      {c?.clientName || 'Candidate'}
                       <div className="text-[10px] text-slate-400 font-normal">{c?.caseNumber}</div>
                     </td>
                     <td className="px-5 py-4 font-mono text-xs font-bold text-blue-700">
@@ -217,6 +223,13 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
                   </tr>
                 );
               })}
+              {paymentsList.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-slate-500 text-xs">
+                    No payment records found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -229,7 +242,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
               <div key={p.id} className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-xs">{c?.clientName || 'Dr. Elena Rostova'}</h3>
+                    <h3 className="font-bold text-slate-900 text-xs">{c?.clientName || 'Candidate'}</h3>
                     <p className="text-[10px] text-slate-400 font-mono mt-0.5">{c?.caseNumber}</p>
                   </div>
                   <StatusBadge status={p.status} />
@@ -257,6 +270,11 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
               </div>
             );
           })}
+          {paymentsList.length === 0 && (
+            <div className="p-8 text-center text-slate-500 text-xs">
+              No payment records found.
+            </div>
+          )}
         </div>
       </div>
 

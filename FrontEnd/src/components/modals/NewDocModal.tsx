@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../common/Modal';
-import { CaseDocument } from '../../types';
+import { CaseDocument, CaseItem } from '../../types';
 import { api } from '../../services/api';
 import { UploadCloud, FileText, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -9,15 +9,31 @@ interface NewDocModalProps {
   onClose: () => void;
   onAddDoc: (doc: CaseDocument | CaseDocument[]) => void;
   caseId?: string;
+  cases?: CaseItem[];
 }
 
-export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAddDoc, caseId = 'case-101' }) => {
+export const NewDocModal: React.FC<NewDocModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onAddDoc, 
+  caseId,
+  cases = []
+}) => {
+  const [targetCaseId, setTargetCaseId] = useState(caseId || cases[0]?.id || '');
   const [files, setFiles] = useState<File[]>([]);
   const [exhibitNum, setExhibitNum] = useState('Exhibit 104');
   const [category, setCategory] = useState<CaseDocument['category']>('Publication');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (caseId) {
+      setTargetCaseId(caseId);
+    } else if (cases.length > 0 && !targetCaseId) {
+      setTargetCaseId(cases[0].id);
+    }
+  }, [caseId, cases, targetCaseId]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -63,7 +79,8 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onAdd
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append('caseId', caseId);
+    const finalCaseId = targetCaseId || caseId || (cases[0]?.id || 'default');
+    formData.append('caseId', finalCaseId);
     formData.append('category', category);
 
     // Append all selected files

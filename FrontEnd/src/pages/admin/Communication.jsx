@@ -1,7 +1,9 @@
 import React from 'react';
 import { CommunicationView } from '../../components/communication/CommunicationView';
-import { INITIAL_CASES, INITIAL_MESSAGES } from '../../data/mockData';
+import { useCase } from '../../context/CaseContext';
 
 export const AdminCommunication = () => {
-  return <CommunicationView cases={INITIAL_CASES} messages={INITIAL_MESSAGES} />;
+  const { cases } = useCase();
+  return <CommunicationView cases={cases} messages={[]} />;
 };
+

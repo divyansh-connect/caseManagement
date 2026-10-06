@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { CaseTask, StageId, UserRole } from '../../types';
+import { CaseItem, CaseTask, StageId, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { api } from '../../services/api';
 
@@ -8,15 +8,23 @@ interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (task: CaseTask) => void;
+  cases?: CaseItem[];
 }
 
-export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask }) => {
+export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask, cases = [] }) => {
   const [title, setTitle] = useState('');
+  const [selectedCaseId, setSelectedCaseId] = useState(cases[0]?.id || '');
   const [stageId, setStageId] = useState<StageId>(1);
   const [assignedToName, setAssignedToName] = useState('Sarah Jenkins');
   const [assignedRole, setAssignedRole] = useState<UserRole>('writer');
-  const [dueDate, setDueDate] = useState('2025-03-15');
+  const [dueDate, setDueDate] = useState('2026-12-31');
   const [priority, setPriority] = useState<CaseTask['priority']>('medium');
+
+  React.useEffect(() => {
+    if (cases.length > 0 && !selectedCaseId) {
+      setSelectedCaseId(cases[0].id);
+    }
+  }, [cases, selectedCaseId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +32,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
 
     try {
       const data = await api.post('/tasks', {
-        caseId: 'case-101', // Default target case file
+        caseId: selectedCaseId || (cases[0]?.id || 'default'),
         title: title.trim(),
         assignedRole,
         assignedToName,
@@ -38,7 +46,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
         setTitle('');
         onClose();
       } else {
-        alert('Failed to create task');
+        alert('Failed to create task: ' + (data.error || 'Unknown error'));
       }
     } catch (err: any) {
       alert(`Connection error: ${err.message}`);

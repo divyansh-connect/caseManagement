@@ -23,9 +23,11 @@ interface DashboardViewProps {
   openNewCaseModal: () => void;
   openAIAssistant: () => void;
   userRole: UserRole;
+  onNavigateTab?: (tab: any) => void;
 }
 
 import { api } from '../../services/api';
+import { Layers, X, CheckCircle2 } from 'lucide-react';
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   cases,
@@ -34,8 +36,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   openNewCaseModal,
   openAIAssistant,
   userRole,
+  onNavigateTab,
 }) => {
   const [dbStats, setDbStats] = React.useState<any>(null);
+  const [isMatrixModalOpen, setIsMatrixModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const fetchStats = async () => {
@@ -205,29 +209,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h2 className="font-bold text-slate-800 text-sm">6-Stage Workflow Funnel Distribution</h2>
             <p className="text-xs text-slate-500">Current case allocation across petition lifecycle stages</p>
           </div>
-          <span className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">
-            View full workflow matrix →
-          </span>
+          <button 
+            onClick={() => setIsMatrixModalOpen(true)}
+            className="text-xs text-blue-600 font-semibold cursor-pointer hover:text-blue-800 hover:underline flex items-center gap-1 self-start sm:self-auto bg-transparent border-none p-0"
+          >
+            <span>View full workflow matrix</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {[
-            { cat: 'Consultation & Onboarding', stages: 'Stage 1', color: 'border-slate-300 bg-slate-50 text-slate-700', stageIds: [1] },
-            { cat: 'Strategy & Recommenders', stages: 'Stage 2', color: 'border-amber-200 bg-amber-50/50 text-amber-800', stageIds: [2] },
-            { cat: 'Forms Preparation', stages: 'Stage 3', color: 'border-indigo-200 bg-indigo-50/50 text-indigo-800', stageIds: [3] },
-            { cat: 'Drafting & Review', stages: 'Stage 4', color: 'border-purple-200 bg-purple-50/50 text-purple-800', stageIds: [4] },
-            { cat: 'Package & Filing', stages: 'Stages 5 - 6', color: 'border-emerald-200 bg-emerald-50/50 text-emerald-800', stageIds: [5, 6, 7] }
+            { cat: 'Consultation & Onboarding', stages: 'Stage 1', color: 'border-slate-300 bg-slate-50 text-slate-700 hover:border-slate-400', stageIds: [1] },
+            { cat: 'Strategy & Recommenders', stages: 'Stage 2', color: 'border-amber-200 bg-amber-50/50 text-amber-800 hover:border-amber-400', stageIds: [2] },
+            { cat: 'Forms Preparation', stages: 'Stage 3', color: 'border-indigo-200 bg-indigo-50/50 text-indigo-800 hover:border-indigo-400', stageIds: [3] },
+            { cat: 'Drafting & Review', stages: 'Stage 4', color: 'border-purple-200 bg-purple-50/50 text-purple-800 hover:border-purple-400', stageIds: [4] },
+            { cat: 'Package & Filing', stages: 'Stages 5 - 6', color: 'border-emerald-200 bg-emerald-50/50 text-emerald-800 hover:border-emerald-400', stageIds: [5, 6, 7] }
           ].map(item => {
-            const count = cases.filter(c => item.stageIds.includes(c.currentStage)).length;
+            const count = cases.filter(c => item.stageIds.includes(Number(c.currentStage))).length;
             return (
-              <div key={item.cat} className={`p-3 rounded-lg border ${item.color} flex flex-col justify-between`}>
+              <div 
+                key={item.cat} 
+                onClick={() => onNavigateTab ? onNavigateTab('cases') : null}
+                className={`p-3 rounded-lg border ${item.color} flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm`}
+                title={`View active cases in ${item.cat}`}
+              >
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-wider opacity-75">{item.stages}</div>
                   <div className="font-bold text-xs sm:text-sm mt-0.5 leading-snug">{item.cat}</div>
                 </div>
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-lg sm:text-xl font-extrabold">{count}</span>
-                  <span className="text-[10px] opacity-75">cases</span>
+                  <span className="text-[10px] opacity-75">cases →</span>
                 </div>
               </div>
             );
@@ -245,7 +258,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <p className="text-xs text-slate-500">Active EB-2 NIW filings in progress</p>
             </div>
             <button
-              onClick={() => onSelectCase(cases[0].id)}
+              onClick={() => onNavigateTab ? onNavigateTab('cases') : (cases[0]?.id ? onSelectCase(cases[0].id) : null)}
               className="text-xs text-blue-600 font-medium flex items-center gap-1 hover:underline cursor-pointer"
             >
               <span>Explore all cases</span>
@@ -303,6 +316,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </td>
                   </tr>
                 ))}
+                {cases.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-500 text-xs">
+                      No active cases found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -343,6 +363,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               </div>
             ))}
+            {cases.length === 0 && (
+              <div className="p-8 text-center text-slate-500 text-xs">
+                No active cases found.
+              </div>
+            )}
           </div>
         </div>
 
@@ -389,15 +414,132 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               </div>
             ))}
+            {tasks.length === 0 && (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No urgent tasks found.
+              </div>
+            )}
           </div>
 
           <div className="p-3 bg-slate-50 border-t border-slate-200 rounded-b-xl text-center">
-            <button className="text-xs text-blue-600 font-medium hover:underline cursor-pointer">
+            <button 
+              onClick={() => onNavigateTab ? onNavigateTab('tasks') : null}
+              className="text-xs text-blue-600 font-medium hover:underline cursor-pointer"
+            >
               View all workflow tasks →
             </button>
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════════
+          MODAL: FULL WORKFLOW MATRIX
+      ══════════════════════════════════════════════════════════════════════════ */}
+      {isMatrixModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-blue-950 p-5 text-white flex items-start justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/80 border border-blue-400/40 flex items-center justify-center font-bold text-amber-300 shadow-sm shrink-0">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base sm:text-lg">EB-2 NIW &amp; EB-1A Workflow Matrix</h3>
+                    <span className="bg-blue-500/30 text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-400/30">
+                      7 Stages
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">Comprehensive lifecycle overview of petition stages and case distribution</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsMatrixModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 cursor-pointer transition-colors shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Stages Grid Container */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {WORKFLOW_STAGES.map((st) => {
+                  const stageCases = cases.filter(c => c.currentStage === st.id);
+                  return (
+                    <div 
+                      key={st.id} 
+                      className="p-4 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/40 transition-all flex flex-col justify-between space-y-3 shadow-xs"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-bold text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+                            Stage #{st.id}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                            {st.category} • ~{st.typicalDays} Days
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-sm leading-snug">{st.name}</h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">{st.description}</p>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                          {stageCases.length} Active {stageCases.length === 1 ? 'Case' : 'Cases'}
+                        </span>
+                        
+                        <button
+                          onClick={() => {
+                            setIsMatrixModalOpen(false);
+                            if (onNavigateTab) {
+                              onNavigateTab('cases');
+                            }
+                          }}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Explore Cases</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-5 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+              <span className="text-xs text-slate-500">
+                Total Active Filings: <strong className="text-slate-800">{cases.length} cases</strong>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMatrixModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-100 cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMatrixModalOpen(false);
+                    if (onNavigateTab) {
+                      onNavigateTab('cases');
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                >
+                  Go to Cases Directory
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

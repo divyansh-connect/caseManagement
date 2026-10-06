@@ -37,11 +37,14 @@ import {
 import { CaseItem, CaseDocument, CaseMessage, CaseTask } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
+import { api } from '../../services/api';
 
 interface ClientPortalViewProps {
   caseData: CaseItem;
   documents: CaseDocument[];
   messages: CaseMessage[];
+  appointments?: any[];
+  payments?: any[];
   openNewDocModal: () => void;
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
@@ -212,6 +215,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   caseData,
   documents,
   messages: initialMessages,
+  appointments = [],
+  payments = [],
   openNewDocModal,
   openAppointmentModal,
   openSignModal,
@@ -241,32 +246,104 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   });
   const [newMsg, setNewMsg] = useState('');
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMsg.trim() || !caseData) return;
 
-    const msg: CaseMessage = {
-      id: `msg-${Date.now()}`,
-      caseId: caseData.id,
-      senderName: caseData.clientName,
-      senderRole: 'client',
-      content: newMsg,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
-
-    setMessages([...messages, msg]);
+    const contentToSend = newMsg.trim();
     setNewMsg('');
+
+    try {
+      const res = await api.post('/messages', {
+        caseId: caseData.id,
+        senderName: caseData.clientName,
+        senderRole: 'client',
+        content: contentToSend
+      });
+
+      if (res.success && res.data) {
+        setMessages(prev => [...prev, res.data]);
+      }
+    } catch (err: any) {
+      console.error('Failed to send message:', err.message);
+    }
+  };
+
+  const clientDocs = caseData 
+    ? documents.filter(d => d.caseId === caseData.id || (documents.length > 0 && !d.caseId))
+    : (documents || []);
+  const hasUploadedDocs = (clientDocs.length > 0) || (documents.length > 0) || (Boolean(caseData?.documentsCount && caseData.documentsCount > 0));
+
+  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`completed_client_tasks_${caseData?.id || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const markTaskCompleted = (taskId: string) => {
+    setCompletedTaskIds(prev => {
+      if (prev.includes(taskId)) return prev;
+      const updated = [...prev, taskId];
+      try {
+        localStorage.setItem(`completed_client_tasks_${caseData?.id || 'default'}`, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const getResolvedTaskStatus = (task: any): ClientStageGroup['tasks'][0]['status'] => {
+    if (completedTaskIds.includes(task.id)) {
+      return 'Approved/Completed';
+    }
+    if (task.id === 'st1-5' && hasUploadedDocs) {
+      return 'Approved/Completed';
+    }
+    if (task.id === 'st2-2' && (hasUploadedDocs || (caseData?.recommenders && caseData.recommenders.length > 0))) {
+      return 'Approved/Completed';
+    }
+    return task.status;
+  };
+
+  const handleTaskAction = (task: any) => {
+    if (task.id === 'st1-4b' || task.id === 'st1-4a') {
+      handleTabChange('payments');
+    } else if (task.id === 'st1-3') {
+      openSignModal?.();
+      markTaskCompleted(task.id);
+    } else if (task.id === 'st3-1') {
+      openQuestionnaireModal?.();
+      markTaskCompleted(task.id);
+    } else {
+      openNewDocModal();
+      markTaskCompleted(task.id);
+    }
   };
 
   // Dynamic Next Action Calculation
   let nextActionTask: any = null;
   for (const stage of CLIENT_STAGES) {
     if (stage.isOptional) continue;
-    const pendingClientTask = stage.tasks.find(
-      (t) => t.assignedTo === 'Client' && (t.status === 'Not Started' || t.status === 'Awaiting Client' || t.status === 'Revision Required')
+    const stageTasks = stage.id === 1 ? (
+      stage1FlowMode === 'standard' ? stage.tasks : [
+        { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
+        { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
+        { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
+        { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
+        { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
+      ]
+    ) : stage.tasks;
+
+    const pendingClientTask = stageTasks.find(
+      (t) => {
+        const resolved = getResolvedTaskStatus(t);
+        return t.assignedTo === 'Client' && (resolved === 'Not Started' || resolved === 'Awaiting Client' || resolved === 'Revision Required');
+      }
     );
     if (pendingClientTask) {
-      nextActionTask = { stageId: stage.id, ...pendingClientTask };
+      nextActionTask = { stageId: stage.id, ...pendingClientTask, status: getResolvedTaskStatus(pendingClientTask) };
       break;
     }
   }
@@ -288,8 +365,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   } else if (nextActionTask.name.includes('proposed endeavor')) {
     dynamicDescription = 'Please review, correct, and approve the proposed endeavor statement we have provided.';
   }
-
-  const clientDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
 
   if (!caseData) {
     return (
@@ -608,14 +683,25 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-end mr-2">
-                        <span className="text-xs font-bold text-slate-800">
-                          {Math.round((stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length / stageGroup.tasks.length) * 100)}% Completed
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          {stageGroup.tasks.filter(t => t.status === 'Approved/Completed').length} / {stageGroup.tasks.length} Tasks
-                        </span>
-                      </div>
+                      {(() => {
+                        const tasksForStage = stageGroup.id === 1 ? (
+                          stage1FlowMode === 'standard' ? stageGroup.tasks : [
+                            { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
+                            { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
+                            { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
+                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
+                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
+                          ]
+                        ) : stageGroup.tasks;
+                        const completedCount = tasksForStage.filter(t => getResolvedTaskStatus(t) === 'Approved/Completed').length;
+                        const pct = Math.round((completedCount / tasksForStage.length) * 100);
+                        return (
+                          <div className="flex flex-col items-end mr-2">
+                            <span className="text-xs font-bold text-slate-800">{pct}% Completed</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{completedCount} / {tasksForStage.length} Tasks</span>
+                          </div>
+                        );
+                      })()}
                       {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
                     </div>
                   </div>
@@ -734,45 +820,48 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
                             { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
                             { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client', status: 'Not Applicable' },
-                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client', status: 'Awaiting Client' },
-                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client', status: 'Not Started' }
+                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client', status: hasUploadedDocs ? 'Approved/Completed' : 'Awaiting Client' },
+                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client', status: hasUploadedDocs ? 'Awaiting Client' : 'Not Started' }
                           ]
                         ) : stageGroup.tasks
-                      ).map((task) => (
-                        <div key={task.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-slate-800">{task.name}</span>
-                              {task.flowLabel && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 text-amber-900 border border-amber-300">
-                                  {task.flowLabel}
+                      ).map((task) => {
+                        const resolvedStatus = getResolvedTaskStatus(task);
+                        return (
+                          <div key={task.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-slate-800">{task.name}</span>
+                                {task.flowLabel && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 text-amber-900 border border-amber-300">
+                                    {task.flowLabel}
+                                  </span>
+                                )}
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.assignedTo === 'Client'
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                    : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                  Assigned to: {task.assignedTo}
                                 </span>
+                              </div>
+                              {task.deadline && (
+                                <p className="text-[11px] text-amber-700 font-medium">Target Deadline: {task.deadline}</p>
                               )}
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.assignedTo === 'Client'
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                Assigned to: {task.assignedTo}
-                              </span>
                             </div>
-                            {task.deadline && (
-                              <p className="text-[11px] text-amber-700 font-medium">Target Deadline: {task.deadline}</p>
-                            )}
-                          </div>
 
-                          <div className="flex items-center gap-2">
-                            {getStatusBadge(task.status)}
-                            {task.status === 'Awaiting Client' && (
-                              <button
-                                onClick={openNewDocModal}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg cursor-pointer transition-colors"
-                              >
-                                Action Now
-                              </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(resolvedStatus)}
+                              {resolvedStatus === 'Awaiting Client' && (
+                                <button
+                                  onClick={() => handleTaskAction(task)}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg cursor-pointer transition-colors"
+                                >
+                                  Action Now
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -869,12 +958,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <span className="font-bold text-slate-800 truncate block mt-0.5">{caseData.clientName}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">A-Number</span>
-                <span className="font-mono font-bold text-slate-800 truncate block mt-0.5">A-098-214-389</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Case / USCIS ID</span>
+                <span className="font-mono font-bold text-slate-800 truncate block mt-0.5">
+                  {caseData.passportNumber ? `PASS-${caseData.passportNumber}` : caseData.caseNumber}
+                </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Visa Status</span>
-                <span className="font-bold text-blue-700 truncate block mt-0.5">O-1A Nonimmigrant</span>
+                <span className="font-bold text-blue-700 truncate block mt-0.5">
+                  {caseData.petitionCategory ? `${caseData.petitionCategory} Petitioner` : 'EB-2 NIW Petitioner'}
+                </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Form Progress</span>
@@ -885,7 +978,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
           {/* NIW Form Package Checklist */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm">Required Form Package Checklist for EB-2 NIW</h3>
+            <h3 className="font-bold text-slate-800 text-sm">
+              Required Form Package Checklist for {caseData.petitionCategory || 'EB-2 NIW'}
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
@@ -916,7 +1011,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   <span className="font-bold text-slate-800 block">Form I-907 (Optional)</span>
                   <span className="text-[11px] text-slate-500">Request for Premium Processing Service</span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Not Started</span>
+                {caseData.premiumProcessing ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Prepared (Requested)</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Not Started</span>
+                )}
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
@@ -994,20 +1093,36 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-slate-800 text-base">Payment Plan &amp; Milestones</h3>
             <div className="divide-y divide-slate-100 text-xs">
-              <div className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Initial Retainer Deposit</span>
-                  <span className="text-slate-400">Paid Jan 10, 2026</span>
-                </div>
-                <span className="font-bold text-emerald-600">$4,000.00 (Paid)</span>
-              </div>
-              <div className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 block">Milestone 2: Petition Draft</span>
-                  <span className="text-slate-400">Due upon recommendation letter completion</span>
-                </div>
-                <span className="font-bold text-slate-800">$3,500.00 (Pending)</span>
-              </div>
+              {payments && payments.length > 0 ? (
+                payments.map((p: any) => (
+                  <div key={p.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-800 block">{p.description}</span>
+                      <span className="text-slate-400">{p.status === 'Paid' ? `Paid ${p.paidAt || p.dueDate}` : `Due ${p.dueDate}`}</span>
+                    </div>
+                    <span className={`font-bold ${p.status === 'Paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                      ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="py-3 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-800 block">Initial Retainer Deposit</span>
+                      <span className="text-slate-400">Paid Jan 10, 2026</span>
+                    </div>
+                    <span className="font-bold text-emerald-600">$4,000.00 (Paid)</span>
+                  </div>
+                  <div className="py-3 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-800 block">Milestone 2: Petition Draft</span>
+                      <span className="text-slate-400">Due upon recommendation letter completion</span>
+                    </div>
+                    <span className="font-bold text-slate-800">$3,500.00 (Pending)</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1122,15 +1237,47 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             )}
           </div>
 
-          <div className="p-5 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center justify-between text-xs">
-            <div className="space-y-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white">Upcoming Session</span>
-              <h4 className="font-bold text-slate-900 text-sm">Recommender Strategy &amp; Endeavor Review Call</h4>
-              <p className="text-slate-600">March 8, 2026 at 2:00 PM EST (Google Meet)</p>
-            </div>
-            <button className="px-4 py-2 bg-white text-blue-700 font-bold border border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer">
-              Join Call
-            </button>
+          <div className="space-y-3">
+            {appointments && appointments.length > 0 ? (
+              appointments.map((apt: any) => {
+                const isUpcoming = apt.status === 'Upcoming';
+                const isCompleted = apt.status === 'Completed';
+                return (
+                  <div key={apt.id} className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                    isUpcoming ? 'bg-blue-50/60 border-blue-100' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="space-y-1">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        isUpcoming ? 'bg-blue-600 text-white' : isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {apt.status} Session
+                      </span>
+                      <h4 className="font-bold text-slate-900 text-sm">{apt.type}</h4>
+                      <p className="text-slate-600">
+                        {apt.date} at {apt.time} ({apt.duration}) • Specialist: <strong>{apt.specialist}</strong>
+                      </p>
+                      {apt.notes && (
+                        <p className="text-slate-500 text-[11px] italic mt-0.5">{apt.notes}</p>
+                      )}
+                    </div>
+                    {apt.meetingUrl && (
+                      <a 
+                        href={apt.meetingUrl}
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="px-4 py-2 bg-white text-blue-700 font-bold border border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer text-center shrink-0"
+                      >
+                        Join Call
+                      </a>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl">
+                No scheduled strategy calls found. Click "Book Strategy Call" to schedule your consultation.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1176,15 +1323,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </div>
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  (caseData.currentStage || 0) >= 14
+                  (caseData.currentStage || 0) >= 6
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                    : (caseData.currentStage || 0) >= 10
+                    : (caseData.currentStage || 0) >= 4
                     ? 'bg-amber-100 text-amber-800 border border-amber-200'
                     : 'bg-blue-100 text-blue-800 border border-blue-200'
                 }`}>
-                  {(caseData.currentStage || 0) >= 14
+                  {(caseData.currentStage || 0) >= 6
                     ? '✓ Filed — Post-Filing Phase'
-                    : `Internal Stage ${caseData.currentStage || 1} of 14`}
+                    : `Stage ${caseData.currentStage || 1} of 7`}
                 </span>
                 {caseData.premiumProcessing && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">

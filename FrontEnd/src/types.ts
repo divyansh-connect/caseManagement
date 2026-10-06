@@ -81,6 +81,7 @@ export interface CaseDocument {
   uploadedAt: string;
   status: 'Pending Review' | 'Verified' | 'Needs Revision' | 'Approved';
   aiSummary?: string;
+  fileUrl?: string;
 }
 
 export interface CaseTask {
@@ -150,6 +151,7 @@ export interface CaseItem {
   eb1aCriteria?: Eb1aCriteria;
   recommenders: Recommender[];
   documentsCount: number;
+  passportNumber?: string;
   notes: string;
   lastUpdated: string;
 }

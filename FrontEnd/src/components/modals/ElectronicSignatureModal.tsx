@@ -15,11 +15,17 @@ export const ElectronicSignatureModal: React.FC<ElectronicSignatureModalProps> =
   onClose,
   documentTitle = 'Immigration Service Agreement',
   clientName = 'Client Candidate',
-  onSignComplete
+  onSignComplete,
 }) => {
   const [typedName, setTypedName] = useState(clientName);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [isSigned, setIsSigned] = useState(false);
+
+  React.useEffect(() => {
+    if (clientName && clientName !== 'Client Candidate') {
+      setTypedName(clientName);
+    }
+  }, [clientName]);
 
   if (!isOpen) return null;
 

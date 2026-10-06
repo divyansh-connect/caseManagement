@@ -1,10 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  INITIAL_CLIENTS, 
-  INITIAL_CASES, 
-  INITIAL_DOCUMENTS, 
-  INITIAL_TASKS 
-} from '../data/mockData';
 import { api } from '../services/api';
 import { STAGES } from '../data/stageConfig';
 
@@ -24,7 +18,7 @@ export const CaseProvider = ({ children }) => {
     const loadDatabase = async () => {
       try {
         const clientsRes = await api.get('/clients');
-        if (clientsRes.success) {
+        if (clientsRes.success && Array.isArray(clientsRes.data)) {
           const mappedClients = clientsRes.data.map(c => ({
             ...c,
             firstName: c.name?.split(' ')[0] || 'Client',
@@ -33,17 +27,11 @@ export const CaseProvider = ({ children }) => {
           }));
           setClients(mappedClients);
         } else {
-          // Fallback
-          setClients(INITIAL_CLIENTS.map(c => ({
-            ...c,
-            firstName: c.name?.split(' ')[0] || 'Client',
-            lastName: c.name?.split(' ').slice(1).join(' ') || 'User',
-            assignedStaff: 'Drafter 1'
-          })));
+          setClients([]);
         }
 
         const casesRes = await api.get('/cases');
-        if (casesRes.success) {
+        if (casesRes.success && Array.isArray(casesRes.data)) {
           const mappedCases = casesRes.data.map(c => ({
             ...c,
             firstName: c.client?.name?.split(' ')[0] || 'Client',
@@ -55,27 +43,21 @@ export const CaseProvider = ({ children }) => {
           }));
           setCases(mappedCases);
         } else {
-          setCases(INITIAL_CASES.map(c => ({
-            ...c,
-            firstName: c.clientName?.split(' ')[0] || 'Client',
-            lastName: c.clientName?.split(' ').slice(1).join(' ') || 'User',
-            assignedStaff: c.assignedWriter || 'Drafter 1',
-            status: 'Active'
-          })));
+          setCases([]);
         }
 
         const docsRes = await api.get('/documents');
-        if (docsRes.success) {
+        if (docsRes.success && Array.isArray(docsRes.data)) {
           setDocuments(docsRes.data);
         } else {
-          setDocuments(INITIAL_DOCUMENTS);
+          setDocuments([]);
         }
 
         const tasksRes = await api.get('/tasks');
-        if (tasksRes.success) {
+        if (tasksRes.success && Array.isArray(tasksRes.data)) {
           setTasks(tasksRes.data);
         } else {
-          setTasks(INITIAL_TASKS);
+          setTasks([]);
         }
       } catch (err) {
         console.error('Failed to load database in CaseContext:', err);
