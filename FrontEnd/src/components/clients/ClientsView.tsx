@@ -53,7 +53,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ clients, openNewCaseMo
           </p>
         </div>
 
-        {(userRole === 'superadmin' || userRole === 'admin') && (
+        {userRole === 'admin' && (
           <button
             onClick={openNewCaseModal}
             className="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"

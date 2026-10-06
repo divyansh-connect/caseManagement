@@ -6,16 +6,18 @@ import {
   UserCheck, 
   Plus, 
   Search, 
-  Filter, 
   CheckCircle2, 
   ExternalLink,
   User,
-  Sparkles,
-  PhoneCall,
   CalendarCheck,
-  AlertCircle
+  Trash2,
+  XCircle,
+  RotateCcw,
+  Check,
+  X
 } from 'lucide-react';
-import { UserRole } from '../../types';
+import { UserRole, Client } from '../../types';
+import { api } from '../../services/api';
 
 export interface AppointmentItem {
   id: string;
@@ -31,77 +33,10 @@ export interface AppointmentItem {
   notes?: string;
 }
 
-export const INITIAL_APPOINTMENTS: AppointmentItem[] = [
-  {
-    id: 'apt-101',
-    clientName: 'Dr. Elena Rostova',
-    clientEmail: 'elena.rostova@quantum-labs.io',
-    type: '1-on-1 Endeavor Strategy Session',
-    specialist: 'Senior Reviewer (Rachel Zhang, Esq.)',
-    date: '2026-03-08',
-    time: '02:00 PM EST',
-    duration: '45 mins',
-    status: 'Upcoming',
-    meetingUrl: 'https://meet.babelglobal.com/call-892',
-    notes: 'Reviewing updated Google Scholar metrics (+35 citations) and Dhanasar Prong 1 wording.'
-  },
-  {
-    id: 'apt-102',
-    clientName: 'Carlos Mendez, M.S.',
-    clientEmail: 'carlos.mendez@cleanenergygrid.com',
-    type: 'Recommendation Letter Sync',
-    specialist: 'Petition Drafter 2 (Marcus Vance)',
-    date: '2026-03-10',
-    time: '11:00 AM EST',
-    duration: '30 mins',
-    status: 'Upcoming',
-    meetingUrl: 'https://meet.babelglobal.com/call-410',
-    notes: 'Selecting 2 additional independent recommenders for Smart Grid Microgrid petition.'
-  },
-  {
-    id: 'apt-103',
-    clientName: 'Dr. Amara Okafor',
-    clientEmail: 'a.okafor@oncology-ai.org',
-    type: 'Final Filing Sign-off Session',
-    specialist: 'Managing Partner (David Miller, Esq.)',
-    date: '2026-03-04',
-    time: '04:00 PM EST',
-    duration: '20 mins',
-    status: 'Completed',
-    meetingUrl: 'https://meet.babelglobal.com/call-105',
-    notes: 'Verified 42 exhibits and Form I-140 blue ink signature before FedEx dispatch.'
-  },
-  {
-    id: 'apt-104',
-    clientName: 'Dr. Vikram Patel',
-    clientEmail: 'vikram.p@robotics-core.ai',
-    type: 'Exhibit & Citation Audit Call',
-    specialist: 'Lead Specialist (Sarah Jenkins)',
-    date: '2026-02-26',
-    time: '09:30 AM EST',
-    duration: '30 mins',
-    status: 'Completed',
-    meetingUrl: 'https://meet.babelglobal.com/call-312',
-    notes: 'Audited CMU Ph.D. diploma evaluation and USDA grant award notice.'
-  },
-  {
-    id: 'apt-105',
-    clientName: 'Sofia Al-Mansoor',
-    clientEmail: 'sofia.mansoor@cyberfortress.net',
-    type: 'Post-Filing Approval Debrief',
-    specialist: 'Senior Reviewer (Rachel Zhang, Esq.)',
-    date: '2026-02-21',
-    time: '01:30 PM EST',
-    duration: '30 mins',
-    status: 'Completed',
-    meetingUrl: 'https://meet.babelglobal.com/call-901',
-    notes: 'Reviewed I-797 Approval Notice from Nebraska Service Center.'
-  }
-];
-
 interface AppointmentsViewProps {
   appointments: AppointmentItem[];
   setAppointments: React.Dispatch<React.SetStateAction<AppointmentItem[]>>;
+  clients?: Client[];
   userRole?: UserRole;
   openBookingModal: () => void;
 }
@@ -109,11 +44,50 @@ interface AppointmentsViewProps {
 export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   appointments,
   setAppointments,
+  clients = [],
   userRole = 'admin',
   openBookingModal
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Upcoming' | 'Completed' | 'Cancelled'>('All');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleUpdateStatus = async (id: string, newStatus: AppointmentItem['status']) => {
+    setActionLoadingId(id);
+    try {
+      const res = await api.patch(`/appointments/${id}`, { status: newStatus });
+      if (res.success) {
+        setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+        showToast(`Appointment status updated to ${newStatus}`);
+      }
+    } catch (err: any) {
+      alert(`Status update failed: ${err.message}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this appointment?')) return;
+    setActionLoadingId(id);
+    try {
+      const res = await api.delete(`/appointments/${id}`);
+      if (res.success) {
+        setAppointments(prev => prev.filter(a => a.id !== id));
+        showToast('Appointment deleted successfully');
+      }
+    } catch (err: any) {
+      alert(`Delete failed: ${err.message}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const filteredAppointments = appointments.filter(apt => {
     const matchesSearch = 
@@ -129,6 +103,19 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center justify-between text-xs font-bold animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+            <span>{toastMessage}</span>
+          </div>
+          <button onClick={() => setToastMessage(null)} className="text-white hover:text-emerald-200 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Banner Header */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -163,7 +150,7 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
           <div>
             <p className="text-[11px] font-bold uppercase text-slate-400">Total Consultations</p>
             <h3 className="text-xl font-extrabold text-slate-800">{appointments.length} Sessions</h3>
-            <span className="text-[10px] font-medium text-emerald-600">100% Attended / Logged</span>
+            <span className="text-[10px] font-medium text-emerald-600">Real-time database sync</span>
           </div>
         </div>
 
@@ -206,7 +193,7 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
 
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-          {(['All', 'Upcoming', 'Completed'] as const).map((st) => (
+          {(['All', 'Upcoming', 'Completed', 'Cancelled'] as const).map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -227,23 +214,27 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
         {filteredAppointments.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
             <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-700">No appointments match your search</h3>
-            <p className="text-xs text-slate-400 mt-1">Try resetting the search query or status filter.</p>
+            <h3 className="text-base font-bold text-slate-700">No appointments found</h3>
+            <p className="text-xs text-slate-400 mt-1">Book a new strategy session or adjust your filter query.</p>
           </div>
         ) : (
           filteredAppointments.map((apt) => {
             const isUpcoming = apt.status === 'Upcoming';
+            const isCompleted = apt.status === 'Completed';
+            const isCancelled = apt.status === 'Cancelled';
+            const isLoadingThis = actionLoadingId === apt.id;
+
             return (
               <div 
                 key={apt.id}
-                className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${
                   isUpcoming ? 'border-blue-300 ring-1 ring-blue-100/60' : 'border-slate-200'
                 }`}
               >
                 {/* Left Block: Icon + Details */}
                 <div className="flex items-start gap-4 min-w-0">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold shrink-0 ${
-                    isUpcoming ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-500'
+                    isUpcoming ? 'bg-blue-600 text-white shadow-md' : isCancelled ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
                   }`}>
                     <Video className="w-6 h-6" />
                   </div>
@@ -251,7 +242,11 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        isUpcoming ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        isUpcoming 
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse' 
+                          : isCancelled
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                       }`}>
                         {apt.status}
                       </span>
@@ -282,38 +277,81 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right Block: Date/Time Badge & Join Button */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 w-full md:w-auto">
-                  <div className="text-left md:text-right">
-                    <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 md:justify-end">
+                {/* Right Block: Date/Time Badge & Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0 self-stretch lg:self-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 w-full lg:w-auto">
+                  <div className="text-left lg:text-right">
+                    <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 lg:justify-end">
                       <CalendarIcon className="w-3.5 h-3.5 text-blue-600" />
                       <span>{apt.date}</span>
                     </div>
-                    <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 md:justify-end mt-0.5">
+                    <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 lg:justify-end mt-0.5">
                       <Clock className="w-3.5 h-3.5 text-amber-500" />
                       <span>{apt.time}</span>
                     </div>
                   </div>
 
-                  {isUpcoming ? (
-                    <a
-                      href={apt.meetingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-2 transition-all border border-emerald-500 cursor-pointer"
-                    >
-                      <Video className="w-4 h-4" />
-                      <span>Join Call</span>
-                      <ExternalLink className="w-3 h-3 ml-0.5" />
-                    </a>
-                  ) : (
-                    <button
-                      disabled
-                      className="px-4 py-2 bg-slate-100 text-slate-400 font-semibold text-xs rounded-xl border border-slate-200 cursor-not-allowed"
-                    >
-                      Session Ended
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                    {isUpcoming && (
+                      <a
+                        href={apt.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all border border-emerald-500 cursor-pointer"
+                      >
+                        <Video className="w-3.5 h-3.5" />
+                        <span>Join Call</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5" />
+                      </a>
+                    )}
+
+                    {(userRole === 'admin' || userRole === 'superadmin') && (
+                      <>
+                        {isUpcoming && (
+                          <>
+                            <button
+                              disabled={isLoadingThis}
+                              onClick={() => handleUpdateStatus(apt.id, 'Completed')}
+                              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Mark as Completed"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Complete</span>
+                            </button>
+                            <button
+                              disabled={isLoadingThis}
+                              onClick={() => handleUpdateStatus(apt.id, 'Cancelled')}
+                              className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-xl border border-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Cancel Session"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Cancel</span>
+                            </button>
+                          </>
+                        )}
+
+                        {!isUpcoming && (
+                          <button
+                            disabled={isLoadingThis}
+                            onClick={() => handleUpdateStatus(apt.id, 'Upcoming')}
+                            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Reopen Session"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reopen</span>
+                          </button>
+                        )}
+
+                        <button
+                          disabled={isLoadingThis}
+                          onClick={() => handleDeleteAppointment(apt.id)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                          title="Delete Record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );

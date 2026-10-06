@@ -7,9 +7,10 @@ interface NewCaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddCase: (newCase: CaseItem) => void;
+  onOpenResumeBuilding?: (createdCase: CaseItem) => void;
 }
 
-export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onAddCase }) => {
+export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onAddCase, onOpenResumeBuilding }) => {
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [petitionCategory, setPetitionCategory] = useState<PetitionCategory>('EB-2 NIW');
@@ -90,13 +91,17 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
 
       onAddCase(createdCase);
       onClose();
+
+      if (petitionCategory === 'Resume Building' && onOpenResumeBuilding) {
+        onOpenResumeBuilding(createdCase);
+      }
     } catch (err: any) {
       alert(`Connection error: ${err.message}`);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Intake New Case File" subtitle="Initialize 14-stage workflow pipeline for a new candidate">
+    <Modal isOpen={isOpen} onClose={onClose} title="Intake New Case File" subtitle="Initialize workflow pipeline for a new candidate">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="min-w-0">
@@ -121,7 +126,8 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
               <option value="EB-2 NIW">EB-2 NIW</option>
               <option value="EB-1A">EB-1A</option>
               <option value="O-1">O-1 Visa</option>
-              <option value="Immigration Editorial Services">Editorial Services</option>
+              <option value="Profile Building">Profile Building</option>
+              <option value="Resume Building">Resume Building</option>
               <option value="Mexico TR Visa">Mexico TR Visa</option>
             </select>
           </div>
@@ -181,7 +187,7 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ isOpen, onClose, onA
             Cancel
           </button>
           <button type="submit" className="w-full sm:w-auto px-5 py-2 rounded-lg bg-blue-600 text-white font-bold shadow-sm hover:bg-blue-700 cursor-pointer">
-            Create Case File
+            {petitionCategory === 'Resume Building' ? 'Continue to Resume Building Upload' : 'Create Case File'}
           </button>
         </div>
       </form>

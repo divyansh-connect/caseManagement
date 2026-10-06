@@ -6,7 +6,7 @@ export const AdminSettings = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">System Settings & Integrations</h1>
-        <p className="text-xs text-slate-400">User RBAC management, 14-stage workflow configuration, and 3rd-party cloud integrations</p>
+        <p className="text-xs text-slate-400">User RBAC management, workflow configuration, and 3rd-party cloud integrations</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

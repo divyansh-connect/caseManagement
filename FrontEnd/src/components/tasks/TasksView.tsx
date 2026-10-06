@@ -67,7 +67,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ tasks: initialTasks, userR
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">Legal Task &amp; Workflow Engine</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">Editorial Task &amp; Workflow Engine</h1>
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
             Track petition drafting deadlines, recommendation letter follow-ups, and partner review queues.
           </p>

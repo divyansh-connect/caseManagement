@@ -414,7 +414,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
                 <div>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-6 h-6 text-blue-600 shrink-0" />
-                    <span className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight">BABEL GLOBAL LEGAL SERVICES INC.</span>
+                    <span className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight">BABEL GLOBAL EDITORIAL SERVICES INC.</span>
                   </div>
                   <p className="text-slate-500 mt-1">100 Pennsylvania Ave NW, Suite 800</p>
                   <p className="text-slate-500">Washington, D.C. 20004, United States</p>
@@ -468,7 +468,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
                     <tr>
                       <td className="p-3">
                         <p className="font-bold text-slate-800">{selectedInvoiceForPdf.description}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Professional legal petition drafting, exhibit auditing &amp; USCIS filing preparation</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Professional editorial petition drafting, exhibit auditing &amp; USCIS filing preparation</p>
                       </td>
                       <td className="p-3 text-right font-medium">1</td>
                       <td className="p-3 text-right font-medium">${selectedInvoiceForPdf.amount.toLocaleString()}</td>
@@ -492,7 +492,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
                     <span className="font-semibold">${selectedInvoiceForPdf.amount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Tax (0% Legal Exemption):</span>
+                    <span>Tax (0% Editorial Exemption):</span>
                     <span className="font-semibold">$0.00</span>
                   </div>
                   <div className="flex justify-between text-base font-extrabold text-slate-900 border-t border-slate-200 pt-2">

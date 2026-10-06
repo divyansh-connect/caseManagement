@@ -11,6 +11,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    host: true,
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'https://immigrtion-case-management-production.up.railway.app',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 });

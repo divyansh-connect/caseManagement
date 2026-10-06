@@ -85,7 +85,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     try {
       const data = await api.post('/messages', {
         caseId: selectedCase.id,
-        senderName: 'Sarah Jenkins (Legal Specialist)',
+        senderName: 'Sarah Jenkins (Editorial Specialist)',
         senderRole: 'writer',
         content: contentToSend
       });

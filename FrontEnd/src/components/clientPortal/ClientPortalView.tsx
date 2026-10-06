@@ -46,6 +46,7 @@ interface ClientPortalViewProps {
   openAppointmentModal?: () => void;
   openSignModal?: () => void;
   openQuestionnaireModal?: () => void;
+  openResumeBuildingModal?: (caseItem: CaseItem) => void;
   activeNavTab?: string;
   onNavigateTab?: (tab: any) => void;
   commViewMode?: 'hub' | 'whatsapp';
@@ -112,7 +113,6 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     internalStages: [1, 2, 3, 4, 5],
     tasks: [
       { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-2', name: 'Upload existing CV: [Preliminary profile assessment]', assignedTo: 'Client', status: 'Approved/Completed' },
       { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
       { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Payment before documentation', assignedTo: 'Client', status: 'Approved/Completed' },
       { id: 'st1-5', name: 'Documentation: [Upload supporting documents, Identify missing documents & Resume/CV, preparation or improvement, when required, Documentation and Qualification Review, categorize academic, employment, publication, award, membership, media, citation, judging, contribution, and other records, Approve the evidence checklist for drafting]', assignedTo: 'Client', status: 'Approved/Completed' },
@@ -216,6 +216,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   openAppointmentModal,
   openSignModal,
   openQuestionnaireModal,
+  openResumeBuildingModal,
   activeNavTab,
   onNavigateTab,
   commViewMode = 'whatsapp',
@@ -391,6 +392,30 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </div>
           </div>
 
+          {/* Dedicated Resume Building Banner */}
+          {caseData.petitionCategory === 'Resume Building' && (
+            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-emerald-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-800/80 rounded-xl text-emerald-300 shrink-0">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-emerald-200">Resume Building Action Required</h3>
+                  <p className="text-xs text-slate-300 mt-0.5">Upload your documents for candidate profile creation & resume building.</p>
+                </div>
+              </div>
+              {openResumeBuildingModal && (
+                <button
+                  onClick={() => openResumeBuildingModal(caseData)}
+                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs shrink-0 cursor-pointer shadow-md transition-all flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Resume Documents</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 2. PROMINENT "YOUR NEXT ACTION" CARD (One-Action-at-a-Time) */}
           <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-400/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -414,7 +439,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
               <button
                 onClick={() => {
-                  if (nextActionTask.name.includes('Upload') || nextActionTask.name.includes('CV')) openNewDocModal();
+                  if (nextActionTask.name.includes('Upload') || nextActionTask.name.includes('CV') || nextActionTask.name.includes('Documentation')) openNewDocModal();
                   else {
                     handleTabChange('tasks');
                     setExpandedStage(nextActionTask.stageId);
@@ -422,7 +447,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 }}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer transition-all"
               >
-                <span>{nextActionTask.name.includes('CV') || nextActionTask.name.includes('Upload') ? 'Upload Documents' : 'Complete Task'}</span>
+                <span>{nextActionTask.name.includes('CV') || nextActionTask.name.includes('Upload') || nextActionTask.name.includes('Documentation') ? 'Upload Documents' : 'Complete Task'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -707,7 +732,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         stageGroup.id === 1 ? (
                           stage1FlowMode === 'standard' ? stageGroup.tasks : [
                             { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-2', name: 'Upload existing CV: [Preliminary profile assessment]', assignedTo: 'Client', status: 'Approved/Completed' },
                             { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
                             { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client', status: 'Not Applicable' },
                             { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client', status: 'Awaiting Client' },
@@ -1037,7 +1061,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <div className="p-4 border-b border-slate-200 font-bold text-slate-800 text-sm flex items-center justify-between bg-slate-50">
                 <span>Messaging Hub Conversation History</span>
                 <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Legal Team Sync
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Editorial Team Sync
                 </span>
               </div>
 

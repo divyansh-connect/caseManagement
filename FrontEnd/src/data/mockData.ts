@@ -1,20 +1,13 @@
 import { WorkflowStage, CaseItem, Client, CaseDocument, CaseTask, PaymentMilestone, CaseTemplate, CaseMessage } from '../types';
 
 export const WORKFLOW_STAGES: WorkflowStage[] = [
-  { id: 1, name: 'Client Registration & Intake', description: 'Initial onboarding, background questionnaire, & eligibility screening.', category: 'Intake', typicalDays: 2 },
-  { id: 2, name: 'CV & Supporting Documents', description: 'Client uploads academic degrees, transcripts, publications, & CV.', category: 'Intake', typicalDays: 5 },
-  { id: 3, name: 'Qualification Evaluation', description: 'Specialist assessment of Advanced Degree or Exceptional Ability threshold.', category: 'Evaluation', typicalDays: 3 },
-  { id: 4, name: 'Terms & Conditions', description: 'Retainer agreement signing & representation scope definition.', category: 'Evaluation', typicalDays: 2 },
-  { id: 5, name: 'Payment', description: 'Initial retainer fee processing & account activation.', category: 'Evaluation', typicalDays: 1 },
-  { id: 6, name: 'Proposed Endeavor & Recommenders', description: 'Drafting U.S. National Importance endeavor statement & identifying expert recommenders.', category: 'Endeavor & Evidence', typicalDays: 7 },
-  { id: 7, name: 'Client Feedback', description: 'Refining endeavor statement with client Q&A and field focus alignment.', category: 'Endeavor & Evidence', typicalDays: 4 },
-  { id: 8, name: 'Research & Evidence', description: 'Gathering citation reports, media coverage, industry statistics & government initiatives.', category: 'Endeavor & Evidence', typicalDays: 10 },
-  { id: 9, name: 'Draft Preparation', description: 'Drafting 3-5 expert recommendation letters & petition memo outline.', category: 'Drafting & Review', typicalDays: 12 },
-  { id: 10, name: 'Client Review', description: 'Client reviews recommendation letters & background exhibits for accuracy.', category: 'Drafting & Review', typicalDays: 5 },
-  { id: 11, name: 'Petition Draft', description: 'Formulating Petition Memorandum applying Dhanasar 3-Prong framework.', category: 'Drafting & Review', typicalDays: 10 },
-  { id: 12, name: 'Final Client Review', description: 'Senior Reviewer audit & final client approval of complete petition package.', category: 'Drafting & Review', typicalDays: 4 },
-  { id: 13, name: 'Petition Package', description: 'Assembling I-140, ETA-9089, index of exhibits, & shipping to USCIS.', category: 'Final Filing', typicalDays: 3 },
-  { id: 14, name: 'Case Completion', description: 'USCIS receipt notice issued, tracking number recorded, & I-797 tracking active.', category: 'Final Filing', typicalDays: 1 }
+  { id: 1, name: 'Consultation & Onboarding', description: 'Profile assessment, engagement agreement, flexible payment & document collection', category: 'Intake', typicalDays: 5 },
+  { id: 2, name: 'Case Strategy & Recommenders', description: 'Proposed endeavor development & expert recommender letters', category: 'Evaluation', typicalDays: 10 },
+  { id: 3, name: 'Forms Preparation', description: 'USCIS questionnaires & official form packages (I-140, ETA-9089, G-1145)', category: 'Evaluation', typicalDays: 5 },
+  { id: 4, name: 'Petition Drafting & Review', description: 'Legal petition memorandum drafting under Dhanasar 3-Prong framework', category: 'Drafting & Review', typicalDays: 14 },
+  { id: 5, name: 'Final Package Preparation', description: 'Completed forms, petition letter, exhibit index & supporting exhibits', category: 'Final Filing', typicalDays: 4 },
+  { id: 6, name: 'Filed with USCIS & Tracking', description: 'Package shipped to USCIS, receipt tracking, and status monitoring', category: 'Final Filing', typicalDays: 30 },
+  { id: 7, name: 'Concurrent Form I-485 (Optional)', description: 'Activated for clients purchasing concurrent adjustment of status filing', category: 'Final Filing', typicalDays: 30 }
 ];
 
 
@@ -105,7 +98,7 @@ export const INITIAL_CASES: CaseItem[] = [
     clientEmail: 'elena.rostova@quantum-labs.io',
     petitionCategory: 'EB-2 NIW',
     fieldCategory: 'Quantum Machine Learning & Optimization',
-    currentStage: 9, // Draft Preparation
+    currentStage: 4, // Petition Drafting & Review
     assignedWriter: 'Petition Drafter 1',
     assignedReviewer: 'Senior Reviewer',
     riskLevel: 'low',
@@ -243,7 +236,7 @@ export const INITIAL_CASES: CaseItem[] = [
     clientName: 'Dr. Amara Okafor',
     clientEmail: 'a.okafor@oncology-ai.org',
     fieldCategory: 'Computational Oncology & Genomics',
-    currentStage: 12, // Final Client Review
+    currentStage: 4, // Final Client Review -> Petition Drafting & Review
     assignedWriter: 'Sarah Jenkins (Petition Specialist)',
     assignedReviewer: 'Rachel Zhang, Esq. (Partner)',
     riskLevel: 'low',
@@ -344,7 +337,7 @@ export const INITIAL_CASES: CaseItem[] = [
     clientName: 'Sofia Al-Mansoor',
     clientEmail: 'sofia.mansoor@cyberfortress.net',
     fieldCategory: 'Zero-Trust Cybersecurity for Critical Infrastructure',
-    currentStage: 14, // Case Completion
+    currentStage: 6, // Case Completion -> Filed with USCIS & Tracking
     assignedWriter: 'Sarah Jenkins (Petition Specialist)',
     assignedReviewer: 'Rachel Zhang, Esq. (Partner)',
     riskLevel: 'low',
@@ -460,7 +453,7 @@ export const INITIAL_TASKS: CaseTask[] = [
     title: 'Finalize Expert Recommendation Letter #2 (Sandia Labs)',
     assignedRole: 'writer',
     assignedToName: 'Sarah Jenkins',
-    stageId: 9,
+    stageId: 4,
     dueDate: '2025-03-03',
     priority: 'high',
     completed: false
@@ -471,7 +464,7 @@ export const INITIAL_TASKS: CaseTask[] = [
     title: 'Run AI Dhanasar Prong 1 National Importance Check',
     assignedRole: 'writer',
     assignedToName: 'Sarah Jenkins',
-    stageId: 9,
+    stageId: 4,
     dueDate: '2025-03-04',
     priority: 'medium',
     completed: true
@@ -482,7 +475,7 @@ export const INITIAL_TASKS: CaseTask[] = [
     title: 'Senior Attorney Review of Draft Form I-140 Cover Letter',
     assignedRole: 'reviewer',
     assignedToName: 'David Miller, Esq.',
-    stageId: 10,
+    stageId: 4,
     dueDate: '2025-03-08',
     priority: 'urgent',
     completed: false
@@ -493,7 +486,7 @@ export const INITIAL_TASKS: CaseTask[] = [
     title: 'Review Client Proposed Endeavor Questionnaire Answers',
     assignedRole: 'writer',
     assignedToName: 'Marcus Vance',
-    stageId: 6,
+    stageId: 2,
     dueDate: '2025-03-02',
     priority: 'high',
     completed: false
@@ -504,7 +497,7 @@ export const INITIAL_TASKS: CaseTask[] = [
     title: 'Print & Index Exhibit Tabs 1-42 for FedEx Package',
     assignedRole: 'admin',
     assignedToName: 'Intake Desk',
-    stageId: 13,
+    stageId: 5,
     dueDate: '2025-03-04',
     priority: 'high',
     completed: false

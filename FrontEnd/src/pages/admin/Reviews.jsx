@@ -54,7 +54,7 @@ export const AdminReviews = () => {
           </h3>
           <textarea
             rows="5"
-            placeholder="Add internal feedback for petition writer regarding legal citations or Dhanasar arguments..."
+            placeholder="Add internal feedback for petition writer regarding editorial citations or Dhanasar arguments..."
             className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
           ></textarea>
           <button className="w-full py-2 text-xs font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl">

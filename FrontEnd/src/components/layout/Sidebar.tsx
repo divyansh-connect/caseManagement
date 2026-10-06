@@ -17,7 +17,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  Smartphone
+  Smartphone,
+  UserCheck
 } from 'lucide-react';
 import { UserRole } from '../../types';
 
@@ -25,6 +26,7 @@ export type NavTab =
   | 'dashboard'
   | 'cases'
   | 'clients'
+  | 'adminManagement'
   | 'tasks'
   | 'documents'
   | 'reviews'
@@ -70,18 +72,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'clientPortal', label: 'Case Overview', icon: LayoutDashboard, roles: ['client'] },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'writer', 'reviewer'] },
     { id: 'clients', label: 'Clients', icon: Users, roles: ['superadmin', 'admin'] },
+    { id: 'adminManagement', label: 'Admin Management', icon: UserCheck, roles: ['superadmin'] },
     { id: 'cases', label: userRole === 'writer' ? 'My Assigned Cases' : userRole === 'superadmin' ? 'All Cases' : 'Cases', icon: Briefcase, badge: activeCaseCount, roles: ['superadmin', 'admin', 'writer', 'reviewer'] },
-    { id: 'tasks', label: userRole === 'writer' ? 'My Tasks' : 'Tasks', icon: CheckSquare, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
+    { id: 'tasks', label: userRole === 'writer' ? 'My Tasks' : 'Tasks', icon: CheckSquare, roles: ['admin', 'writer', 'reviewer', 'client'] },
     { id: 'documents', label: userRole === 'writer' ? 'Research & Evidence' : 'Documents', icon: FileText, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'forms', label: userRole === 'reviewer' ? 'Forms Review' : 'Forms', icon: FileSpreadsheet, roles: ['reviewer', 'client'] },
     { id: 'reviews', label: userRole === 'reviewer' ? 'Assigned Reviews' : 'Reviews & Approvals', icon: FileCheck, roles: ['superadmin', 'admin', 'reviewer'] },
     { id: 'communication', label: userRole === 'writer' ? 'Messages' : userRole === 'reviewer' ? 'Messages' : 'Communication', icon: MessageSquare, roles: ['superadmin', 'admin', 'writer', 'reviewer', 'client'] },
     { id: 'payments', label: userRole === 'client' ? 'Agreement & Payments' : 'Payments', icon: CreditCard, roles: ['superadmin', 'admin', 'client'] },
-    { id: 'templates', label: userRole === 'writer' ? 'Petition Drafts' : 'Case Templates', icon: FileSpreadsheet, roles: ['superadmin', 'admin', 'writer'] },
-    { id: 'appointments', label: 'Appointments', icon: GraduationCap, roles: ['superadmin', 'admin', 'client'] },
+    { id: 'templates', label: userRole === 'writer' ? 'Petition Drafts' : 'Case Templates', icon: FileSpreadsheet, roles: ['admin', 'writer'] },
+    { id: 'appointments', label: 'Appointments', icon: GraduationCap, roles: ['admin', 'client'] },
     { id: 'postFiling', label: 'Post-Filing Updates', icon: FileCheck, roles: ['client'] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'reviewer'] },
-    { id: 'settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'client'] },
+    { id: 'settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'client'] },
   ];
 
   // Filter items authorized for the currently logged-in role
@@ -89,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const getSectionTitle = () => {
     switch (userRole) {
-      case 'superadmin': return 'Super Administrator';
+      case 'superadmin': return 'SUPER ADMINISTRATOR CONTROL';
       case 'admin': return 'Administrator Control';
       case 'writer': return 'Drafter Workspace';
       case 'reviewer': return 'Reviewer Hub';

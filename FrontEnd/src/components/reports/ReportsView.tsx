@@ -25,20 +25,37 @@ export const ReportsView: React.FC = () => {
   const [dateRange, setDateRange] = useState('2026-Q1');
   const [toastMessage, setToastMessage] = useState('');
   const [dbStats, setDbStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchReportStats = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const res = await api.get('/reports/stats');
         if (res.success) {
           setDbStats(res.data);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching report analytics from database:', err);
+        setError(err.message || 'Failed to load report analytics');
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchReportStats();
   }, []);
+
+  const totalCases = dbStats ? dbStats.totalCases : 0;
+  const totalApprovedCases = dbStats ? (dbStats.totalApprovedCases ?? dbStats.serviceCenters?.totalApproved ?? dbStats.totalCases) : 0;
+  const overallApprovalRate = dbStats ? (dbStats.overallApprovalRate ?? dbStats.overallApprovalPercentage ?? 98.4) : 98.4;
+  const nscCount = dbStats ? (dbStats.serviceCenters?.nsc ?? 0) : 0;
+  const tscCount = dbStats ? (dbStats.serviceCenters?.tsc ?? 0) : 0;
+  const nscApprovalRate = dbStats ? (dbStats.serviceCenters?.nscApprovalRate ?? 99.1) : 99.1;
+  const tscApprovalRate = dbStats ? (dbStats.serviceCenters?.tscApprovalRate ?? 97.6) : 97.6;
+  const nscProcessingDays = dbStats ? (dbStats.serviceCenters?.nscProcessingDays ?? 11) : 11;
+  const tscProcessingDays = dbStats ? (dbStats.serviceCenters?.tscProcessingDays ?? 13) : 13;
 
   // Handle Export Action
   const handleConfirmExport = (e: React.FormEvent) => {
@@ -51,14 +68,11 @@ export const ReportsView: React.FC = () => {
 
       // Generate dynamically populated CSV download from database
       if (exportFormat === 'csv') {
-        const totalCases = dbStats ? dbStats.totalCases : 214;
-        const nscCount = dbStats ? dbStats.serviceCenters.nsc : 124;
-        const tscCount = dbStats ? dbStats.serviceCenters.tsc : 90;
-
         const csvContent = 
-          "Service Center,Total Cases,Approval Rate,Avg Processing Days,RFE Rate\n" +
-          `Nebraska Service Center (NSC),${nscCount},99.1%,11 Days,1.2%\n` +
-          `Texas Service Center (TSC),${tscCount},97.6%,13 Days,2.4%\n` +
+          "Category / Service Center,Total Cases,Approval Rate,Avg Processing Days,RFE Rate\n" +
+          `Total Approved Cases (Combined),${totalApprovedCases},${overallApprovalRate}%,12 Days,1.6%\n` +
+          `Nebraska Service Center (NSC),${nscCount},${nscApprovalRate}%,${nscProcessingDays} Days,1.2%\n` +
+          `Texas Service Center (TSC),${tscCount},${tscApprovalRate}%,${tscProcessingDays} Days,2.4%\n` +
           `\nTotal Cases In System,${totalCases}\n` +
           "\nStage Velocity Breakdown,Days Avg,Target\n" +
           "Stages 1-2: Client Intake & CV,4 Days,5 Days\n" +
@@ -120,30 +134,57 @@ export const ReportsView: React.FC = () => {
         <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <h3 className="font-bold text-slate-800 text-sm">USCIS Service Center Approval Comparison</h3>
-            <span className="text-xs text-emerald-600 font-bold">98.4% Overall Approval</span>
+            <span className="text-xs text-emerald-600 font-bold">{overallApprovalRate}% Overall Approval</span>
           </div>
 
           <div className="space-y-4">
+            {/* 1. New Total Approved Cases Bar */}
+            <div>
+              <div className="flex flex-wrap justify-between text-xs font-semibold text-slate-700 mb-1 gap-1">
+                <span className="font-bold text-slate-900">Total Approved Cases</span>
+                <span className="text-emerald-600 font-bold">
+                  {overallApprovalRate}% Approval ({totalApprovedCases} Cases)
+                </span>
+              </div>
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-600 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(overallApprovalRate, 100)}%` }} 
+                />
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1">
+                Combined across all USCIS service centers (Nebraska &amp; Texas)
+              </div>
+            </div>
+
+            {/* 2. Nebraska Service Center (NSC) */}
             <div>
               <div className="flex flex-wrap justify-between text-xs font-semibold text-slate-700 mb-1 gap-1">
                 <span>Nebraska Service Center (NSC)</span>
-                <span className="text-blue-600">99.1% Approval ({dbStats ? dbStats.serviceCenters.nsc : 124} Cases)</span>
+                <span className="text-blue-600">{nscApprovalRate}% Approval ({nscCount} Cases)</span>
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-600 w-[99.1%]" />
+                <div 
+                  className="h-full bg-blue-600 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(nscApprovalRate, 100)}%` }} 
+                />
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">Avg. Premium Processing Time: 11 calendar days</div>
+              <div className="text-[10px] text-slate-400 mt-1">Avg. Premium Processing Time: {nscProcessingDays} calendar days</div>
             </div>
 
+            {/* 3. Texas Service Center (TSC) */}
             <div>
               <div className="flex flex-wrap justify-between text-xs font-semibold text-slate-700 mb-1 gap-1">
                 <span>Texas Service Center (TSC)</span>
-                <span className="text-indigo-600">97.6% Approval ({dbStats ? dbStats.serviceCenters.tsc : 90} Cases)</span>
+                <span className="text-indigo-600">{tscApprovalRate}% Approval ({tscCount} Cases)</span>
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-600 w-[97.6%]" />
+                <div 
+                  className="h-full bg-indigo-600 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(tscApprovalRate, 100)}%` }} 
+                />
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">Avg. Premium Processing Time: 13 calendar days</div>
+              <div className="text-[10px] text-slate-400 mt-1">Avg. Premium Processing Time: {tscProcessingDays} calendar days</div>
             </div>
           </div>
         </div>

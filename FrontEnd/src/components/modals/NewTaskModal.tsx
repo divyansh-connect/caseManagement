@@ -12,7 +12,7 @@ interface NewTaskModalProps {
 
 export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onAddTask }) => {
   const [title, setTitle] = useState('');
-  const [stageId, setStageId] = useState<StageId>(9);
+  const [stageId, setStageId] = useState<StageId>(1);
   const [assignedToName, setAssignedToName] = useState('Sarah Jenkins');
   const [assignedRole, setAssignedRole] = useState<UserRole>('writer');
   const [dueDate, setDueDate] = useState('2025-03-15');
@@ -46,7 +46,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Legal Workflow Task" subtitle="Assign task to petition writers, legal researchers, or senior reviewers">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create New Editorial Workflow Task" subtitle="Assign task to petition writers, editorial researchers, or senior reviewers">
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         <div>
           <label className="block text-slate-700 font-bold mb-1">Task Title / Description *</label>
@@ -106,7 +106,7 @@ export const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onA
             >
               <option value="Sarah Jenkins">Sarah Jenkins (Petition Writer)</option>
               <option value="David Miller, Esq.">David Miller, Esq. (Senior Reviewer)</option>
-              <option value="Marcus Vance">Marcus Vance (Legal Researcher)</option>
+              <option value="Marcus Vance">Marcus Vance (Editorial Researcher)</option>
               <option value="Intake Desk">Intake Desk (Staff)</option>
             </select>
           </div>

@@ -90,7 +90,7 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
     tasks: [
       { id: 'st3-1', name: 'Client completes simplified USCIS questionnaire', assignedTo: 'Client', status: 'Approved/Completed', requiredDocs: ['USCIS Questionnaire'] },
       { id: 'st3-2', name: 'Transfer data to applicable forms (I-140, ETA-9089)', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st3-3', name: 'Legal staff reviews form data and accuracy', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st3-3', name: 'Editorial staff reviews form data and accuracy', assignedTo: 'Babel Global Team', status: 'Under Review' },
       { id: 'st3-4', name: 'Client reviews & signs completed forms with blue ink', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Form I-140', 'Form G-1145'] }
     ]
   },
@@ -153,6 +153,7 @@ interface CaseDetailViewProps {
   openAIAssistant: () => void;
   openNewDocModal: () => void;
   openNewRecommenderModal: () => void;
+  openResumeBuildingModal?: (caseItem: CaseItem) => void;
   userRole: UserRole;
 }
 
@@ -165,6 +166,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   openAIAssistant,
   openNewDocModal,
   openNewRecommenderModal,
+  openResumeBuildingModal,
   userRole,
 }) => {
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
@@ -329,36 +331,25 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-16">
-      {/* Back & Breadcrumb */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+    <div className="space-y-6">
+      {/* Top Header & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors w-fit cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Cases Directory</span>
+          <span>Back to Case Management</span>
         </button>
 
         <div className="flex items-center gap-2">
           <button
             onClick={openAIAssistant}
-            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 font-medium text-xs hover:bg-amber-100 flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>AI Copilot</span>
+            <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
+            <span>AI Legal Assistant</span>
           </button>
-          
-          {userRole === 'superadmin' && (
-            <button
-              onClick={() => onUpdateStage(caseData.id, Math.min(6, caseData.currentStage + 1) as StageId)}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-              title="Super Admin Override: Advance Stage"
-            >
-              <span>Super Admin Advance Stage {Math.min(6, caseData.currentStage + 1)}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -371,6 +362,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
               <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
                 caseData.petitionCategory === 'EB-1A'
                   ? 'bg-purple-100 text-purple-800 border-purple-300'
+                  : caseData.petitionCategory === 'Resume Building'
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                   : 'bg-blue-100 text-blue-800 border-blue-300'
               }`}>
                 {caseData.petitionCategory || 'EB-2 NIW'}
@@ -392,6 +385,30 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
             <RiskBadge level={caseData.riskLevel} />
           </div>
         </div>
+
+        {/* Dedicated Resume Building Banner */}
+        {caseData.petitionCategory === 'Resume Building' && (
+          <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-emerald-700/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-800/80 rounded-lg text-emerald-300 shrink-0">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-emerald-200">Dedicated Resume Building Workspace</h4>
+                <p className="text-xs text-slate-300">Upload, review, and manage candidate documents required for professional resume building.</p>
+              </div>
+            </div>
+            {openResumeBuildingModal && (
+              <button
+                onClick={() => openResumeBuildingModal(caseData)}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs shrink-0 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4 text-slate-950" />
+                <span>Open Resume Building Interface</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Tabs Navigation */}
@@ -429,7 +446,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          NEW Tab 0: Stage-Based Workflow Engine (replaces legacy 14-stage)
+          Tab 0: Stage-Based Workflow Engine
           ───────────────────────────────────────────────────────────── */}
       {activeTab === 'workflow' && (
         <div className="space-y-3">
@@ -1130,7 +1147,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-800 text-sm">Threaded Case Discussion</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Direct communication between client and legal petition staff</p>
+              <p className="text-xs text-slate-500 mt-0.5">Direct communication between client and editorial petition staff</p>
             </div>
           </div>
 
@@ -1158,7 +1175,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
               type="text"
               value={newMessageText}
               onChange={(e) => setNewMessageText(e.target.value)}
-              placeholder="Write message to client or legal team..."
+              placeholder="Write message to client or editorial team..."
               className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button

@@ -1,20 +1,13 @@
 export type UserRole = 'superadmin' | 'admin' | 'writer' | 'reviewer' | 'client';
 
 export type StageId = 
-  | 1  // Client Registration & Intake
-  | 2  // CV & Supporting Documents
-  | 3  // Qualification Evaluation
-  | 4  // Terms & Conditions
-  | 5  // Payment
-  | 6  // Proposed Endeavor & Recommenders
-  | 7  // Client Feedback
-  | 8  // Research & Evidence
-  | 9  // Draft Preparation
-  | 10 // Client Review
-  | 11 // Petition Draft
-  | 12 // Final Client Review
-  | 13 // Petition Package
-  | 14; // Case Completion
+  | 1  // Consultation and Onboarding
+  | 2  // Case Strategy & Recommendation Letters
+  | 3  // Forms Preparation
+  | 4  // Petition Drafting & Review
+  | 5  // Final Package Preparation
+  | 6  // Filed with USCIS & Tracking
+  | 7; // Optional Add-On: Concurrent Form I-485 Filing
 
 export interface WorkflowStage {
   id: StageId;
@@ -122,7 +115,7 @@ export interface CaseMessage {
   attachments?: string[];
 }
 
-export type PetitionCategory = 'EB-2 NIW' | 'EB-1A' | 'O-1' | 'Immigration Editorial Services' | 'Mexico TR Visa';
+export type PetitionCategory = 'EB-2 NIW' | 'EB-1A' | 'O-1' | 'Resume Building' | 'Profile Building' | 'Mexico TR Visa';
 
 
 export interface Eb1aCriteria {

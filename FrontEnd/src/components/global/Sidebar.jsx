@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { USER_ROLES } from '../../data/stageConfig';
 import { 
   LayoutDashboard, Users, Briefcase, FileText, CheckSquare, 
-  CheckCircle, MessageSquare, CreditCard, Layers, BarChart3, Settings, UserCheck
+  CheckCircle, MessageSquare, CreditCard, Layers, BarChart3, Settings, UserCheck, Calendar
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -25,6 +25,7 @@ export const Sidebar = () => {
       { path: '/admin/communication', name: 'Communication', icon: MessageSquare },
       { path: '/admin/payments', name: 'Payments', icon: CreditCard },
       { path: '/admin/templates', name: 'Case Templates', icon: Layers },
+      { path: '/admin/appointments', name: 'Appointments', icon: Calendar },
       { path: '/admin/reports', name: 'Reports', icon: BarChart3 },
       { path: '/admin/settings', name: 'Settings', icon: Settings },
     ];
@@ -82,7 +83,7 @@ export const Sidebar = () => {
 
       {/* Footer info in sidebar */}
       <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-        <p className="text-[11px] font-semibold text-cyan-400">EB-2 NIW 14-Stage Engine</p>
+        <p className="text-[11px] font-semibold text-cyan-400">EB-2 NIW Workflow Engine</p>
         <p className="text-[10px] text-slate-500">v1.0 MVP Operational</p>
       </div>
     </aside>
