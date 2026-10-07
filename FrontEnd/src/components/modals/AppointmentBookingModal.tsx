@@ -7,6 +7,7 @@ interface AppointmentBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientName?: string;
+  clientEmail?: string;
   clients?: Client[];
   onBookAppointment?: (appointment: {
     clientName: string;
@@ -25,12 +26,13 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
   isOpen,
   onClose,
   clientName = '',
+  clientEmail = '',
   clients = [],
   onBookAppointment
 }) => {
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id || '');
-  const [customClientName, setCustomClientName] = useState<string>(clientName || (clients[0]?.name || 'Dr. Alexander Vance'));
-  const [customClientEmail, setCustomClientEmail] = useState<string>(clients[0]?.email || 'client@babelglobal.com');
+  const [customClientName, setCustomClientName] = useState<string>(clientName || clients[0]?.name || '');
+  const [customClientEmail, setCustomClientEmail] = useState<string>(clientEmail || clients[0]?.email || '');
   const [selectedType, setSelectedType] = useState('1-on-1 Endeavor Strategy Session');
   const [selectedSpecialist, setSelectedSpecialist] = useState('Senior Reviewer');
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -44,12 +46,20 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
   const [isSuccess, setIsSuccess] = useState(false);
 
   React.useEffect(() => {
-    if (clients.length > 0 && !selectedClientId) {
-      setSelectedClientId(clients[0].id);
+    if (clientName) {
+      setCustomClientName(clientName);
+    } else if (clients.length > 0) {
       setCustomClientName(clients[0].name);
+    }
+    if (clientEmail) {
+      setCustomClientEmail(clientEmail);
+    } else if (clients.length > 0) {
       setCustomClientEmail(clients[0].email);
     }
-  }, [clients]);
+    if (clients.length > 0 && !selectedClientId) {
+      setSelectedClientId(clients[0].id);
+    }
+  }, [isOpen, clientName, clientEmail, clients]);
 
   if (!isOpen) return null;
 

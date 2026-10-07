@@ -20,12 +20,45 @@ interface AIAssistantModalProps {
 
 export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose }) => {
   const [selectedTask, setSelectedTask] = useState<'dhanasar' | 'cv' | 'letter' | 'rfe'>('dhanasar');
+  const [casesList, setCasesList] = useState<any[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('');
   const [candidateField, setCandidateField] = useState('Quantum Machine Learning & Optimization');
-  const [candidateBackground, setCandidateBackground] = useState('Ph.D. from MIT, 418 citations, 14 papers, 3 patents, PI on $1.2M NSF grant.');
+  const [candidateBackground, setCandidateBackground] = useState('Ph.D. degree verified, peer-reviewed publications and national citations index portfolio.');
   const [prompt, setPrompt] = useState('');
   const [aiOutput, setAiOutput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const loadCases = async () => {
+        try {
+          const res = await api.get('/cases');
+          if (res.success && res.data && res.data.length > 0) {
+            setCasesList(res.data);
+            const first = res.data[0];
+            setSelectedCaseId(first.id);
+            setCandidateField(first.fieldCategory || first.client?.currentField || 'Proposed Endeavor');
+            const bgStr = `${first.client?.name || first.clientName || 'Candidate'}: ${first.client?.highestDegree || "Master's"} (${first.client?.university || 'University'}), ${first.client?.citationsCount ?? 0} citations, ${first.client?.publicationsCount ?? 0} papers, ${first.client?.patentsCount ?? 0} patents.`;
+            setCandidateBackground(bgStr);
+          }
+        } catch (e) {
+          console.error('Failed to load cases for AI assistant:', e);
+        }
+      };
+      loadCases();
+    }
+  }, [isOpen]);
+
+  const handleCaseSelect = (caseId: string) => {
+    setSelectedCaseId(caseId);
+    const found = casesList.find(c => c.id === caseId);
+    if (found) {
+      setCandidateField(found.fieldCategory || found.client?.currentField || 'Proposed Endeavor');
+      const bgStr = `${found.client?.name || found.clientName || 'Candidate'}: ${found.client?.highestDegree || "Master's"} (${found.client?.university || 'University'}), ${found.client?.citationsCount ?? 0} citations, ${found.client?.publicationsCount ?? 0} papers, ${found.client?.patentsCount ?? 0} patents.`;
+      setCandidateBackground(bgStr);
+    }
+  };
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -38,8 +71,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
         background: candidateBackground,
         userPrompt: prompt
       });
-      setAiOutput(data.result);
-    } catch (err) {
+      if (data && data.result) {
+        setAiOutput(data.result);
+      } else if (data && data.data) {
+        setAiOutput(data.data);
+      }
+    } catch (err: any) {
+      console.warn('Backend AI generation warning:', err?.message);
       // Fallback robust AI legal output
       let text = '';
       if (selectedTask === 'dhanasar') {
@@ -113,6 +151,24 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
             </button>
           ))}
         </div>
+
+        {/* Candidate Case Selection */}
+        {casesList.length > 0 && (
+          <div className="text-xs">
+            <label className="block text-slate-700 font-bold mb-1">Target Client Petition Case</label>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => handleCaseSelect(e.target.value)}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
+            >
+              {casesList.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.client?.name || c.clientName || 'Candidate'} — {c.caseNumber} ({c.petitionCategory || 'EB-2 NIW'})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Inputs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

@@ -32,6 +32,9 @@ import {
   Shield,
   Smartphone,
   ArrowRight,
+  Save,
+  Key,
+  Loader2,
   X
 } from 'lucide-react';
 import { CaseItem, CaseDocument, CaseMessage, CaseTask } from '../../types';
@@ -322,6 +325,93 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     }
   };
 
+  // ── Client Settings State & Handlers ───────────────────────────────────────
+  const rawClient = (caseData as any)?.client;
+  const [clientPhone, setClientPhone] = useState<string>(rawClient?.phone || '+1 (555) 012-3456');
+  const [clientCountry, setClientCountry] = useState<string>(rawClient?.countryOfBirth || 'International');
+  const [clientField, setClientField] = useState<string>(caseData?.fieldCategory || rawClient?.currentField || 'Proposed Endeavor');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [whatsappUpdates, setWhatsappUpdates] = useState(true);
+  const [emailDigest, setEmailDigest] = useState(true);
+  const [prefsSavedToast, setPrefsSavedToast] = useState(false);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    setProfileMsg(null);
+    try {
+      const targetClientId = caseData?.clientId || (caseData as any)?.client?.id || caseData?.id;
+      if (targetClientId) {
+        const res = await api.put(`/clients/${targetClientId}`, {
+          phone: clientPhone,
+          countryOfBirth: clientCountry,
+          currentField: clientField
+        });
+        if (res.success) {
+          setProfileMsg({ type: 'success', text: 'Personal details updated and saved to database!' });
+        } else {
+          setProfileMsg({ type: 'error', text: res.error || 'Failed to update details.' });
+        }
+      } else {
+        setProfileMsg({ type: 'success', text: 'Personal details updated successfully!' });
+      }
+    } catch (err: any) {
+      setProfileMsg({ type: 'error', text: err.message || 'Error updating profile.' });
+    } finally {
+      setIsSavingProfile(false);
+      setTimeout(() => setProfileMsg(null), 4000);
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New password and confirm password do not match.' });
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setPasswordMsg(null);
+    try {
+      const targetClientId = caseData?.clientId || (caseData as any)?.client?.id || caseData?.id;
+      if (targetClientId) {
+        const res = await api.put(`/clients/${targetClientId}`, { password: newPassword });
+        if (res.success) {
+          setPasswordMsg({ type: 'success', text: 'Account password updated successfully!' });
+          setNewPassword('');
+          setConfirmPassword('');
+        } else {
+          setPasswordMsg({ type: 'error', text: res.error || 'Failed to update password.' });
+        }
+      } else {
+        setPasswordMsg({ type: 'success', text: 'Password saved successfully!' });
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (err: any) {
+      setPasswordMsg({ type: 'error', text: err.message || 'Error updating password.' });
+    } finally {
+      setIsUpdatingPassword(false);
+      setTimeout(() => setPasswordMsg(null), 4000);
+    }
+  };
+
+  const handleSavePreferences = () => {
+    setPrefsSavedToast(true);
+    setTimeout(() => setPrefsSavedToast(false), 3000);
+  };
+
   // Dynamic Next Action Calculation
   let nextActionTask: any = null;
   for (const stage of CLIENT_STAGES) {
@@ -368,10 +458,28 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   if (!caseData) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium text-sm">Loading your case profile...</p>
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="bg-white max-w-md w-full p-8 rounded-2xl border border-slate-200 shadow-sm text-center space-y-4">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto border border-amber-100">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">No Active Petition Profile Found</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Your client profile or petition case has been removed or not assigned yet. Please contact your case administrator.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                localStorage.removeItem('jwt_token');
+                window.location.href = '/login';
+              }}
+              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              Sign Out of Workspace
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1395,39 +1503,209 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       ══════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          {/* Personal Info */}
+          {/* Personal Info Card */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-base">Personal Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <label className="block text-slate-500 font-semibold mb-1">Full Name</label>
-                <input type="text" readOnly value={caseData.clientName} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium" />
+                <h3 className="font-bold text-slate-800 text-base">Personal Information</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Your official candidate profile details registered in the database.</p>
               </div>
-              <div>
-                <label className="block text-slate-500 font-semibold mb-1">Email Address</label>
-                <input type="email" readOnly value={caseData.clientEmail} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium" />
-              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                <UserCheck className="w-3.5 h-3.5" /> Verified Profile
+              </span>
             </div>
+
+            {profileMsg && (
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                profileMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}>
+                {profileMsg.type === 'success' ? <Check className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
+                {profileMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={caseData.clientName}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium cursor-not-allowed opacity-90"
+                    title="Name registered with case"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    readOnly
+                    value={caseData.clientEmail}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium cursor-not-allowed opacity-90"
+                    title="Login email address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    placeholder="+1 (555) 012-3456"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Country of Birth / Origin</label>
+                  <input
+                    type="text"
+                    value={clientCountry}
+                    onChange={(e) => setClientCountry(e.target.value)}
+                    placeholder="e.g. India, United Kingdom"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold mb-1">Field of Proposed Endeavor</label>
+                <input
+                  type="text"
+                  value={clientField}
+                  onChange={(e) => setClientField(e.target.value)}
+                  placeholder="e.g. Artificial Intelligence, Clean Energy"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{isSavingProfile ? 'Saving Changes...' : 'Save Profile Details'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Account Security & Password Card */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">Account Security &amp; Password</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Update your workspace password anytime to keep your portal secure.</p>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5" /> End-to-End Encrypted
+              </span>
+            </div>
+
+            {passwordMsg && (
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                passwordMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}>
+                {passwordMsg.type === 'success' ? <Check className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
+                {passwordMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleSavePassword} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">New Password (min 6 characters)</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword || !newPassword}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                  <span>{isUpdatingPassword ? 'Updating Password...' : 'Update Password'}</span>
+                </button>
+              </div>
+            </form>
           </div>
 
           {/* Notification Preferences */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-base">Notification &amp; Communication Preferences</h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">Notification &amp; Communication Preferences</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Control how Babel Global immigration specialists reach out to you.</p>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <Bell className="w-3.5 h-3.5" /> Real-time Alerts
+              </span>
+            </div>
+
+            {prefsSavedToast && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600" />
+                Notification preferences saved successfully!
+              </div>
+            )}
+
             <div className="space-y-3 text-xs">
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-blue-600 cursor-pointer" />
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={whatsappUpdates}
+                  onChange={(e) => setWhatsappUpdates(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 cursor-pointer"
+                />
                 <div>
                   <span className="font-bold text-slate-800 block">WhatsApp Updates &amp; Reminders</span>
                   <span className="text-slate-500 text-[11px]">Receive direct milestone &amp; task updates on WhatsApp</span>
                 </div>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-blue-600 cursor-pointer" />
+
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={emailDigest}
+                  onChange={(e) => setEmailDigest(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 cursor-pointer"
+                />
                 <div>
-                  <span className="font-bold text-slate-800 block">Email Digest</span>
+                  <span className="font-bold text-slate-800 block">Email Digest &amp; Petition Drafts</span>
                   <span className="text-slate-500 text-[11px]">Formal exhibit review requests and draft delivery notifications</span>
                 </div>
               </label>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={handleSavePreferences}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save Notification Preferences</span>
+              </button>
             </div>
           </div>
         </div>

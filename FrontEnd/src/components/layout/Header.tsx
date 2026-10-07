@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (userRole === 'admin') return 'Case Administrator';
     if (userRole === 'writer') return 'Petition Drafter 1';
     if (userRole === 'reviewer') return 'Senior Reviewer';
-    if (userRole === 'client') return 'Dr. Alexander Vance';
+    if (userRole === 'client') return 'Client Workspace';
     return 'Authenticated User';
   };
 
@@ -98,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (userRole === 'admin') return 'admin@babelglobal.com';
     if (userRole === 'writer') return 'writer@babelglobal.com';
     if (userRole === 'reviewer') return 'reviewer@babelglobal.com';
-    if (userRole === 'client') return 'client@babelglobal.com';
+    if (userRole === 'client') return '';
     return 'user@babelglobal.com';
   };
 
@@ -112,8 +112,8 @@ export const Header: React.FC<HeaderProps> = ({
     if (role === 'admin') return 'CA';
     if (role === 'writer') return 'PD';
     if (role === 'reviewer') return 'SR';
-    if (role === 'client') return 'AV';
-    return 'U';
+    if (role === 'client') return 'CL';
+    return 'AU';
   };
 
 

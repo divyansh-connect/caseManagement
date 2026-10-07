@@ -58,8 +58,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   let style = 'bg-gray-100 text-gray-700 border-gray-200';
   if (['Active', 'Verified', 'Approved', 'Paid', 'Completed'].includes(status)) {
     style = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  } else if (['Pending', 'Pending Review', 'Drafting Letter', 'Outreach Sent', 'Needs Revision'].includes(status)) {
+  } else if (['Pending', 'Pending Review', 'Drafting Letter', 'Outreach Sent', 'Needs Revision', 'On Hold'].includes(status)) {
     style = 'bg-amber-50 text-amber-700 border-amber-200';
+  } else if (['Inactive', 'Deactivated', 'Suspended'].includes(status)) {
+    style = 'bg-rose-50 text-rose-700 border-rose-200';
   } else if (['Urgent', 'Overdue', 'High', 'Archived'].includes(status)) {
     style = 'bg-rose-50 text-rose-700 border-rose-200';
   }

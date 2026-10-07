@@ -53,9 +53,23 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({
   const [selectedCaseId, setSelectedCaseId] = useState<string>(cases[0]?.id || '');
   const [isApplying, setIsApplying] = useState(false);
 
-  // Sync state when prop changes
+  // Sync state when prop changes or fetch on mount
   React.useEffect(() => {
-    setTemplatesList(initialTemplates);
+    if (initialTemplates && initialTemplates.length > 0) {
+      setTemplatesList(initialTemplates);
+    } else {
+      const fetchTemplates = async () => {
+        try {
+          const res = await api.get('/templates');
+          if (res.success && res.data) {
+            setTemplatesList(res.data);
+          }
+        } catch (e) {
+          console.error('Failed to load templates:', e);
+        }
+      };
+      fetchTemplates();
+    }
   }, [initialTemplates]);
 
   React.useEffect(() => {

@@ -289,6 +289,10 @@ export default function App() {
             if (templatesRes.success) {
               setTemplates(templatesRes.data);
             }
+            const templatesCases = await api.get('/cases');
+            if (templatesCases.success) {
+              setCases(templatesCases.data.map(mapCaseData));
+            }
             break;
 
           case 'settings':
@@ -334,10 +338,10 @@ export default function App() {
   }, [isAuthenticated, activeTab]);
 
   const ROLE_ALLOWED_TABS: Record<UserRole, NavTab[]> = {
-    superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'documents', 'reviews', 'communication', 'payments', 'reports', 'settings'],
+    superadmin: ['dashboard', 'clients', 'adminManagement', 'cases', 'documents', 'reviews', 'communication', 'payments', 'templates', 'reports', 'settings'],
     admin: ['dashboard', 'cases', 'clients', 'tasks', 'documents', 'reviews', 'communication', 'appointments', 'payments', 'templates', 'reports', 'settings'],
     writer: ['dashboard', 'cases', 'tasks', 'documents', 'communication', 'templates'],
-    reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'reports'],
+    reviewer: ['dashboard', 'cases', 'tasks', 'documents', 'forms', 'reviews', 'communication', 'templates', 'reports'],
     client: ['clientPortal', 'tasks', 'documents', 'forms', 'payments', 'communication', 'appointments', 'postFiling', 'settings'],
   };
 
@@ -546,8 +550,16 @@ export default function App() {
       if (clientsRes.success) {
         setClients(clientsRes.data);
       }
+      const casesRes = await api.get('/cases');
+      if (casesRes.success) {
+        setCases(casesRes.data.map(mapCaseData));
+      }
+      const tasksRes = await api.get('/tasks');
+      if (tasksRes.success) {
+        setTasks(tasksRes.data);
+      }
     } catch (error) {
-      console.error('Error refreshing clients:', error);
+      console.error('Error refreshing database records:', error);
     }
   };
 
@@ -579,9 +591,11 @@ export default function App() {
 
   const handleBookAppointment = async (apptData: any) => {
     try {
+      const activeClientName = apptData.clientName || currentUser?.name || cases[0]?.clientName || 'Client';
+      const activeClientEmail = apptData.clientEmail || currentUser?.email || cases[0]?.clientEmail || '';
       const payload = {
-        clientName: apptData.clientName || 'Dr. Alexander Vance',
-        clientEmail: apptData.clientEmail || 'client@babelglobal.com',
+        clientName: activeClientName,
+        clientEmail: activeClientEmail,
         type: apptData.type,
         specialist: apptData.specialist,
         date: apptData.date,
@@ -605,10 +619,11 @@ export default function App() {
   // Current active case detail object
   const activeCase = cases.find(c => c.id === selectedCaseId);
 
-  // Filter cases accessible to current user role (Drafters can only access cases assigned to them)
+  // Filter cases accessible to current user role (Drafters can access assigned or active drafting pipeline cases)
   const roleFilteredCases = cases.filter(c => {
     if (userRole === 'writer') {
-      return c.assignedWriter.includes('Petition Drafter 1') || c.assignedWriter.includes('Drafter 1');
+      const assigned = c.assignedWriter || '';
+      return !assigned || assigned.includes('Drafter') || assigned.includes('Writer') || assigned.includes(currentUser?.name || '');
     }
     return true;
   });
@@ -834,19 +849,21 @@ export default function App() {
         isOpen={isAppointmentModalOpen}
         onClose={() => setIsAppointmentModalOpen(false)}
         clients={clients}
+        clientName={userRole === 'client' ? (currentUser?.name || cases[0]?.clientName) : (roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || clients[0]?.name || '')}
+        clientEmail={userRole === 'client' ? (currentUser?.email || cases[0]?.clientEmail) : (roleFilteredCases.find(c => c.id === selectedCaseId)?.clientEmail || clients[0]?.email || '')}
         onBookAppointment={handleBookAppointment}
       />
 
       <ElectronicSignatureModal
         isOpen={isSignModalOpen}
         onClose={() => setIsSignModalOpen(false)}
-        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || 'Dr. Alexander Vance'}
+        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || cases[0]?.clientName || 'Client'}
       />
 
       <USCISFormQuestionnaireModal
         isOpen={isQuestionnaireModalOpen}
         onClose={() => setIsQuestionnaireModalOpen(false)}
-        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || 'Dr. Alexander Vance'}
+        clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || cases[0]?.clientName || 'Client'}
         caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
       />
     </div>

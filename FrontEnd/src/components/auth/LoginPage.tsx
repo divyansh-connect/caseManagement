@@ -13,8 +13,7 @@ const QUICK_ROLES: { label: string; email: string; role: UserRole }[] = [
   { label: 'Super Admin',      email: 'superadmin@babelglobal.com', role: 'admin'    },
   { label: 'Admin / Manager',  email: 'admin@babelglobal.com',      role: 'admin'    },
   { label: 'Drafter',          email: 'writer@babelglobal.com',     role: 'writer'   },
-  { label: 'Reviewer',         email: 'reviewer@babelglobal.com',   role: 'reviewer' },
-  { label: 'Client',           email: 'client@babelglobal.com',     role: 'client'   },
+  { label: 'Reviewer',         email: 'reviewer@babelglobal.com',   role: 'reviewer' }
 ];
 
 // ── Team sub-roles shown after clicking "Babel Global Team" ────────────────────────
@@ -88,8 +87,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setAccountType(type);
     setError('');
     if (type === 'client') {
-      setEmail('client@babelglobal.com');
-      setPassword('password123');
+      setEmail('');
+      setPassword('');
       setStep('loginForm');
     } else {
       setStep('teamSubRole');

@@ -31,7 +31,7 @@ export interface Client {
   citationsCount?: number;
   publicationsCount?: number;
   patentsCount?: number;
-  status: 'Active' | 'On Hold' | 'Approved' | 'Archived';
+  status: 'Active' | 'Inactive' | 'On Hold' | 'Approved' | 'Archived';
   avatar?: string;
   createdAt: string;
 }

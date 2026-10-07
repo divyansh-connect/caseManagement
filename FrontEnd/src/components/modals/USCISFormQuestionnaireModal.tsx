@@ -89,7 +89,7 @@ export const USCISFormQuestionnaireModal: React.FC<USCISFormQuestionnaireModalPr
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Section Navigation Tabs */}
-          <div className="flex border-b border-slate-200 gap-2 pb-2">
+          <div className="flex border-b border-slate-200 gap-2 pb-2 overflow-x-auto scrollbar-none whitespace-nowrap">
             {[
               { id: 'bio', label: '1. Biographical & SSN', icon: User },
               { id: 'edu', label: '2. Highest Degree', icon: GraduationCap },
@@ -103,8 +103,8 @@ export const USCISFormQuestionnaireModal: React.FC<USCISFormQuestionnaireModalPr
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveSection(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    isActive ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
