@@ -836,6 +836,8 @@ export default function App() {
         onAddDoc={handleAddDoc}
         caseId={selectedCaseId || cases[0]?.id}
         cases={roleFilteredCases}
+        userRole={userRole}
+        currentUser={currentUser}
       />
 
       <NewRecommenderModal

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../common/Modal';
-import { CaseDocument, CaseItem } from '../../types';
+import { CaseDocument, CaseItem, UserRole } from '../../types';
+import { EVIDENCE_CATEGORIES, EVIDENCE_CATEGORY_GROUPS } from '../../data/evidenceCategories';
 import { api } from '../../services/api';
 import { UploadCloud, FileText, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -10,6 +11,8 @@ interface NewDocModalProps {
   onAddDoc: (doc: CaseDocument | CaseDocument[]) => void;
   caseId?: string;
   cases?: CaseItem[];
+  userRole?: UserRole;
+  currentUser?: { id?: string; name?: string; email?: string; role?: UserRole; avatar?: string } | null;
 }
 
 export const NewDocModal: React.FC<NewDocModalProps> = ({ 
@@ -17,12 +20,14 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({
   onClose, 
   onAddDoc, 
   caseId,
-  cases = []
+  cases = [],
+  userRole,
+  currentUser
 }) => {
   const [targetCaseId, setTargetCaseId] = useState(caseId || cases[0]?.id || '');
   const [files, setFiles] = useState<File[]>([]);
   const [exhibitNum, setExhibitNum] = useState('Exhibit 104');
-  const [category, setCategory] = useState<CaseDocument['category']>('Publication');
+  const [category, setCategory] = useState<string>('Publications & Scholarly Research');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,14 +83,23 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({
 
     setIsUploading(true);
 
+    const uploaderName = 
+      (currentUser?.name && currentUser.name !== 'Client' ? currentUser.name : '') ||
+      (userRole === 'writer' ? 'Babel Drafter / Researcher' :
+       userRole === 'admin' ? 'Case Administrator' :
+       userRole === 'superadmin' ? 'Super Administrator' :
+       userRole === 'reviewer' ? 'Senior Reviewer' :
+       userRole === 'client' ? 'Client' : 'Petition Drafter');
+
     const formData = new FormData();
     const finalCaseId = targetCaseId || caseId || (cases[0]?.id || 'default');
     formData.append('caseId', finalCaseId);
     formData.append('category', category);
+    formData.append('uploadedBy', uploaderName);
 
-    // Append all selected files
+    // Append all selected files using standard 'file' field
     files.forEach(file => {
-      formData.append('files', file);
+      formData.append('file', file);
     });
 
     try {
@@ -93,13 +107,20 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({
       if (res.success) {
         let createdDocs: CaseDocument[] = [];
         if (Array.isArray(res.documents)) {
-          createdDocs = res.documents;
+          createdDocs = res.documents.map(d => ({
+            ...d,
+            uploadedBy: d.uploadedBy && d.uploadedBy !== 'Client' ? d.uploadedBy : uploaderName
+          }));
         } else if (Array.isArray(res.data)) {
-          createdDocs = res.data;
+          createdDocs = res.data.map(d => ({
+            ...d,
+            uploadedBy: d.uploadedBy && d.uploadedBy !== 'Client' ? d.uploadedBy : uploaderName
+          }));
         } else if (res.data) {
           createdDocs = [{
             ...res.data,
-            exhibitNumber: exhibitNum
+            exhibitNumber: exhibitNum,
+            uploadedBy: res.data.uploadedBy && res.data.uploadedBy !== 'Client' ? res.data.uploadedBy : uploaderName
           }];
         }
 
@@ -231,15 +252,18 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({
             <label className="block text-slate-700 font-bold mb-1">Evidence Category</label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
-              className="w-full max-w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full max-w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="CV">CV / Bio</option>
-              <option value="Degree">Academic Degree / Evaluation</option>
-              <option value="Publication">Peer-Reviewed Publication</option>
-              <option value="Citation Report">Citation Index Report</option>
-              <option value="Recommendation Letter">Recommendation Letter</option>
-              <option value="Expert Opinion">Expert Opinion Assessment</option>
+              {EVIDENCE_CATEGORY_GROUPS.map(grp => (
+                <optgroup key={grp.group} label={grp.group} className="font-semibold text-slate-900 bg-slate-100">
+                  {grp.categories.map(cat => (
+                    <option key={cat} value={cat} className="font-normal text-slate-800 bg-white">
+                      {cat}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCase } from '../../context/CaseContext';
-import { DOCUMENT_CATEGORIES } from '../../data/stageConfig';
+import { EVIDENCE_CATEGORIES } from '../../data/evidenceCategories';
 import { FileText, UploadCloud, Download, Eye, History, Trash2, Filter } from 'lucide-react';
 
 export const AdminDocuments = () => {
@@ -36,7 +36,7 @@ export const AdminDocuments = () => {
         >
           All Categories ({documents.length})
         </button>
-        {DOCUMENT_CATEGORIES.map(cat => (
+        {EVIDENCE_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}

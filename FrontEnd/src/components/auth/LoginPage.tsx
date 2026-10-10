@@ -115,12 +115,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
-  // Step 1b: Team sub-role selected
+  // Step 1b: Team sub-role selected -> open dedicated login form for this role
   const handleTeamSubRole = (sub: typeof TEAM_SUB_ROLES[0]) => {
     setSelectedSubRole(sub);
-    setEmail(sub.email);
-    setPassword('password123');
-    performLogin(sub.email, 'password123');
+    setEmail('');
+    setPassword('');
+    setError('');
+    setStep('loginForm');
   };
 
   // Quick pill autofill
@@ -138,6 +139,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
     if (step === 'loginForm' && accountType === 'team') {
       setStep('teamSubRole');
+      setSelectedSubRole(null);
+      setEmail('');
+      setPassword('');
     } else {
       setStep('accountType');
       setAccountType(null);
@@ -161,13 +165,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     ? 'Select Your Role'
     : accountType === 'client'
     ? 'Client Sign In'
+    : selectedSubRole?.role === 'superadmin'
+    ? 'Super Admin Sign In'
+    : selectedSubRole?.role === 'writer'
+    ? 'Drafter Sign In'
+    : selectedSubRole?.role === 'admin'
+    ? 'Administrator Sign In'
     : `Sign In — ${selectedSubRole?.label ?? 'Babel Global Team'}`;
 
   const subtitle = step === 'accountType'
     ? 'Please select your account type to continue.'
     : step === 'teamSubRole'
     ? 'Choose your team role to access the correct workspace.'
-    : `Enter your credentials to access your ${accountType === 'client' ? 'client portal' : 'workspace'}.`;
+    : accountType === 'client'
+    ? 'Enter your credentials to access your client portal.'
+    : selectedSubRole?.role === 'superadmin'
+    ? 'Enter your super administrator credentials to access full system control.'
+    : selectedSubRole?.role === 'writer'
+    ? 'Enter your drafter credentials to access drafting & petition workspaces.'
+    : selectedSubRole?.role === 'admin'
+    ? 'Enter your administrator credentials to access your workspace.'
+    : 'Enter your credentials to access your workspace.';
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -386,7 +404,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder={
+                    accountType === 'client'
+                      ? 'Enter client email (e.g. client@example.com)'
+                      : selectedSubRole?.role === 'superadmin'
+                      ? 'Enter super admin email (e.g. superadmin@babelglobal.com)'
+                      : selectedSubRole?.role === 'writer'
+                      ? 'Enter drafter email (e.g. writer@babelglobal.com)'
+                      : 'Enter administrator email (e.g. admin@babelglobal.com)'
+                  }
                   className="w-full rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all"
                   style={{ border: '1.5px solid #e2e8f0', background: '#f8fafc' }}
                   onFocus={(e) => {
@@ -443,6 +469,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+
+                {/* Quick Demo Autofill Hint Pill */}
+                {selectedSubRole && (
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail(selectedSubRole.email);
+                        setPassword('password123');
+                      }}
+                      className="text-xs font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer py-1 px-2.5 rounded-lg border hover:opacity-85"
+                      style={{
+                        color: selectedSubRole.color,
+                        borderColor: selectedSubRole.border,
+                        backgroundColor: selectedSubRole.hoverBg,
+                      }}
+                      title="Click to autofill default testing credentials"
+                    >
+                      <span>⚡ Quick Autofill Demo:</span>
+                      <span className="font-mono text-[11px] font-semibold underline">{selectedSubRole.email}</span>
+                    </button>
+                  </div>
+                )}
+                {accountType === 'client' && (
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('rajesh.sharma@techcorp.in');
+                        setPassword('password123');
+                      }}
+                      className="text-xs font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer py-1 px-2.5 rounded-lg border text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
+                      title="Click to autofill default testing credentials"
+                    >
+                      <span>⚡ Quick Autofill Demo:</span>
+                      <span className="font-mono text-[11px] font-semibold underline">rajesh.sharma@techcorp.in</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Login Button */}
@@ -451,8 +516,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 disabled={isLoading}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer mt-1"
                 style={{
-                  background: isLoading ? '#93c5fd' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  boxShadow: isLoading ? 'none' : '0 6px 20px rgba(37,99,235,0.35)',
+                  background: isLoading
+                    ? '#93c5fd'
+                    : selectedSubRole?.role === 'superadmin'
+                    ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
+                    : selectedSubRole?.role === 'writer'
+                    ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
+                    : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  boxShadow: isLoading
+                    ? 'none'
+                    : selectedSubRole?.role === 'superadmin'
+                    ? '0 6px 20px rgba(217,119,6,0.35)'
+                    : selectedSubRole?.role === 'writer'
+                    ? '0 6px 20px rgba(124,58,237,0.35)'
+                    : '0 6px 20px rgba(37,99,235,0.35)',
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading) {

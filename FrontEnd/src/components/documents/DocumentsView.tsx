@@ -12,6 +12,7 @@ import {
   X
 } from 'lucide-react';
 import { CaseDocument } from '../../types';
+import { EVIDENCE_CATEGORIES, EVIDENCE_CATEGORY_GROUPS } from '../../data/evidenceCategories';
 import { StatusBadge } from '../common/Badge';
 
 interface DocumentsViewProps {
@@ -143,14 +144,18 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full sm:w-auto max-w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 truncate"
+            className="w-full sm:w-auto max-w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="all">All Categories</option>
-            <option value="CV">CV / Bio</option>
-            <option value="Degree">Academic Degrees</option>
-            <option value="Publication">Publications</option>
-            <option value="Citation Report">Citation Reports</option>
-            <option value="Recommendation Letter">Expert Recommendation Letters</option>
+            {EVIDENCE_CATEGORY_GROUPS.map(grp => (
+              <optgroup key={grp.group} label={grp.group} className="font-semibold text-slate-900 bg-slate-100">
+                {grp.categories.map(cat => (
+                  <option key={cat} value={cat} className="font-normal text-slate-800 bg-white">
+                    {cat}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
       </div>
@@ -230,7 +235,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                     {doc.exhibitNumber || 'Exhibit --'}
                   </span>
                   <h3 className="font-bold text-slate-900 text-xs mt-2 break-all">{doc.name}</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{doc.fileSize} • {doc.uploadedAt}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{doc.fileSize} • Uploaded by {doc.uploadedBy || 'Petition Drafter'} on {doc.uploadedAt}</p>
                 </div>
                 <div className="shrink-0">
                   <StatusBadge status={doc.status} />

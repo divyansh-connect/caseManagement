@@ -1,3 +1,6 @@
+import { EvidenceCategory } from './data/evidenceCategories';
+export type { EvidenceCategory };
+
 export type UserRole = 'superadmin' | 'admin' | 'writer' | 'reviewer' | 'client';
 
 export type StageId = 
@@ -74,7 +77,7 @@ export interface CaseDocument {
   id: string;
   caseId: string;
   name: string;
-  category: 'CV' | 'Degree' | 'Transcript' | 'Publication' | 'Citation Report' | 'Recommendation Letter' | 'Expert Opinion' | 'Form I-140' | 'ETA-9089' | 'Exhibits Index';
+  category: EvidenceCategory | 'CV' | 'Degree' | 'Transcript' | 'Publication' | 'Citation Report' | 'Recommendation Letter' | 'Expert Opinion' | 'Form I-140' | 'ETA-9089' | 'Exhibits Index' | (string & {});
   exhibitNumber?: string;
   fileSize: string;
   uploadedBy: string;

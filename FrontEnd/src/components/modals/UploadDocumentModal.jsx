@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCase } from '../../context/CaseContext';
-import { DOCUMENT_CATEGORIES } from '../../data/stageConfig';
+import { EVIDENCE_CATEGORIES, EVIDENCE_CATEGORY_GROUPS } from '../../data/evidenceCategories';
 import { X, UploadCloud } from 'lucide-react';
 
 export const UploadDocumentModal = ({ isOpen, onClose }) => {
@@ -8,7 +8,7 @@ export const UploadDocumentModal = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     caseNumber: cases[0]?.caseNumber || 'NIW-2026-001',
     name: '',
-    category: DOCUMENT_CATEGORIES[0],
+    category: EVIDENCE_CATEGORIES[0],
     uploadedBy: 'Sarah Jenkins'
   });
 
@@ -53,8 +53,14 @@ export const UploadDocumentModal = ({ isOpen, onClose }) => {
               onChange={e => setFormData({ ...formData, category: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
             >
-              {DOCUMENT_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+              {EVIDENCE_CATEGORY_GROUPS.map(grp => (
+                <optgroup key={grp.group} label={grp.group} className="font-semibold text-slate-400 bg-slate-950">
+                  {grp.categories.map(cat => (
+                    <option key={cat} value={cat} className="text-slate-200 bg-slate-900">
+                      {cat}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
