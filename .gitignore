@@ -41,5 +41,7 @@ Backend/logs/
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-Thumbs.db
+# Local archives and databases
+*.sql
+*.zip
+immigrtion-case-management/
