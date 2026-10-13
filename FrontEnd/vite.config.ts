@@ -15,7 +15,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'https://immigrtion-case-management-production.up.railway.app',
+        target: 'https://immigration-case-mangemnt-production.up.railway.app',
         changeOrigin: true,
         secure: false,
       }

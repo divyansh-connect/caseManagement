@@ -179,6 +179,12 @@ export default function App() {
             setIsAuthenticated(true);
             setUserRole(payload.role as UserRole);
             setCurrentUserEmail(payload.email);
+            setCurrentUser({
+              id: payload.id || 'user-client',
+              name: payload.name || (payload.email ? payload.email.split('@')[0] : 'Authorized User'),
+              email: payload.email,
+              role: payload.role as UserRole
+            });
           } catch (err) {
             localStorage.removeItem('jwt_token');
             setIsAuthenticated(false);
