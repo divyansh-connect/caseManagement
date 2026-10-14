@@ -44,4 +44,5 @@ Backend/logs/
 # Local archives and databases
 *.sql
 *.zip
+Backend/
 immigrtion-case-management/

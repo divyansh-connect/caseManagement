@@ -118,13 +118,21 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       return;
     }
 
+    if (addForm.phone && addForm.phone.trim().length > 0) {
+      const digits = addForm.phone.replace(/\D/g, '');
+      if (digits.length !== 10) {
+        setAddErrorMsg('Phone number must contain exactly 10 numeric digits.');
+        return;
+      }
+    }
+
     setIsCreating(true);
     setAddErrorMsg('');
     try {
       const payload = {
         name: addForm.name.trim(),
         email: addForm.email.trim().toLowerCase(),
-        phone: addForm.phone.trim() || '+1 (555) 012-3456',
+        phone: addForm.phone.trim() ? addForm.phone.replace(/\D/g, '').slice(0, 10) : '+1 (555) 012-3456',
         countryOfBirth: addForm.countryOfBirth.trim() || 'United States',
         currentField: addForm.currentField.trim(),
         highestDegree: addForm.highestDegree,
@@ -633,14 +641,25 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-bold">Phone Number</label>
+                    <span className="text-[10px] text-slate-400 font-medium">10 Digits Only</span>
+                  </div>
                   <input 
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={addForm.phone}
-                    onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="e.g. +1 (555) 012-3456"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      const numericOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setAddForm(prev => ({ ...prev, phone: numericOnly }));
+                    }}
+                    placeholder="e.g. 5550123456"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono"
                   />
+                  {addForm.phone && addForm.phone.length > 0 && addForm.phone.length < 10 && (
+                    <p className="text-[10px] text-amber-600 mt-1 font-medium">Must be 10 digits ({addForm.phone.length}/10)</p>
+                  )}
                 </div>
 
                 <div>

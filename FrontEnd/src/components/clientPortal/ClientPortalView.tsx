@@ -1547,13 +1547,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Phone Number</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-500 font-semibold">Phone Number</label>
+                    <span className="text-[10px] text-slate-400">10 Digits</span>
+                  </div>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="+1 (555) 012-3456"
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    onChange={(e) => {
+                      const numericOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setClientPhone(numericOnly);
+                    }}
+                    placeholder="e.g. 5550123456"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                   />
                 </div>
                 <div>
