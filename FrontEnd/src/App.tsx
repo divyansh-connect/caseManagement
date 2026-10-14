@@ -319,12 +319,49 @@ export default function App() {
     }
   };
 
+  const applyDocStatusOverrides = (docs: any[]) => {
+    try {
+      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
+      return docs.map(d => ({
+        ...d,
+        status: overrides[d.id] || d.status || 'Pending Review'
+      }));
+    } catch {
+      return docs;
+    }
+  };
+
+  const handleUpdateDocStatus = (docId: string, newStatus: any) => {
+    try {
+      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
+      overrides[docId] = newStatus;
+      localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
+    } catch {}
+    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: newStatus } : d));
+  };
+
   // 2. Fetch data dynamically based on the active tab
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const loadDataForTab = async () => {
       try {
+        // Guarantee client's active petition profile & case are loaded for any client workspace tab
+        if (userRole === 'client') {
+          try {
+            const myCaseRes = await api.get('/cases/my-case');
+            if (myCaseRes.success && myCaseRes.data) {
+              const mapped = mapCaseData(myCaseRes.data);
+              setCases(prev => {
+                const exists = prev.find(c => c.id === mapped.id);
+                return exists ? prev.map(c => (c.id === mapped.id ? mapped : c)) : [mapped, ...prev];
+              });
+            }
+          } catch (err) {
+            console.error('Error fetching client active case in loadDataForTab:', err);
+          }
+        }
+
         switch (activeTab) {
           case 'dashboard':
             // Dashboard needs stats, cases, tasks and documents
@@ -339,7 +376,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (dashDocs.success) {
-              setDocuments(dashDocs.data);
+              setDocuments(applyDocStatusOverrides(dashDocs.data));
             }
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
@@ -359,7 +396,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (casesDocs.success) {
-              setDocuments(casesDocs.data);
+              setDocuments(applyDocStatusOverrides(casesDocs.data));
             }
             break;
 
@@ -388,14 +425,14 @@ export default function App() {
                 });
               }
               const myDocsRes = await api.get('/documents');
-              if (myDocsRes.success) setDocuments(myDocsRes.data);
+              if (myDocsRes.success) setDocuments(applyDocStatusOverrides(myDocsRes.data));
             }
             break;
 
           case 'documents':
             const docsRes = await api.get('/documents');
             if (docsRes.success) {
-              setDocuments(docsRes.data);
+              setDocuments(applyDocStatusOverrides(docsRes.data));
             }
             break;
 
@@ -882,9 +919,43 @@ export default function App() {
       return matchId || matchEmail || matchName;
     });
 
-    if (clientMatches.length === 0) return cases[0];
-    return clientMatches.sort((a, b) => (b.documentsCount || 0) - (a.documentsCount || 0))[0];
-  }, [cases, userRole, currentUser, currentUserEmail]);
+    if (clientMatches.length > 0) {
+      return clientMatches.sort((a, b) => (b.documentsCount || 0) - (a.documentsCount || 0))[0];
+    }
+    if (cases.length > 0) return cases[0];
+
+    // Resilient fallback: ensure client always has an active petition profile object
+    if (currentUser || currentUserEmail) {
+      return {
+        id: currentUser?.id || 'client-case-active',
+        caseNumber: 'NIW-2026-ACTIVE',
+        clientId: currentUser?.id || 'client-active-id',
+        clientName: currentUser?.name || 'Client (Petitioner)',
+        clientEmail: currentUser?.email || currentUserEmail || 'client@babelglobal.com',
+        petitionCategory: 'EB-2 NIW' as const,
+        fieldCategory: 'Proposed Endeavor & Research',
+        assignedWriter: 'Petition Drafter 1',
+        assignedReviewer: 'Senior Reviewer',
+        currentStage: 2 as StageId,
+        priorityDate: new Date().toISOString().split('T')[0],
+        status: 'In Progress' as any,
+        documentsCount: documents?.length || 0,
+        recommenders: [],
+        riskLevel: 'low' as const,
+        targetFilingDate: '2026-12-31',
+        uscisServiceCenter: 'Nebraska (NSC)' as const,
+        premiumProcessing: false,
+        dhanasar: {
+          prong1: { title: 'Substantial Merit & National Importance', endeavorSummary: '', usImpactAreas: [], nationalImportanceScore: 0 },
+          prong2: { title: 'Well Positioned to Advance the Endeavor', educationTrack: '', keyAchievements: [], citationPercentile: '', fundingSecured: '' },
+          prong3: { title: 'On Balance Beneficial to Waive Job Offer & PERM', urgencyArguments: [], uniqueExpertise: '' }
+        },
+        notes: 'Active client petition profile',
+        lastUpdated: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      } as CaseItem;
+    }
+    return null;
+  }, [cases, userRole, currentUser, currentUserEmail, documents?.length]);
 
   // Filter cases accessible to current user role (Drafters can access assigned or active drafting pipeline cases)
   const roleFilteredCases = cases.filter(c => {
@@ -1029,6 +1100,7 @@ export default function App() {
               documents={documents}
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAIAssistant={() => setIsAiModalOpen(true)}
+              onUpdateDocStatus={handleUpdateDocStatus}
             />
           ) : activeTab === 'reviews' ? (
             <ReviewsView

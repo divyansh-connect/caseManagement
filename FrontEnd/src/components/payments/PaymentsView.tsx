@@ -111,6 +111,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
 
   const totalCollected = paymentsList.filter(p => p.status === 'Paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const totalPending = paymentsList.filter(p => p.status === 'Pending').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalInvoiced = totalCollected + totalPending;
 
   // Create Invoice in Real DB
   const handleCreatePayment = async (e: React.FormEvent) => {
@@ -286,9 +287,11 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments: initialPay
         </div>
 
         <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">USCIS Premium Processing Fee</span>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">$2,965 / filing</div>
-          <div className="text-[11px] text-slate-500 mt-1">Direct Form I-907 checks</div>
+          <span className="text-xs font-medium text-slate-500">Total Invoiced (Receivables)</span>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">${totalInvoiced.toLocaleString()}</div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            {paymentsList.length === 0 ? 'No invoices generated yet' : `Across ${paymentsList.length} total invoice records`}
+          </div>
         </div>
       </div>
 
