@@ -7,12 +7,16 @@ interface DocumentPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   document: CaseDocument | null;
+  onApprove?: () => void;
+  onRequestRevision?: () => void;
 }
 
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   isOpen,
   onClose,
-  document: doc
+  document: doc,
+  onApprove,
+  onRequestRevision
 }) => {
   const [loadError, setLoadError] = useState(false);
 
@@ -48,7 +52,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
         className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl flex flex-col max-h-[92vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -187,6 +191,29 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onRequestRevision && (
+              <button
+                type="button"
+                onClick={onRequestRevision}
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-rose-200 transition-colors cursor-pointer"
+                title="Send revision request to client"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>Request Revision</span>
+              </button>
+            )}
+            {onApprove && (
+              <button
+                type="button"
+                onClick={onApprove}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                title="Approve this submission"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Approve Submission</span>
+              </button>
+            )}
+            {/* Download File button commented out as requested
             <button
               type="button"
               onClick={handleDownload}
@@ -195,6 +222,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               <Download className="w-3.5 h-3.5" />
               <span>Download File</span>
             </button>
+            */}
             <button
               type="button"
               onClick={onClose}

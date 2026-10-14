@@ -340,6 +340,35 @@ export default function App() {
     setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: newStatus } : d));
   };
 
+  // Real-time synchronization of newly uploaded documents & task events across components & roles
+  useEffect(() => {
+    const handleDocumentUploaded = (e: any) => {
+      const newDoc = e?.detail?.document;
+      if (newDoc) {
+        setDocuments(prev => {
+          const map = new Map<string, CaseDocument>();
+          map.set(newDoc.id, newDoc);
+          prev.forEach(d => map.set(d.id, d));
+          return Array.from(map.values());
+        });
+      }
+      // Authoritative background refresh from server
+      api.get('/documents').then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          setDocuments(applyDocStatusOverrides(res.data));
+        }
+      }).catch(() => {});
+    };
+
+    window.addEventListener('document_uploaded', handleDocumentUploaded);
+    window.addEventListener('workflow_task_updated', handleDocumentUploaded);
+
+    return () => {
+      window.removeEventListener('document_uploaded', handleDocumentUploaded);
+      window.removeEventListener('workflow_task_updated', handleDocumentUploaded);
+    };
+  }, []);
+
   // 2. Fetch data dynamically based on the active tab
   useEffect(() => {
     if (!isAuthenticated) return;

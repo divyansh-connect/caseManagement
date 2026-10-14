@@ -1056,7 +1056,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   };
 
   // Submits a task action to staff for review (Status: Under Review)
-  const submitTaskAction = (stageId: number, taskId: string, attachedDocName?: string) => {
+  const submitTaskAction = (stageId: number, taskId: string, attachedDocName?: string, submissionData?: any) => {
     const candidateKeys = [
       'workflow_stage_tasks_master',
       caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
@@ -1090,13 +1090,50 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       }));
     }
 
+    // Prepare default submission payload if not explicitly provided
+    let preparedSubmission = submissionData;
+    if (!preparedSubmission) {
+      if (attachedDocName) {
+        const matchingDoc = (clientDocs || []).find(d => d.name === attachedDocName || (d as any).attachedTaskId === taskId);
+        preparedSubmission = {
+          type: 'document',
+          docName: attachedDocName,
+          documents: matchingDoc ? [matchingDoc] : [{
+            id: `doc-${Date.now()}`,
+            caseId: caseData?.id || 'default',
+            name: attachedDocName,
+            category: 'Evidence Document',
+            fileSize: '32 KB',
+            uploadedBy: currentUser?.name || caseData?.clientName || 'Client',
+            uploadedAt: new Date().toISOString(),
+            status: 'Pending Review',
+            fileUrl: `/uploads/${attachedDocName}`
+          }],
+          submittedAt: new Date().toISOString(),
+          note: `Uploaded evidence document: ${attachedDocName}`
+        };
+      } else {
+        preparedSubmission = {
+          type: taskId === 'st2-2' ? 'recommenders' : taskId === 'st2-1' ? 'endeavor' : 'general',
+          title: taskId === 'st2-2' ? 'Nominated Expert Recommenders' : 'Client Submission',
+          submittedAt: new Date().toISOString(),
+          ...(taskId === 'st2-2' ? { recommenders: recList } : {}),
+          ...(taskId === 'st2-1' ? { feedback: endeavorFeedback || 'Approved by client without changes' } : {})
+        };
+      }
+    }
+
     const updated = stages.map((st: any) => {
       if (st.id !== stageId) return st;
       return {
         ...st,
         tasks: st.tasks.map((t: any) => {
           if (t.id === taskId || (taskId === 'st1-2' && t.id === 'st1-5') || (taskId === 'st1-5' && t.id === 'st1-2')) {
-            return { ...t, status: 'Under Review' };
+            return { 
+              ...t, 
+              status: 'Under Review',
+              submission: preparedSubmission
+            };
           }
           return t;
         })
@@ -1110,13 +1147,65 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       } catch {}
     }
 
+    // Persist specific submission data types across storage & backend
+    if (preparedSubmission?.recommenders && Array.isArray(preparedSubmission.recommenders)) {
+      try {
+        const serializedRecs = JSON.stringify(preparedSubmission.recommenders);
+        localStorage.setItem('case_recommenders_master', serializedRecs);
+        if (caseData?.id) localStorage.setItem(`case_recommenders_${caseData.id}`, serializedRecs);
+        if (caseData?.caseNumber) localStorage.setItem(`case_recommenders_${caseData.caseNumber}`, serializedRecs);
+
+        // Also post each recommender to backend API
+        const caseIdentifier = caseData?.caseNumber || caseData?.id;
+        if (caseIdentifier) {
+          preparedSubmission.recommenders.forEach((rec: any) => {
+            api.post(`/cases/${caseIdentifier}/recommenders`, {
+              name: rec.name,
+              title: rec.field || 'Independent Expert',
+              organization: rec.institution,
+              relationship: rec.relationship || 'Independent Expert'
+            }).catch(() => {});
+          });
+        }
+      } catch {}
+    }
+
+    if (preparedSubmission?.feedback) {
+      try {
+        localStorage.setItem('endeavor_feedback_master', preparedSubmission.feedback);
+        if (caseData?.id) localStorage.setItem(`endeavor_feedback_${caseData.id}`, preparedSubmission.feedback);
+      } catch {}
+    }
+
+    if (preparedSubmission?.shippingAddress) {
+      try {
+        const serializedAddr = JSON.stringify(preparedSubmission.shippingAddress);
+        localStorage.setItem('shipping_address_master', serializedAddr);
+        if (caseData?.id) localStorage.setItem(`shipping_address_${caseData.id}`, serializedAddr);
+      } catch {}
+    }
+
     // Dispatch live event to update CaseDetailView immediately
     window.dispatchEvent(new CustomEvent('workflow_task_updated', {
-      detail: { caseId: caseData?.id, caseNumber: caseData?.caseNumber, stageId, taskId, newStatus: 'Under Review' }
+      detail: { 
+        caseId: caseData?.id, 
+        caseNumber: caseData?.caseNumber, 
+        stageId, 
+        taskId, 
+        newStatus: 'Under Review',
+        submission: preparedSubmission
+      }
     }));
     try {
       const bc = new BroadcastChannel('jurisflow_workflow_sync');
-      bc.postMessage({ caseId: caseData?.id, caseNumber: caseData?.caseNumber, stageId, taskId, newStatus: 'Under Review' });
+      bc.postMessage({ 
+        caseId: caseData?.id, 
+        caseNumber: caseData?.caseNumber, 
+        stageId, 
+        taskId, 
+        newStatus: 'Under Review',
+        submission: preparedSubmission
+      });
       setTimeout(() => {
         try { bc.close(); } catch {}
       }, 1000);
@@ -1195,8 +1284,33 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       // Attach taskId metadata
       (createdDoc as any).attachedTaskId = activeActionTask.id;
 
+      // Save document in localStorage cache so all views & roles have immediate access
+      try {
+        const rawMaster = localStorage.getItem('local_case_documents_master') || '[]';
+        const parsedMaster: CaseDocument[] = JSON.parse(rawMaster);
+        const filtered = parsedMaster.filter(d => d.id !== createdDoc!.id && d.name !== createdDoc!.name);
+        const updated = [createdDoc, ...filtered];
+        localStorage.setItem('local_case_documents_master', JSON.stringify(updated));
+        if (finalCaseId) localStorage.setItem(`local_case_documents_${finalCaseId}`, JSON.stringify(updated));
+        if (caseData?.id) localStorage.setItem(`local_case_documents_${caseData.id}`, JSON.stringify(updated));
+        if (caseData?.caseNumber) localStorage.setItem(`local_case_documents_${caseData.caseNumber}`, JSON.stringify(updated));
+      } catch {}
+
+      // Dispatch document uploaded event across windows/components
+      try {
+        window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: createdDoc, caseId: finalCaseId } }));
+      } catch {}
+
+      const subPayload = {
+        type: 'document',
+        docName: file.name,
+        documents: [createdDoc],
+        submittedAt: new Date().toISOString(),
+        note: `Uploaded evidence document: ${file.name}`
+      };
+
       // Submit the task action and trigger reload
-      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name);
+      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name, subPayload);
       setIsInlineDocModalOpen(false);
     } catch (err: any) {
       // Optimistic fallback on network error
@@ -1213,7 +1327,30 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         aiSummary: `Uploaded for task: ${activeActionTask.name}`
       };
       (mockDoc as any).attachedTaskId = activeActionTask.id;
-      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name);
+
+      try {
+        const rawMaster = localStorage.getItem('local_case_documents_master') || '[]';
+        const parsedMaster: CaseDocument[] = JSON.parse(rawMaster);
+        const filtered = parsedMaster.filter(d => d.id !== mockDoc.id && d.name !== mockDoc.name);
+        const updated = [mockDoc, ...filtered];
+        localStorage.setItem('local_case_documents_master', JSON.stringify(updated));
+        if (finalCaseId) localStorage.setItem(`local_case_documents_${finalCaseId}`, JSON.stringify(updated));
+        if (caseData?.id) localStorage.setItem(`local_case_documents_${caseData.id}`, JSON.stringify(updated));
+        if (caseData?.caseNumber) localStorage.setItem(`local_case_documents_${caseData.caseNumber}`, JSON.stringify(updated));
+      } catch {}
+
+      try {
+        window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: mockDoc, caseId: finalCaseId } }));
+      } catch {}
+
+      const mockPayload = {
+        type: 'document',
+        docName: file.name,
+        documents: [mockDoc],
+        submittedAt: new Date().toISOString(),
+        note: `Uploaded evidence document: ${file.name}`
+      };
+      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name, mockPayload);
       setIsInlineDocModalOpen(false);
     } finally {
       setIsInlineUploading(false);
@@ -2965,7 +3102,13 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                submitTaskAction(2, 'st2-1');
+                submitTaskAction(2, 'st2-1', undefined, {
+                  type: 'endeavor',
+                  title: 'Proposed Endeavor Statement',
+                  feedback: endeavorFeedback || 'Approved by client without changes',
+                  endeavorStatement: caseData?.dhanasar?.prong1?.endeavorSummary || `Advancing research, software architectures, and engineering innovations in ${caseData?.fieldCategory || 'technology'} to optimize critical systems, drive economic competitiveness, and advance national technological leadership in the United States.`,
+                  submittedAt: new Date().toISOString()
+                });
                 setIsEndeavorModalOpen(false);
               }}
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
@@ -3068,7 +3211,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                submitTaskAction(2, 'st2-2');
+                submitTaskAction(2, 'st2-2', undefined, {
+                  type: 'recommenders',
+                  title: 'Nominated Expert Recommenders Roster',
+                  recommenders: recList,
+                  submittedAt: new Date().toISOString()
+                });
                 setIsRecommenderActionModalOpen(false);
               }}
               className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
@@ -3120,7 +3268,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                submitTaskAction(2, 'st2-4');
+                submitTaskAction(2, 'st2-4', undefined, {
+                  type: 'general',
+                  title: 'Confirmation of Letters Dispatched',
+                  note: 'Client confirmed all 3-5 draft recommendation letters have been delivered to external experts.',
+                  submittedAt: new Date().toISOString()
+                });
                 setIsDispatchModalOpen(false);
               }}
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
@@ -3205,7 +3358,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                submitTaskAction(5, 'st5-5');
+                submitTaskAction(5, 'st5-5', undefined, {
+                  type: 'shipping',
+                  title: 'Confirmed USCIS Physical Filing Address',
+                  shippingAddress: {
+                    street: shipStreet,
+                    city: shipCity,
+                    state: shipState,
+                    zip: shipZip,
+                    phone: shipPhone
+                  },
+                  submittedAt: new Date().toISOString()
+                });
                 setIsAddressModalOpen(false);
               }}
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
@@ -3329,7 +3493,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  submitTaskAction(activeActionTask?.stageId || 1, activeActionTask?.id || 'st1-2');
+                  const currentTaskDocs = getTaskMatchingDocuments({ id: activeActionTask?.id || '', name: activeActionTask?.name || '' }, clientDocs);
+                  const subPayload = currentTaskDocs.length > 0 ? {
+                    type: 'document',
+                    docName: currentTaskDocs[0].name,
+                    documents: currentTaskDocs,
+                    submittedAt: new Date().toISOString(),
+                    note: `Submitted ${currentTaskDocs.length} evidence document(s) for legal review.`
+                  } : undefined;
+                  submitTaskAction(activeActionTask?.stageId || 1, activeActionTask?.id || 'st1-2', currentTaskDocs[0]?.name, subPayload);
                   setIsInlineDocModalOpen(false);
                 }}
                 className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-1.5 text-xs"

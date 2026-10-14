@@ -23,6 +23,27 @@ export const getTaskMatchingDocuments = (
       return;
     }
 
+    // 1b. Direct match by task submission docName or doc ID
+    const submission = (task as any).submission;
+    if (submission) {
+      if (submission.docName) {
+        const subName = String(submission.docName).trim().toLowerCase();
+        const curName = String(doc.name || '').trim().toLowerCase();
+        if (curName === subName || curName.includes(subName) || subName.includes(curName)) {
+          matchedDocs.push(doc);
+          seenIds.add(doc.id);
+          return;
+        }
+      }
+      if (Array.isArray(submission.documents)) {
+        if (submission.documents.some((d: any) => d?.id === doc.id || (d?.name && d.name.toLowerCase() === (doc.name || '').toLowerCase()))) {
+          matchedDocs.push(doc);
+          seenIds.add(doc.id);
+          return;
+        }
+      }
+    }
+
     const docName = (doc.name || '').toLowerCase();
     const docCat = (doc.category || '').toLowerCase();
     const docSummary = (doc.aiSummary || '').toLowerCase();
