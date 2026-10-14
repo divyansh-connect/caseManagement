@@ -451,7 +451,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     fieldCategory: 'Proposed Endeavor & Research',
     assignedWriter: 'Petition Drafter 1',
     assignedReviewer: 'Senior Reviewer',
-    currentStage: 2,
+    currentStage: 1,
     priorityDate: new Date().toISOString().split('T')[0],
     status: 'In Progress' as any,
     documentsCount: documents?.length || 0,
@@ -851,26 +851,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [newRecName, setNewRecName] = useState('');
   const [newRecInstitution, setNewRecInstitution] = useState('');
   const [newRecField, setNewRecField] = useState('');
-  const [recList, setRecList] = useState<any[]>(() => caseData?.recommenders || [
-    { name: 'Dr. Katherine Bell', institution: 'MIT Lincoln Laboratory', relationship: 'Independent Expert' },
-    { name: 'Prof. Julian Vance', institution: 'Stanford Artificial Intelligence Lab', relationship: 'Independent Citation Expert' },
-    { name: 'Dr. Marcus Vance', institution: 'National Renewable Energy Lab', relationship: 'Independent Senior Fellow' }
-  ]);
+  const [recList, setRecList] = useState<any[]>(() => (Array.isArray(caseData?.recommenders) && caseData.recommenders.length > 0) ? caseData.recommenders : []);
 
   // Shipping Address State
-  const [shipStreet, setShipStreet] = useState('123 Innovation Boulevard, Suite 400');
-  const [shipCity, setShipCity] = useState('Cambridge');
-  const [shipState, setShipState] = useState('MA');
-  const [shipZip, setShipZip] = useState('02142');
-  const [shipPhone, setShipPhone] = useState((caseData as any)?.clientPhone || (caseData as any)?.client?.phone || '+1 (555) 012-3456');
+  const [shipStreet, setShipStreet] = useState('');
+  const [shipCity, setShipCity] = useState('');
+  const [shipState, setShipState] = useState('');
+  const [shipZip, setShipZip] = useState('');
+  const [shipPhone, setShipPhone] = useState((caseData as any)?.clientPhone || (caseData as any)?.client?.phone || '');
 
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
     try {
       const keys = [
         caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
-        caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
-        'completed_client_tasks_shared',
-        'completed_client_tasks_default'
+        caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null
       ].filter(Boolean) as string[];
       for (const k of keys) {
         const saved = localStorage.getItem(k);
@@ -888,9 +882,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       try {
         const keys = [
           caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
-          caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
-          'completed_client_tasks_shared',
-          'completed_client_tasks_default'
+          caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null
         ].filter(Boolean) as string[];
         for (const k of keys) {
           const saved = localStorage.getItem(k);
@@ -914,7 +906,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             const parsed = JSON.parse(res.data.notes);
             if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
               const serialized = JSON.stringify(parsed.workflowTasks);
-              localStorage.setItem('workflow_stage_tasks_master', serialized);
               if (res.data.id) localStorage.setItem(`workflow_stage_tasks_${res.data.id}`, serialized);
               if (res.data.caseNumber) localStorage.setItem(`workflow_stage_tasks_${res.data.caseNumber}`, serialized);
               setWorkflowSyncTick(t => t + 1);
@@ -962,15 +953,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     try {
       let parsedStages: any[] | null = null;
 
-      // 1. LocalStorage candidate keys FIRST (reflecting instant live edits from Super Admin / Admin)
+      // 1. LocalStorage candidate keys FIRST (reflecting instant live edits from Super Admin / Admin for this case)
       const candidateKeys = [
-        'workflow_stage_tasks_master',
         caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
-        caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-        caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-        ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
-        'workflow_stage_tasks_shared',
-        'workflow_stage_tasks_latest'
+        caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
       ].filter(Boolean) as string[];
 
       for (const k of candidateKeys) {
@@ -989,25 +975,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       // 2. Direct database-persisted workflowTasks on caseData fallback
       if (!parsedStages && (caseData as any)?.workflowTasks && Array.isArray((caseData as any).workflowTasks) && (caseData as any).workflowTasks.length > 0) {
         parsedStages = (caseData as any).workflowTasks;
-      }
-
-      // 3. Fallback: inspect any workflow_stage_tasks_ key in localStorage
-      if (!parsedStages) {
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const lk = localStorage.key(i);
-            if (lk && lk.startsWith('workflow_stage_tasks_')) {
-              const val = localStorage.getItem(lk);
-              if (val) {
-                const data = JSON.parse(val);
-                if (Array.isArray(data) && data.length > 0) {
-                  parsedStages = data;
-                  break;
-                }
-              }
-            }
-          }
-        } catch {}
       }
 
       if (parsedStages) {
@@ -1058,13 +1025,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Submits a task action to staff for review (Status: Under Review)
   const submitTaskAction = (stageId: number, taskId: string, attachedDocName?: string) => {
     const candidateKeys = [
-      'workflow_stage_tasks_master',
       caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
-      caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-      caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-      ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
-      'workflow_stage_tasks_shared',
-      'workflow_stage_tasks_latest'
+      caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
     ].filter(Boolean) as string[];
 
     let stages: any[] = [];
@@ -2534,7 +2496,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </span>
               {(caseData?.currentStage || 1) < 6 && (
                 <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
-                  Currently in Stage {caseData?.currentStage || 2} of 7 (In Progress)
+                  Currently in Stage {caseData?.currentStage || 1} of 7 (In Progress)
                 </span>
               )}
             </div>

@@ -159,26 +159,26 @@ const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGr
   }
 
   let savedGroups: StageGroup[] | null = null;
-  const candidateKeys = [
-    'workflow_stage_tasks_master',
-    `workflow_stage_tasks_${cData.id}`,
-    cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null,
-    cData.clientId ? `workflow_stage_tasks_${cData.clientId}` : null,
-    'workflow_stage_tasks_shared',
-    'workflow_stage_tasks_latest'
-  ].filter(Boolean) as string[];
+  const isAutoInitCase = !cData.notes || cData.notes.startsWith('Auto-initialized');
 
-  for (const k of candidateKeys) {
-    try {
-      const saved = localStorage.getItem(k);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          savedGroups = parsed;
-          break;
+  if (!isAutoInitCase) {
+    const candidateKeys = [
+      cData.id ? `workflow_stage_tasks_${cData.id}` : null,
+      cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null
+    ].filter(Boolean) as string[];
+
+    for (const k of candidateKeys) {
+      try {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            savedGroups = parsed;
+            break;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
   }
 
   // If already customized and saved in localStorage, respect saved tasks directly!
@@ -290,12 +290,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       const reloadTasks = () => {
         try {
           const candidateKeys = [
-            'workflow_stage_tasks_master',
-            `workflow_stage_tasks_${caseData.id}`,
-            caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-            caseData.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-            'workflow_stage_tasks_shared',
-            'workflow_stage_tasks_latest'
+            caseData.id ? `workflow_stage_tasks_${caseData.id}` : null,
+            caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
           ].filter(Boolean) as string[];
 
           for (const k of candidateKeys) {
@@ -323,7 +319,6 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
               if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
                 setStageGroups(parsed.workflowTasks);
                 const serialized = JSON.stringify(parsed.workflowTasks);
-                localStorage.setItem('workflow_stage_tasks_master', serialized);
                 if (caseData.id) localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
                 if (caseData.caseNumber) localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
               }
@@ -447,17 +442,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       // Persist to localStorage across all candidate keys for seamless client sync
       try {
         const serialized = JSON.stringify(updatedGroups);
-        localStorage.setItem('workflow_stage_tasks_master', serialized);
         if (caseData?.id) {
           localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
           if (caseData.caseNumber) {
             localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
           }
-          if (caseData.clientId) {
-            localStorage.setItem(`workflow_stage_tasks_${caseData.clientId}`, serialized);
-          }
-          localStorage.setItem('workflow_stage_tasks_shared', serialized);
-          localStorage.setItem('workflow_stage_tasks_latest', serialized);
           
           // Keep completed_client_tasks in sync as well
           const clientKey = `completed_client_tasks_${caseData.id}`;
@@ -477,7 +466,6 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           if (caseData.caseNumber) {
             localStorage.setItem(`completed_client_tasks_${caseData.caseNumber}`, clientCompletedStr);
           }
-          localStorage.setItem('completed_client_tasks_shared', clientCompletedStr);
 
           // Broadcast to client portal and other tabs immediately
           window.dispatchEvent(new CustomEvent('workflow_task_updated', {
