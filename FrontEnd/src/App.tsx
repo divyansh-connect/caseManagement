@@ -77,7 +77,7 @@ export default function App() {
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<UserRole>('admin');
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('admin@babelglobal.com');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -172,29 +172,69 @@ export default function App() {
             setCurrentUser(null);
           }
         } catch (e) {
-          try {
-            const base64Url = token.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const payload = JSON.parse(window.atob(base64));
-            setIsAuthenticated(true);
-            setUserRole(payload.role as UserRole);
-            setCurrentUserEmail(payload.email);
-            setCurrentUser({
-              id: payload.id || 'user-client',
-              name: payload.name || (payload.email ? payload.email.split('@')[0] : 'Authorized User'),
-              email: payload.email,
-              role: payload.role as UserRole
-            });
-          } catch (err) {
-            localStorage.removeItem('jwt_token');
-            setIsAuthenticated(false);
-            setCurrentUser(null);
-          }
+          console.warn('[AUTH] Session verification failed, removing token');
+          localStorage.removeItem('jwt_token');
+          setIsAuthenticated(false);
+          setCurrentUser(null);
         }
       };
       fetchCurrentUser();
+    } else {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
     }
   }, []);
+
+  // Auto-sync: ensure any registered client missing an active case folder gets one created (e.g. demooooooo)
+  const ensureCasesForClients = async (currentCases: CaseItem[]) => {
+    try {
+      const clientsRes = await api.get('/clients');
+      if (!clientsRes.success || !Array.isArray(clientsRes.data)) return;
+      
+      const existingClientIds = new Set(
+        currentCases.map(c => c.clientId || (c as any).client?.id).filter(Boolean)
+      );
+
+      const clientsWithoutCases = clientsRes.data.filter(
+        (cl: any) => !existingClientIds.has(cl.id) && !existingClientIds.has(cl.clientId)
+      );
+
+      if (clientsWithoutCases.length > 0) {
+        let createdAny = false;
+        for (const cl of clientsWithoutCases) {
+          try {
+            const targetId = cl.id || cl.clientId;
+            if (!targetId) continue;
+            const newCaseRes = await api.post('/cases', {
+              clientId: targetId,
+              petitionCategory: 'EB-2 NIW',
+              fieldCategory: cl.currentField || 'Proposed Endeavor',
+              assignedWriter: 'Petition Drafter 1',
+              assignedReviewer: 'Senior Reviewer',
+              riskLevel: 'medium',
+              targetFilingDate: '2026-12-31',
+              uscisServiceCenter: 'Nebraska (NSC)',
+              premiumProcessing: false
+            });
+            if (newCaseRes.success) {
+              createdAny = true;
+            }
+          } catch (e) {
+            console.error('Auto case init error for client', cl.name, e);
+          }
+        }
+
+        if (createdAny) {
+          const freshCases = await api.get('/cases');
+          if (freshCases.success && Array.isArray(freshCases.data)) {
+            setCases(freshCases.data.map(mapCaseData));
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error ensuring cases for clients:', e);
+    }
+  };
 
   // 2. Fetch data dynamically based on the active tab
   useEffect(() => {
@@ -208,7 +248,9 @@ export default function App() {
             const statsRes = await api.get('/dashboard/stats');
             const dashboardCases = await api.get('/cases');
             if (dashboardCases.success) {
-              setCases(dashboardCases.data.map(mapCaseData));
+              const mapped = dashboardCases.data.map(mapCaseData);
+              setCases(mapped);
+              ensureCasesForClients(mapped);
             }
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
@@ -220,7 +262,9 @@ export default function App() {
           case 'reviews':
             const casesRes = await api.get('/cases');
             if (casesRes.success) {
-              setCases(casesRes.data.map(mapCaseData));
+              const mapped = casesRes.data.map(mapCaseData);
+              setCases(mapped);
+              ensureCasesForClients(mapped);
             }
             break;
 
@@ -228,6 +272,7 @@ export default function App() {
             const clientsRes = await api.get('/clients');
             if (clientsRes.success) {
               setClients(clientsRes.data);
+              ensureCasesForClients(cases);
             }
             break;
 
@@ -355,10 +400,17 @@ export default function App() {
   useEffect(() => {
     const path = location.pathname;
 
-    if (path === '/login') {
-      if (isAuthenticated) {
-        navigate(TAB_TO_PATH[activeTab], { replace: true });
+    // Strict unauthenticated route protection: redirect to /login
+    if (!isAuthenticated) {
+      if (path !== '/login') {
+        navigate('/login', { replace: true });
       }
+      return;
+    }
+
+    if (path === '/login') {
+      const defaultTab = userRole === 'client' ? 'clientPortal' : 'dashboard';
+      navigate(TAB_TO_PATH[activeTab] || TAB_TO_PATH[defaultTab] || '/dashboard', { replace: true });
       return;
     }
 
@@ -504,9 +556,13 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
+    localStorage.removeItem('override_user_role');
+    sessionStorage.clear();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    navigate('/login');
+    setCurrentUserEmail('');
+    setUserRole('client');
+    navigate('/login', { replace: true });
   };
 
   // Case Selection with URL sync
@@ -571,7 +627,9 @@ export default function App() {
       }
       const casesRes = await api.get('/cases');
       if (casesRes.success) {
-        setCases(casesRes.data.map(mapCaseData));
+        const mapped = casesRes.data.map(mapCaseData);
+        setCases(mapped);
+        ensureCasesForClients(mapped);
       }
       const tasksRes = await api.get('/tasks');
       if (tasksRes.success) {
@@ -787,7 +845,13 @@ export default function App() {
               onUpdateStage={handleUpdateStage}
             />
           ) : activeTab === 'communication' ? (
-            <CommunicationView cases={roleFilteredCases} messages={messages} viewMode={commViewMode} />
+            <CommunicationView 
+              cases={roleFilteredCases} 
+              messages={messages} 
+              viewMode={commViewMode} 
+              userRole={userRole}
+              currentUser={currentUser}
+            />
           ) : activeTab === 'appointments' ? (
             <AppointmentsView
               appointments={appointments}

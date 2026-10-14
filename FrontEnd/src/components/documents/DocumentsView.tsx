@@ -14,6 +14,7 @@ import {
 import { CaseDocument } from '../../types';
 import { EVIDENCE_CATEGORIES, EVIDENCE_CATEGORY_GROUPS } from '../../data/evidenceCategories';
 import { StatusBadge } from '../common/Badge';
+import { downloadDocumentFile } from '../../utils/downloadHelper';
 
 interface DocumentsViewProps {
   documents: CaseDocument[];
@@ -41,45 +42,9 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   });
 
   // Handle Document Download
-  const handleDownloadDoc = (doc: CaseDocument) => {
-    if (doc.fileUrl && (doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://') || doc.fileUrl.startsWith('/uploads'))) {
-      const link = document.createElement('a');
-      link.href = doc.fileUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.setAttribute('download', doc.name || 'document.pdf');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setDownloadToast(`Downloaded ${doc.name} successfully!`);
-      setTimeout(() => setDownloadToast(''), 4000);
-      return;
-    }
-
-    const fileContent = 
-      `BABEL GLOBAL IMMIGRATION EXHIBIT VAULT\n` +
-      `=======================================\n` +
-      `Exhibit Ref: ${doc.exhibitNumber || 'N/A'}\n` +
-      `Document Name: ${doc.name}\n` +
-      `Category: ${doc.category}\n` +
-      `Uploaded By: ${doc.uploadedBy} on ${doc.uploadedAt}\n` +
-      `Status: ${doc.status}\n` +
-      `AI Summary: ${doc.aiSummary || 'N/A'}\n` +
-      `---------------------------------------\n` +
-      `Official Verification Seal: VERIFIED-BG-2026-USCIS\n`;
-
-    const fileName = doc.name.endsWith('.txt') ? doc.name : `${doc.name.replace(/\.[^/.]+$/, '')}_details.txt`;
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setDownloadToast(`Downloaded ${doc.name} successfully!`);
+  const handleDownloadDoc = async (doc: CaseDocument) => {
+    const result = await downloadDocumentFile(doc);
+    setDownloadToast(result.message);
     setTimeout(() => setDownloadToast(''), 4000);
   };
 

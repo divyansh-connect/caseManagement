@@ -4,8 +4,12 @@ import { STAGES } from '../../data/stageConfig';
 import { CheckCircle2, Clock, UploadCloud, FileText, CreditCard, MessageSquare } from 'lucide-react';
 
 export const ClientDashboard = () => {
-  const { cases, documents, tasks } = useCase();
-  const clientCase = cases[0] || { stage: 11, stageName: "Petition Draft (3 Prongs)" };
+  const firstCase = cases[0];
+  const clientCase = firstCase ? {
+    ...firstCase,
+    stage: Number(firstCase.currentStage) || Number(firstCase.stage) || 1,
+    stageName: firstCase.stageName || STAGES.find(s => s.id === (Number(firstCase.currentStage) || 1))?.name || "Consultation & Onboarding"
+  } : { stage: 1, stageName: "Consultation & Onboarding" };
 
   return (
     <div className="space-y-6">
