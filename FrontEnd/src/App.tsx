@@ -184,9 +184,28 @@ export default function App() {
       else stage = 1;
     }
 
+    let workflowTasks: any[] | null = null;
+    if (c.notes) {
+      try {
+        const parsedNotes = JSON.parse(c.notes);
+        if (parsedNotes?.workflowTasks && Array.isArray(parsedNotes.workflowTasks)) {
+          workflowTasks = parsedNotes.workflowTasks;
+          try {
+            const serialized = JSON.stringify(workflowTasks);
+            localStorage.setItem('workflow_stage_tasks_master', serialized);
+            if (c.id) localStorage.setItem(`workflow_stage_tasks_${c.id}`, serialized);
+            if (c.caseNumber) localStorage.setItem(`workflow_stage_tasks_${c.caseNumber}`, serialized);
+            localStorage.setItem('workflow_stage_tasks_shared', serialized);
+            localStorage.setItem('workflow_stage_tasks_latest', serialized);
+          } catch {}
+        }
+      } catch {}
+    }
+
     return {
       ...c,
       currentStage: stage,
+      workflowTasks: workflowTasks || (c as any).workflowTasks || null,
       clientName: c.client?.name || 'Unknown',
       clientEmail: c.client?.email || '',
       dhanasar: c.dhanasarProngs || {
@@ -762,6 +781,47 @@ export default function App() {
     } catch (e) {
       console.error('Error syncing after document upload:', e);
     }
+
+    // Auto-update pending document tasks to 'Under Review'
+    const targetCaseId = docsArray[0]?.caseId || selectedCaseId || cases[0]?.id;
+    const targetCase = cases.find(c => c.id === targetCaseId) || cases[0];
+    if (targetCaseId) {
+      const candidateKeys = [
+        `workflow_stage_tasks_${targetCaseId}`,
+        targetCase?.caseNumber ? `workflow_stage_tasks_${targetCase.caseNumber}` : null,
+        targetCase?.clientId ? `workflow_stage_tasks_${targetCase.clientId}` : null,
+        'workflow_stage_tasks_shared',
+        'workflow_stage_tasks_latest'
+      ].filter(Boolean) as string[];
+
+      for (const adminKey of candidateKeys) {
+        try {
+          const saved = localStorage.getItem(adminKey);
+          if (saved) {
+            const stages = JSON.parse(saved);
+            const updated = stages.map((st: any) => ({
+              ...st,
+              tasks: st.tasks.map((t: any) => {
+                if ((t.id === 'st1-2' || t.id === 'st1-5' || t.id === 'st2-5' || t.id === 'st6-4') && (t.status === 'Awaiting Client' || t.status === 'Not Started' || t.status === 'Revision Required')) {
+                  return { ...t, status: 'Under Review' };
+                }
+                return t;
+              })
+            }));
+            localStorage.setItem(adminKey, JSON.stringify(updated));
+          }
+        } catch {}
+      }
+
+      window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+        detail: { caseId: targetCaseId, caseNumber: targetCase?.caseNumber, newStatus: 'Under Review' }
+      }));
+      try {
+        const bc = new BroadcastChannel('jurisflow_workflow_sync');
+        bc.postMessage({ caseId: targetCaseId, caseNumber: targetCase?.caseNumber, newStatus: 'Under Review' });
+        bc.close();
+      } catch {}
+    }
   };
 
   const handleAddRecommender = (rec: Recommender) => {
@@ -1077,6 +1137,36 @@ export default function App() {
         isOpen={isSignModalOpen}
         onClose={() => setIsSignModalOpen(false)}
         clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || cases[0]?.clientName || 'Client'}
+        onSignComplete={() => {
+          const activeCase = (userRole === 'client' && activeClientCase) ? activeClientCase : (roleFilteredCases.find(c => c.id === selectedCaseId) || cases[0]);
+          if (activeCase?.id) {
+            const adminKey = `workflow_stage_tasks_${activeCase.id}`;
+            try {
+              const saved = localStorage.getItem(adminKey);
+              if (saved) {
+                const stages = JSON.parse(saved);
+                const updated = stages.map((st: any) => ({
+                  ...st,
+                  tasks: st.tasks.map((t: any) => {
+                    if ((t.id === 'st1-3' || t.id === 'st3-4') && (t.status === 'Awaiting Client' || t.status === 'Not Started' || t.status === 'Revision Required')) {
+                      return { ...t, status: 'Under Review' };
+                    }
+                    return t;
+                  })
+                }));
+                localStorage.setItem(adminKey, JSON.stringify(updated));
+                window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+                  detail: { caseId: activeCase.id, newStatus: 'Under Review' }
+                }));
+                try {
+                  const bc = new BroadcastChannel('jurisflow_workflow_sync');
+                  bc.postMessage({ caseId: activeCase.id, newStatus: 'Under Review' });
+                  bc.close();
+                } catch {}
+              }
+            } catch {}
+          }
+        }}
       />
 
       <USCISFormQuestionnaireModal
@@ -1084,6 +1174,36 @@ export default function App() {
         onClose={() => setIsQuestionnaireModalOpen(false)}
         clientName={currentUser?.name || roleFilteredCases.find(c => c.id === selectedCaseId)?.clientName || cases[0]?.clientName || 'Client'}
         caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+        onSave={() => {
+          const activeCase = (userRole === 'client' && activeClientCase) ? activeClientCase : (roleFilteredCases.find(c => c.id === selectedCaseId) || cases[0]);
+          if (activeCase?.id) {
+            const adminKey = `workflow_stage_tasks_${activeCase.id}`;
+            try {
+              const saved = localStorage.getItem(adminKey);
+              if (saved) {
+                const stages = JSON.parse(saved);
+                const updated = stages.map((st: any) => ({
+                  ...st,
+                  tasks: st.tasks.map((t: any) => {
+                    if ((t.id === 'st1-1' || t.id === 'st3-1') && (t.status === 'Awaiting Client' || t.status === 'Not Started' || t.status === 'Revision Required')) {
+                      return { ...t, status: 'Under Review' };
+                    }
+                    return t;
+                  })
+                }));
+                localStorage.setItem(adminKey, JSON.stringify(updated));
+                window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+                  detail: { caseId: activeCase.id, newStatus: 'Under Review' }
+                }));
+                try {
+                  const bc = new BroadcastChannel('jurisflow_workflow_sync');
+                  bc.postMessage({ caseId: activeCase.id, newStatus: 'Under Review' });
+                  bc.close();
+                } catch {}
+              }
+            } catch {}
+          }
+        }}
       />
     </div>
   );

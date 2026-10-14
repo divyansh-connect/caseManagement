@@ -35,12 +35,18 @@ import {
   Save,
   Key,
   Loader2,
-  X
+  X,
+  PenTool,
+  Paperclip,
+  Eye
 } from 'lucide-react';
 import { CaseItem, CaseDocument, CaseMessage, CaseTask, UserRole } from '../../types';
 import { downloadDocumentFile } from '../../utils/downloadHelper';
+import { getTaskMatchingDocuments } from '../../utils/documentTaskMatcher';
 import { WORKFLOW_STAGES } from '../../data/mockData';
+import { DocumentPreviewModal } from '../modals/DocumentPreviewModal';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
+import { Modal } from '../common/Modal';
 import { api } from '../../services/api';
 
 interface ClientPortalViewProps {
@@ -112,6 +118,7 @@ export interface ClientStageGroup {
     status: 'Not Started' | 'Awaiting Client' | 'Submitted' | 'Under Review' | 'Revision Required' | 'Approved/Completed' | 'Not Applicable';
     flowLabel?: string;
     deadline?: string;
+    requiredDocs?: string[];
   }[];
 }
 
@@ -122,11 +129,11 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Profile assessment, engagement agreement, flexible payment & document collection',
     internalStages: [1, 2, 3, 4, 5],
     tasks: [
-      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Awaiting Client' },
-      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Payment before documentation', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st1-5', name: 'Documentation: [Upload supporting documents, Identify missing documents & Resume/CV, preparation or improvement, when required, Documentation and Qualification Review, categorize academic, employment, publication, award, membership, media, citation, judging, contribution, and other records, Approve the evidence checklist for drafting]', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Payment after evidence assessment & profile improvement', assignedTo: 'Client', status: 'Not Applicable' }
+      { id: 'st1-1', name: 'Initial consultation and intake evaluation', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-2', name: 'Upload existing CV and academic degree certificates', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Curriculum Vitae', 'Degree Certificate'] },
+      { id: 'st1-3', name: 'Review and sign engagement retainer agreement', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Engagement Agreement'] },
+      { id: 'st1-4', name: 'Select payment plan and confirm retainer deposit', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st1-5', name: 'Profile evaluation & evidence checklist approval', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
   },
   {
@@ -135,12 +142,12 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Proposed endeavor development & expert recommender letters',
     internalStages: [6, 7, 8],
     tasks: [
-      { id: 'st2-1', name: 'Review or develop the proposed endeavor: [Send the proposed endeavor to the client for review, correction, and approval]', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st2-2', name: 'Identify suitable recommenders: [Provide the client with the recommended categories of people who should write letters, Client provides each recommender’s CV, relationship information, and relevant accomplishments]', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 10, 2026' },
-      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Not Started' },
-      { id: 'st2-4', name: 'Client reviews the letters and sends them to the recommenders', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st2-5', name: 'Client uploads the signed letters on official letterhead', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st2-6', name: 'Staff reviews and approves the completed letters', assignedTo: 'Babel Global Team', status: 'Not Started' }
+      { id: 'st2-1', name: 'Review and approve proposed endeavor statement', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 01, 2026' },
+      { id: 'st2-2', name: 'Identify 3-5 independent expert recommenders', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 10, 2026', requiredDocs: ['Recommender CVs'] },
+      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 12, 2026', requiredDocs: ['Draft Letters 1-3'] },
+      { id: 'st2-4', name: 'Send drafted letters to recommenders for review', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 15, 2026' },
+      { id: 'st2-5', name: 'Upload signed recommendation letters on official letterhead', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Recommendation Letters'] },
+      { id: 'st2-6', name: 'Staff reviews and approves completed letters', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
   },
   {
@@ -149,11 +156,10 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'USCIS questionnaires & official form packages (I-140, ETA-9089, G-1145)',
     internalStages: [9],
     tasks: [
-      { id: 'st3-1', name: 'Client completes a simplified questionnaire', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st3-2', name: 'Information is transferred to the applicable forms', assignedTo: 'Babel Global Team', status: 'Not Started' },
-      { id: 'st3-3', name: 'Staff reviews the information', assignedTo: 'Babel Global Team', status: 'Not Started' },
-      { id: 'st3-4', name: 'Client makes corrections or provides missing details', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st3-5', name: 'Client reviews and signs the completed forms where required with blue ink', assignedTo: 'Client', status: 'Not Started' }
+      { id: 'st3-1', name: 'Client completes simplified USCIS questionnaire', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['USCIS Questionnaire'] },
+      { id: 'st3-2', name: 'Transfer data to applicable forms (I-140, ETA-9089)', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st3-3', name: 'Editorial staff reviews form data and accuracy', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st3-4', name: 'Client reviews & signs completed forms with blue ink', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Form I-140', 'Form G-1145'] }
     ]
   },
   {
@@ -163,8 +169,8 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     internalStages: [9, 10, 11, 12],
     tasks: [
       { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Not Started' },
-      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 15, 2026' },
-      { id: 'st4-3', name: 'Senior QA Reviewer', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 15, 2026', requiredDocs: ['Petition Memorandum Draft'] },
+      { id: 'st4-3', name: 'Senior QA Reviewer audit & legal signoff', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st4-4', name: 'Provide draft to client for factual review & approval', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st4-5', name: 'Final revisions & petition approval for packaging', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
@@ -176,7 +182,7 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     internalStages: [13],
     tasks: [
       { id: 'st5-0', name: 'Pay Outstanding Service Balance', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st5-1', name: 'Organize final package: Completed and signed forms, Petition letter, Exhibit index, and Supporting exhibits in PDF', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st5-1', name: 'Organize final package & Exhibit PDF Index', assignedTo: 'Babel Global Team', status: 'Not Started', requiredDocs: ['Exhibit Index PDF', 'Compiled Filing Package'] },
       { id: 'st5-2', name: 'Final quality control and signature verification', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st5-3', name: 'Fee verification and document ordering', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st5-4', name: 'Package approval', assignedTo: 'Babel Global Team', status: 'Not Started' },
@@ -190,14 +196,11 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Your petition package has been shipped to USCIS. Here is what you should expect:',
     internalStages: [14],
     tasks: [
-      { id: 'st6-1', name: 'Track your package: We will provide the courier tracking number so you can confirm when USCIS receives your package. Could take 2–5 days. Timeline depends on the post office and other conditions.', assignedTo: 'Babel Global Team', status: 'Not Started' },
-      { id: 'st6-2', name: 'Wait for USCIS to review the package: USCIS will check whether the package contains the required forms, signatures, and filing fees. Could take 2 weeks or more depending on workload.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-3', name: 'Watch for the payment: If USCIS accepts the package for processing, the filing fees will normally be charged to the payment method you authorized.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-4', name: 'Look out for an email or text: If Form G-1145 was included, USCIS may send you an email and/or text confirming that the package was accepted.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-5', name: 'Wait for your receipt notice: USCIS will mail Form I-797, Notice of Action. It will contain your receipt number and priority date. Please upload the notice to your portal when you receive it. Could take 2 weeks to 2 months or more depending on the post office.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-6', name: 'Track your case: Once you receive your receipt number, you can check your case at USCIS Case Status Online.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-7', name: 'If your package is returned: This generally means USCIS could not accept the filing because something needs to be corrected. Please upload or send us the rejection notice and returned package so we can review the reason and advise you on the next step. Could take 2 weeks to 2 months or more depending on the post office to receive it.', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'st6-8', name: 'Continue checking for updates: USCIS may later send an approval notice, Request for Evidence, Notice of Intent to Deny, or another communication. Please upload every USCIS notice to your portal as soon as you receive it.', assignedTo: 'Client', status: 'Not Started' }
+      { id: 'st6-1', name: 'Track package delivery to USCIS courier intake', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st6-2', name: 'USCIS mailroom processing & intake review', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st6-3', name: 'Filing fee payment check', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st6-4', name: 'Upload Form I-797C Receipt Notice upon receipt', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Form I-797C Notice of Action'] },
+      { id: 'st6-5', name: 'Track case status on USCIS online portal', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
   },
   {
@@ -207,13 +210,9 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     isOptional: true,
     internalStages: [],
     tasks: [
-      { id: 'opt-1', name: 'Additional-service agreement and payment', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-2', name: 'Form I-485 questionnaire and applicable forms', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-3', name: 'Supporting-document checklist', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-4', name: 'Review and corrections', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-5', name: 'Signatures', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-6', name: 'Exhibits', assignedTo: 'Client', status: 'Not Started' },
-      { id: 'opt-7', name: 'Final package preparation', assignedTo: 'Babel Global Team', status: 'Not Started' }
+      { id: 'opt-1', name: 'Additional-service agreement & fee confirmation', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'opt-2', name: 'Form I-485 questionnaire & medical exam (Form I-693)', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Form I-693 Medical Sealed Envelope'] },
+      { id: 'opt-3', name: 'Final concurrent package preparation & filing', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
   }
 ];
@@ -443,119 +442,432 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   };
 
   const clientDocs = React.useMemo(() => {
-    if (!caseData) return [];
-    const propDocs = documents.filter(d => d.caseId === caseData.id);
-    const caseAttachedDocs = Array.isArray((caseData as any).documents) ? (caseData as any).documents : [];
     const map = new Map<string, CaseDocument>();
+    const caseAttachedDocs = Array.isArray((caseData as any)?.documents) ? (caseData as any).documents : [];
     caseAttachedDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
-    propDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+
+    if (documents && Array.isArray(documents)) {
+      documents.forEach((d: CaseDocument) => {
+        if (!d?.id) return;
+        const matchesCase = 
+          !caseData?.id || 
+          d.caseId === caseData.id || 
+          (caseData.caseNumber && d.caseId === caseData.caseNumber) ||
+          (caseData.clientId && (d as any).clientId === caseData.clientId) ||
+          (d.uploadedBy && currentUser?.name && d.uploadedBy.toLowerCase() === currentUser.name.toLowerCase()) ||
+          (!allCases || allCases.length <= 1);
+
+        if (matchesCase) {
+          map.set(d.id, d);
+        }
+      });
+    }
+
     return Array.from(map.values());
-  }, [documents, caseData]);
+  }, [documents, caseData, currentUser, allCases]);
 
   const hasUploadedDocs = clientDocs.length > 0 || Boolean(caseData?.documentsCount && caseData.documentsCount > 0);
 
+  // ── Action-Driven Task Lifecycle & Sync State ──────────────────────────────
+  const [activeActionTask, setActiveActionTask] = useState<{ id: string; stageId: number; name: string } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<CaseDocument | null>(null);
+  const [isEndeavorModalOpen, setIsEndeavorModalOpen] = useState(false);
+  const [isRecommenderActionModalOpen, setIsRecommenderActionModalOpen] = useState(false);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isInlineDocModalOpen, setIsInlineDocModalOpen] = useState(false);
+  const [actionToastMessage, setActionToastMessage] = useState<string | null>(null);
+  const [, setWorkflowSyncTick] = useState(0);
+
+  // Direct Inline File Upload State for Action Modal
+  const [inlineUploadFile, setInlineUploadFile] = useState<File | null>(null);
+  const [isInlineUploading, setIsInlineUploading] = useState(false);
+  const [inlineUploadSuccess, setInlineUploadSuccess] = useState(false);
+
+  // Endeavor Review State
+  const [endeavorFeedback, setEndeavorFeedback] = useState('');
+  
+  // Recommender Input State
+  const [newRecName, setNewRecName] = useState('');
+  const [newRecInstitution, setNewRecInstitution] = useState('');
+  const [newRecField, setNewRecField] = useState('');
+  const [recList, setRecList] = useState<any[]>(() => caseData?.recommenders || [
+    { name: 'Dr. Katherine Bell', institution: 'MIT Lincoln Laboratory', relationship: 'Independent Expert' },
+    { name: 'Prof. Julian Vance', institution: 'Stanford Artificial Intelligence Lab', relationship: 'Independent Citation Expert' },
+    { name: 'Dr. Marcus Vance', institution: 'National Renewable Energy Lab', relationship: 'Independent Senior Fellow' }
+  ]);
+
+  // Shipping Address State
+  const [shipStreet, setShipStreet] = useState('123 Innovation Boulevard, Suite 400');
+  const [shipCity, setShipCity] = useState('Cambridge');
+  const [shipState, setShipState] = useState('MA');
+  const [shipZip, setShipZip] = useState('02142');
+  const [shipPhone, setShipPhone] = useState((caseData as any)?.clientPhone || (caseData as any)?.client?.phone || '+1 (555) 012-3456');
+
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem(`completed_client_tasks_${caseData?.id || 'default'}`);
-      return saved ? JSON.parse(saved) : [];
+      const keys = [
+        caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
+        caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
+        'completed_client_tasks_shared',
+        'completed_client_tasks_default'
+      ].filter(Boolean) as string[];
+      for (const k of keys) {
+        const saved = localStorage.getItem(k);
+        if (saved) return JSON.parse(saved);
+      }
+      return [];
     } catch (e) {
       return [];
     }
   });
 
+  // Real-time synchronization between Admin & Client Portal
   React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`completed_client_tasks_${caseData?.id || 'default'}`);
-      setCompletedTaskIds(saved ? JSON.parse(saved) : []);
-    } catch (e) {
-      setCompletedTaskIds([]);
-    }
-    setExpandedStage(Number(caseData?.currentStage) || 1);
-  }, [caseData?.id, caseData?.currentStage]);
-
-  const markTaskCompleted = (taskId: string) => {
-    setCompletedTaskIds(prev => {
-      const updated = prev.includes(taskId) ? prev : [...prev, taskId];
+    const reloadWorkflow = () => {
       try {
-        localStorage.setItem(`completed_client_tasks_${caseData?.id || 'default'}`, JSON.stringify(updated));
-        // Also sync into workflow_stage_tasks for Super Admin & Admin
-        if (caseData?.id) {
-          const adminKey = `workflow_stage_tasks_${caseData.id}`;
-          const savedAdmin = localStorage.getItem(adminKey);
-          if (savedAdmin) {
-            const parsed = JSON.parse(savedAdmin);
-            const adminTaskId = taskId === 'st1-5' ? 'st1-2' : taskId;
-            const updatedAdmin = parsed.map((grp: any) => ({
-              ...grp,
-              tasks: grp.tasks.map((t: any) => (t.id === adminTaskId || t.id === taskId) ? { ...t, status: 'Approved/Completed' } : t)
-            }));
-            localStorage.setItem(adminKey, JSON.stringify(updatedAdmin));
+        const keys = [
+          'workflow_stage_tasks_master',
+          caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
+          caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
+          'completed_client_tasks_shared',
+          'completed_client_tasks_default'
+        ].filter(Boolean) as string[];
+        for (const k of keys) {
+          const saved = localStorage.getItem(k);
+          if (saved) {
+            setCompletedTaskIds(JSON.parse(saved));
+            break;
           }
         }
-      } catch (e) {}
-      return updated;
-    });
-  };
+      } catch {}
+      setWorkflowSyncTick(t => t + 1);
+    };
 
-  const getResolvedTaskStatus = (task: any, stageId?: number): ClientStageGroup['tasks'][0]['status'] => {
-    // Check if Super Admin / Admin set a specific task status in workflow_stage_tasks
+    reloadWorkflow();
+
+    const handleWorkflowEvent = () => {
+      reloadWorkflow();
+    };
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key && (e.key.startsWith('workflow_stage_tasks_') || e.key.startsWith('completed_client_tasks_'))) {
+        reloadWorkflow();
+      }
+    };
+
+    window.addEventListener('workflow_task_updated', handleWorkflowEvent);
+    window.addEventListener('storage', handleStorageEvent);
+
+    let bc: BroadcastChannel | null = null;
     try {
-      if (caseData?.id) {
-        const adminWorkflow = localStorage.getItem(`workflow_stage_tasks_${caseData.id}`);
-        if (adminWorkflow) {
-          const parsed: any[] = JSON.parse(adminWorkflow);
-          const adminStage = parsed.find((g: any) => g.id === stageId);
-          if (adminStage && Array.isArray(adminStage.tasks)) {
-            const adminTaskId = task.id === 'st1-5' ? 'st1-2' : task.id;
-            const adminTask = adminStage.tasks.find((t: any) => t.id === adminTaskId || t.id === task.id);
-            if (adminTask && adminTask.status && adminTask.status !== 'Not Started') {
-              return adminTask.status as any;
+      bc = new BroadcastChannel('jurisflow_workflow_sync');
+      bc.onmessage = () => {
+        reloadWorkflow();
+      };
+    } catch {}
+
+    const interval = setInterval(reloadWorkflow, 1000);
+
+    return () => {
+      window.removeEventListener('workflow_task_updated', handleWorkflowEvent);
+      window.removeEventListener('storage', handleStorageEvent);
+      if (bc) bc.close();
+      clearInterval(interval);
+    };
+  }, [caseData?.id, caseData?.caseNumber, caseData?.currentStage]);
+
+  // Resolves task status strictly respecting Admin / Super Admin state
+  const getResolvedTaskStatus = (task: any, stageId?: number): ClientStageGroup['tasks'][0]['status'] => {
+    try {
+      // 1. Direct database-persisted workflowTasks on caseData
+      let parsedStages: any[] | null = null;
+      if ((caseData as any)?.workflowTasks && Array.isArray((caseData as any).workflowTasks) && (caseData as any).workflowTasks.length > 0) {
+        parsedStages = (caseData as any).workflowTasks;
+      }
+
+      // 2. LocalStorage candidate keys (prioritizing master key)
+      if (!parsedStages) {
+        const candidateKeys = [
+          'workflow_stage_tasks_master',
+          caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
+          caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+          caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+          ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
+          'workflow_stage_tasks_shared',
+          'workflow_stage_tasks_latest'
+        ].filter(Boolean) as string[];
+
+        for (const k of candidateKeys) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            try {
+              const data = JSON.parse(raw);
+              if (Array.isArray(data) && data.length > 0) {
+                parsedStages = data;
+                break;
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // 3. Fallback: inspect any workflow_stage_tasks_ key in localStorage
+      if (!parsedStages) {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const lk = localStorage.key(i);
+            if (lk && lk.startsWith('workflow_stage_tasks_')) {
+              const val = localStorage.getItem(lk);
+              if (val) {
+                const data = JSON.parse(val);
+                if (Array.isArray(data) && data.length > 0) {
+                  parsedStages = data;
+                  break;
+                }
+              }
             }
+          }
+        } catch {}
+      }
+
+      if (parsedStages) {
+        const adminStage = parsedStages.find((g: any) => g.id === stageId);
+        if (adminStage && Array.isArray(adminStage.tasks)) {
+          const adminTask = adminStage.tasks.find((t: any) => 
+            t.id === task.id || 
+            (task.id === 'st1-2' && t.id === 'st1-5') || 
+            (task.id === 'st1-5' && t.id === 'st1-2')
+          );
+          if (adminTask && adminTask.status) {
+            return adminTask.status as any;
           }
         }
       }
     } catch (e) {}
 
-    if (completedTaskIds.includes(task.id) || (task.id === 'st1-5' && completedTaskIds.includes('st1-2'))) {
+    if (completedTaskIds.includes(task.id)) {
       return 'Approved/Completed';
     }
+
     const currentStageNum = Number(caseData?.currentStage) || 1;
     if (stageId && stageId < currentStageNum) {
       return 'Approved/Completed';
     }
-    if ((task.id === 'st1-5' || task.id === 'st1-2') && hasUploadedDocs) {
-      return 'Approved/Completed';
-    }
-    if (task.id === 'st2-2' && caseData?.recommenders && caseData.recommenders.length >= 3) {
-      return 'Approved/Completed';
-    }
-    return task.status;
+
+    return task.status || 'Not Started';
   };
 
   const getStageTasks = (stageGroup: ClientStageGroup) => {
     if (stageGroup.id !== 1) return stageGroup.tasks;
     if (stage1FlowMode === 'standard') return stageGroup.tasks;
+    // In Evidence-First mode, re-order to highlight CV & Degree upload first
+    const t1 = stageGroup.tasks.find(t => t.id === 'st1-1');
+    const t2 = stageGroup.tasks.find(t => t.id === 'st1-2');
+    const t3 = stageGroup.tasks.find(t => t.id === 'st1-3');
+    const t4 = stageGroup.tasks.find(t => t.id === 'st1-4');
+    const t5 = stageGroup.tasks.find(t => t.id === 'st1-5');
     return [
-      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: completedTaskIds.includes('st1-1') ? 'Approved/Completed' as const : 'Awaiting Client' as const },
-      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: completedTaskIds.includes('st1-3') ? 'Approved/Completed' as const : 'Not Started' as const },
-      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
-      { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
-      { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
-    ];
+      t1, 
+      t2 ? { ...t2, flowLabel: 'Evidence-First: Upload CV & Degrees Before Retainer Deposit' } : null, 
+      t3, 
+      t4, 
+      t5
+    ].filter(Boolean) as any[];
   };
 
-  const handleTaskAction = (task: any) => {
-    if (task.id === 'st1-4b' || task.id === 'st1-4a') {
+  // Submits a task action to staff for review (Status: Under Review)
+  const submitTaskAction = (stageId: number, taskId: string, attachedDocName?: string) => {
+    const candidateKeys = [
+      'workflow_stage_tasks_master',
+      caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
+      caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+      caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+      ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
+      'workflow_stage_tasks_shared',
+      'workflow_stage_tasks_latest'
+    ].filter(Boolean) as string[];
+
+    let stages: any[] = [];
+    for (const key of candidateKeys) {
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            stages = parsed;
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    if (!stages || stages.length === 0) {
+      stages = CLIENT_STAGES.map(s => ({
+        id: s.id,
+        title: s.title,
+        subtitle: s.subtitle,
+        tasks: s.tasks.map(t => ({ ...t }))
+      }));
+    }
+
+    const updated = stages.map((st: any) => {
+      if (st.id !== stageId) return st;
+      return {
+        ...st,
+        tasks: st.tasks.map((t: any) => {
+          if (t.id === taskId || (taskId === 'st1-2' && t.id === 'st1-5') || (taskId === 'st1-5' && t.id === 'st1-2')) {
+            return { ...t, status: 'Under Review' };
+          }
+          return t;
+        })
+      };
+    });
+
+    const serialized = JSON.stringify(updated);
+    for (const key of candidateKeys) {
+      try {
+        localStorage.setItem(key, serialized);
+      } catch {}
+    }
+
+    // Dispatch live event to update CaseDetailView immediately
+    window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+      detail: { caseId: caseData?.id, caseNumber: caseData?.caseNumber, stageId, taskId, newStatus: 'Under Review' }
+    }));
+    try {
+      const bc = new BroadcastChannel('jurisflow_workflow_sync');
+      bc.postMessage({ caseId: caseData?.id, caseNumber: caseData?.caseNumber, stageId, taskId, newStatus: 'Under Review' });
+      bc.close();
+    } catch {}
+
+    // Persist to backend database as well
+    const caseIdentifier = caseData?.caseNumber || caseData?.id;
+    if (caseIdentifier) {
+      api.patch(`/cases/${caseIdentifier}`, {
+        notes: JSON.stringify({
+          workflowTasks: updated,
+          lastUpdated: new Date().toISOString()
+        })
+      }).catch(() => {});
+    }
+
+    setWorkflowSyncTick(t => t + 1);
+    setActiveActionTask(null);
+
+    // Show toast confirmation
+    setActionToastMessage(attachedDocName 
+      ? `✓ Document "${attachedDocName}" uploaded & submitted for legal staff review!`
+      : '✓ Action submitted! Your submission is now under review by the immigration legal team.'
+    );
+    setTimeout(() => setActionToastMessage(null), 5000);
+  };
+
+  // Direct Inline Evidence Upload Handler
+  const handleDirectInlineFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !activeActionTask) return;
+    const file = e.target.files[0];
+    setIsInlineUploading(true);
+
+    const uploaderName = currentUser?.name || caseData?.clientName || 'Client';
+    const finalCaseId = caseData?.id || (allCases && allCases[0]?.id) || 'default';
+
+    // Determine category based on task ID
+    let docCategory = 'Identity & Personal Information';
+    if (activeActionTask.id === 'st1-3') docCategory = 'Engagement & Retainer Agreement';
+    else if (activeActionTask.id === 'st2-2' || activeActionTask.id === 'st2-5') docCategory = 'Letters of Recommendation';
+    else if (activeActionTask.id === 'st3-1' || activeActionTask.id === 'st3-4') docCategory = 'Forms & Questionnaires';
+    else if (activeActionTask.id === 'st6-4') docCategory = 'USCIS Official Notices';
+
+    const formData = new FormData();
+    formData.append('caseId', finalCaseId);
+    formData.append('category', docCategory);
+    formData.append('uploadedBy', uploaderName);
+    formData.append('attachedTaskId', activeActionTask.id);
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('/documents', formData, true);
+      let createdDoc: CaseDocument | null = null;
+      if (res && res.success) {
+        if (Array.isArray(res.documents) && res.documents.length > 0) createdDoc = res.documents[0];
+        else if (Array.isArray(res.data) && res.data.length > 0) createdDoc = res.data[0];
+        else if (res.data) createdDoc = res.data;
+      }
+
+      // If backend offline or local demo, build optimistic document
+      if (!createdDoc) {
+        createdDoc = {
+          id: `doc-${Date.now()}`,
+          caseId: finalCaseId,
+          name: file.name,
+          category: docCategory,
+          fileSize: `${(file.size / 1024).toFixed(0)} KB`,
+          uploadedBy: uploaderName,
+          uploadedAt: new Date().toISOString(),
+          status: 'Pending Review',
+          fileUrl: URL.createObjectURL(file),
+          aiSummary: `Uploaded for task: ${activeActionTask.name}`
+        };
+      }
+
+      // Attach taskId metadata
+      (createdDoc as any).attachedTaskId = activeActionTask.id;
+
+      // Submit the task action and trigger reload
+      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name);
+      setIsInlineDocModalOpen(false);
+    } catch (err: any) {
+      // Optimistic fallback on network error
+      const mockDoc: CaseDocument = {
+        id: `doc-${Date.now()}`,
+        caseId: finalCaseId,
+        name: file.name,
+        category: docCategory,
+        fileSize: `${(file.size / 1024).toFixed(0)} KB`,
+        uploadedBy: uploaderName,
+        uploadedAt: new Date().toISOString(),
+        status: 'Pending Review',
+        fileUrl: URL.createObjectURL(file),
+        aiSummary: `Uploaded for task: ${activeActionTask.name}`
+      };
+      (mockDoc as any).attachedTaskId = activeActionTask.id;
+      submitTaskAction(activeActionTask.stageId, activeActionTask.id, file.name);
+      setIsInlineDocModalOpen(false);
+    } finally {
+      setIsInlineUploading(false);
+    }
+  };
+
+  const handleTaskAction = (task: any, stageId: number) => {
+    setActiveActionTask({ id: task.id, stageId, name: task.name });
+
+    if (task.id === 'st1-4' || task.id === 'st5-0') {
       handleTabChange('payments');
-    } else if (task.id === 'st1-3') {
-      openSignModal?.();
-      markTaskCompleted(task.id);
-    } else if (task.id === 'st3-1') {
-      openQuestionnaireModal?.();
-      markTaskCompleted(task.id);
+    } else if (task.id === 'st1-3' || task.id === 'st3-4') {
+      if (openSignModal) {
+        openSignModal();
+      } else {
+        setIsEndeavorModalOpen(true);
+      }
+    } else if (task.id === 'st1-1' || task.id === 'st3-1') {
+      if (openQuestionnaireModal) {
+        openQuestionnaireModal();
+      } else {
+        handleTabChange('forms');
+      }
+    } else if (task.id === 'st2-1') {
+      setIsEndeavorModalOpen(true);
+    } else if (task.id === 'st2-2') {
+      setIsRecommenderActionModalOpen(true);
+    } else if (task.id === 'st2-4') {
+      setIsDispatchModalOpen(true);
+    } else if (task.id === 'st5-5') {
+      setIsAddressModalOpen(true);
     } else {
-      openNewDocModal();
-      markTaskCompleted(task.id);
+      // Document upload tasks: st1-2, st2-5, st6-4, etc.
+      setIsInlineDocModalOpen(true);
+      if (openNewDocModal) openNewDocModal();
     }
   };
 
@@ -852,15 +1164,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
               <button
                 onClick={() => {
-                  if (nextActionTask.name.includes('Upload') || nextActionTask.name.includes('CV') || nextActionTask.name.includes('Documentation')) openNewDocModal();
-                  else {
+                  if (nextActionTask.id !== 'fallback') {
+                    handleTaskAction(nextActionTask, nextActionTask.stageId);
+                  } else {
                     handleTabChange('tasks');
-                    setExpandedStage(nextActionTask.stageId);
                   }
                 }}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer transition-all"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>{nextActionTask.name.includes('CV') || nextActionTask.name.includes('Upload') || nextActionTask.name.includes('Documentation') ? 'Upload Documents' : 'Complete Task'}</span>
+                <Sparkles className="w-4 h-4" />
+                <span>Take Action Now</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -1146,37 +1459,134 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                       )}
                       {getStageTasks(stageGroup).map((task) => {
                         const resolvedStatus = getResolvedTaskStatus(task, stageGroup.id);
+                        const isAwaitingAction = resolvedStatus === 'Awaiting Client' || resolvedStatus === 'Revision Required';
+                        const isUnderReview = resolvedStatus === 'Under Review' || resolvedStatus === 'Submitted';
+                        const isCompleted = resolvedStatus === 'Approved/Completed';
+
                         return (
-                          <div key={task.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                            <div className="space-y-1">
+                          <div 
+                            key={task.id} 
+                            className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                              isAwaitingAction
+                                ? 'bg-amber-50/80 border-amber-300 shadow-xs ring-1 ring-amber-200'
+                                : isUnderReview
+                                ? 'bg-indigo-50/50 border-indigo-200 shadow-2xs'
+                                : isCompleted
+                                ? 'bg-emerald-50/30 border-emerald-200'
+                                : 'bg-white border-slate-100 hover:border-slate-200'
+                            }`}
+                          >
+                            <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-bold text-slate-800">{task.name}</span>
+                                <span className={`font-bold ${isCompleted ? 'text-slate-700' : 'text-slate-900'}`}>
+                                  {task.name}
+                                </span>
                                 {task.flowLabel && (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 text-amber-900 border border-amber-300">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                                     {task.flowLabel}
                                   </span>
                                 )}
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.assignedTo === 'Client'
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  task.assignedTo === 'Client'
                                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                     : 'bg-slate-100 text-slate-600'
-                                  }`}>
-                                  Assigned to: {task.assignedTo}
+                                }`}>
+                                  {task.assignedTo === 'Client' ? '👤 Client' : '🏢 Babel Global Team'}
                                 </span>
                               </div>
                               {task.deadline && (
                                 <p className="text-[11px] text-amber-700 font-medium">Target Deadline: {task.deadline}</p>
                               )}
+                              {task.requiredDocs && task.requiredDocs.length > 0 && (
+                                <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                                  <FileText className="w-3 h-3 text-slate-400" />
+                                  Required Documents: {task.requiredDocs.join(', ')}
+                                </p>
+                              )}
+
+                              {/* Attached / Uploaded Evidence for this specific sub-task */}
+                              {(() => {
+                                const taskDocs = getTaskMatchingDocuments(task, clientDocs);
+                                if (taskDocs.length === 0) return null;
+                                return (
+                                  <div className="mt-2.5 pt-2 border-t border-slate-100/80 flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                                      <Paperclip className="w-3 h-3 text-blue-600" />
+                                      Attached Documents ({taskDocs.length}):
+                                    </span>
+                                    {taskDocs.map(doc => (
+                                      <div
+                                        key={doc.id}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50/80 hover:bg-blue-100/90 border border-blue-200 text-xs text-blue-900 font-medium transition-colors shadow-2xs"
+                                      >
+                                        <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                        <span className="max-w-[170px] truncate font-semibold" title={doc.name}>{doc.name}</span>
+                                        {doc.fileSize && <span className="text-[10px] text-slate-400 font-mono">({doc.fileSize})</span>}
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-white text-blue-800 border border-blue-200">
+                                          {doc.status || 'Pending Review'}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPreviewDoc(doc);
+                                          }}
+                                          className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs ml-0.5"
+                                          title="View / Preview Document"
+                                        >
+                                          <Eye className="w-2.5 h-2.5" />
+                                          <span>View</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            downloadDocumentFile(doc);
+                                          }}
+                                          className="p-1 text-slate-400 hover:text-blue-700 hover:bg-blue-200/60 rounded cursor-pointer transition-colors"
+                                          title="Download Document"
+                                        >
+                                          <Download className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                               {getStatusBadge(resolvedStatus)}
-                              {resolvedStatus === 'Awaiting Client' && (
+                              
+                              {/* Prominent Take Action button when Awaiting Client */}
+                              {isAwaitingAction && task.assignedTo === 'Client' && (
                                 <button
-                                  onClick={() => handleTaskAction(task)}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg cursor-pointer transition-colors"
+                                  onClick={() => handleTaskAction(task, stageGroup.id)}
+                                  className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer animate-pulse ring-2 ring-amber-300"
                                 >
-                                  Action Now
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>{resolvedStatus === 'Revision Required' ? 'Revise Action' : 'Take Action'}</span>
                                 </button>
+                              )}
+
+                              {/* Secondary Start Task button when Not Started so client is never blocked */}
+                              {resolvedStatus === 'Not Started' && task.assignedTo === 'Client' && (
+                                <button
+                                  onClick={() => handleTaskAction(task, stageGroup.id)}
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 font-semibold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                                  title="Click to start this task or upload documents"
+                                >
+                                  <Sparkles className="w-3 h-3 text-slate-400" />
+                                  <span>Start Task</span>
+                                </button>
+                              )}
+
+                              {/* Pending Staff Review indicator when Under Review */}
+                              {isUnderReview && (
+                                <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-indigo-500" />
+                                  Waiting for Staff Review
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1223,13 +1633,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     {doc.status}
                   </span>
                   <button
+                    onClick={() => setPreviewDoc(doc)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    title="View Document"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View</span>
+                  </button>
+                  <button
                     onClick={() => downloadDocumentFile(doc)}
-                    className="p-2 text-slate-400 hover:text-blue-600 cursor-pointer"
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
                     title="Download File"
                   >
                     <Download className="w-4 h-4" />
@@ -2054,6 +2472,443 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           currentUser={{ id: caseData.clientId, name: caseData.clientName, email: caseData.clientEmail, role: 'client' }}
         />
       )}
+
+      {/* ── Action Lifecycle Modals ────────────────────────────────────────── */}
+
+      {/* 1. Endeavor Statement Review Modal (st2-1) */}
+      <Modal
+        isOpen={isEndeavorModalOpen}
+        onClose={() => setIsEndeavorModalOpen(false)}
+        title="Review & Approve Proposed Endeavor Statement"
+        subtitle="USCIS EB-2 NIW Dhanasar Prong 1 Assessment: Substantial Merit & National Importance"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-950 space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span className="font-bold text-sm">Proposed Endeavor Formulation</span>
+            </div>
+            <p className="leading-relaxed font-medium text-slate-800 bg-white p-3.5 rounded-lg border border-blue-200">
+              "{caseData?.dhanasar?.prong1?.endeavorSummary || (caseData as any)?.fieldOfEndeavor || `Advancing research, software architectures, and engineering innovations in ${caseData?.fieldCategory || 'technology'} to optimize critical systems, drive economic competitiveness, and advance national technological leadership in the United States.`}"
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <h4 className="font-bold text-slate-900 text-xs">Dhanasar 3-Prong Statutory Alignment:</h4>
+            <ul className="space-y-1.5 text-slate-600 text-[11px] list-disc list-inside">
+              <li><strong>Prong 1:</strong> The endeavor possesses substantial intrinsic merit and prospective national importance across the US.</li>
+              <li><strong>Prong 2:</strong> Your education, research publications, and career milestones position you well to advance this endeavor.</li>
+              <li><strong>Prong 3:</strong> On balance, it is beneficial to the United States to waive the requirement of a job offer and labor certification (PERM).</li>
+            </ul>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-800 mb-1">
+              Feedback or Suggested Minor Revisions <span className="font-normal text-slate-500">(Optional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={endeavorFeedback}
+              onChange={(e) => setEndeavorFeedback(e.target.value)}
+              placeholder="If you have minor factual corrections or specific project titles you'd like highlighted, write them here..."
+              className="w-full p-3 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsEndeavorModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                submitTaskAction(2, 'st2-1');
+                setIsEndeavorModalOpen(false);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Approve Proposed Endeavor &amp; Submit</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 2. Recommender Identification Modal (st2-2) */}
+      <Modal
+        isOpen={isRecommenderActionModalOpen}
+        onClose={() => setIsRecommenderActionModalOpen(false)}
+        title="Identify 3 to 5 Expert Recommenders"
+        subtitle="USCIS EB-2 NIW Dhanasar Prong 2: Substantial Recognition & Independent Evaluation"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 text-purple-950 text-[11px] leading-relaxed">
+            <span className="font-bold block mb-1">USCIS Adjudication Standard:</span>
+            USCIS adjudicators place maximum evidentiary weight on testimonial letters provided by <strong>independent experts</strong> who know of your work through citations, implementations, or prestigious conferences, but have not directly collaborated with you.
+          </div>
+
+          {/* Current List */}
+          <div>
+            <h4 className="font-bold text-slate-900 text-xs mb-2">Identified Recommenders ({recList.length})</h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {recList.map((rec, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-800 block">{rec.name}</span>
+                    <span className="text-[11px] text-slate-500">{rec.institution || 'Institutional Affiliation'} • {rec.relationship || 'Independent Expert'}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                    {rec.relationship || 'Independent'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add New Recommender */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl space-y-3">
+            <span className="font-bold text-slate-800 block">Add New Expert Recommender Candidate</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Full Name (e.g., Prof. Elena Rostova)"
+                value={newRecName}
+                onChange={(e) => setNewRecName(e.target.value)}
+                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+              />
+              <input
+                type="text"
+                placeholder="Institution (e.g., Johns Hopkins University)"
+                value={newRecInstitution}
+                onChange={(e) => setNewRecInstitution(e.target.value)}
+                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Field / Specialization"
+                value={newRecField}
+                onChange={(e) => setNewRecField(e.target.value)}
+                className="flex-1 p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newRecName.trim()) {
+                    setRecList(prev => [...prev, {
+                      name: newRecName.trim(),
+                      institution: newRecInstitution.trim() || 'Independent Research Institute',
+                      relationship: 'Independent Expert',
+                      field: newRecField.trim()
+                    }]);
+                    setNewRecName('');
+                    setNewRecInstitution('');
+                    setNewRecField('');
+                  }
+                }}
+                className="px-4 py-2.5 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 cursor-pointer"
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsRecommenderActionModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                submitTaskAction(2, 'st2-2');
+                setIsRecommenderActionModalOpen(false);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Submit Recommender Roster for Review</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 3. Letters Dispatched Confirmation Modal (st2-4) */}
+      <Modal
+        isOpen={isDispatchModalOpen}
+        onClose={() => setIsDispatchModalOpen(false)}
+        title="Confirm Draft Letters Sent to Recommenders"
+        subtitle="Keep your legal drafting team informed of external communications"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-950 space-y-2">
+            <p className="leading-relaxed">
+              Your petition drafting team has prepared customized recommendation letters tailored to the specific qualifications of each recommender.
+            </p>
+            <p className="text-[11px] text-slate-600">
+              Please confirm that you have reviewed the drafted letters and forwarded them to your recommenders for review and signature on official institutional letterhead.
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="confirmDispatch"
+              defaultChecked
+              className="mt-0.5 w-4 h-4 rounded text-blue-600 cursor-pointer"
+            />
+            <label htmlFor="confirmDispatch" className="text-slate-800 leading-snug cursor-pointer">
+              <strong>I confirm that I have dispatched the drafted letters to my recommenders.</strong> Once signed on official letterhead, I will upload the signed copies in Stage 2.
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsDispatchModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                submitTaskAction(2, 'st2-4');
+                setIsDispatchModalOpen(false);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Confirm Dispatched &amp; Submit for Review</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 4. Shipping Address Confirmation Modal (st5-5) */}
+      <Modal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        title="Confirm Mailing &amp; Shipping Address"
+        subtitle="Official address for USCIS Form I-797C receipt notices and physical filing package"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-[11px] leading-relaxed">
+            Please verify your current United States or international physical mailing address. USCIS will mail your official Form I-797C Notice of Action to this address.
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Street Address</label>
+              <input
+                type="text"
+                value={shipStreet}
+                onChange={(e) => setShipStreet(e.target.value)}
+                className="w-full p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">City</label>
+                <input
+                  type="text"
+                  value={shipCity}
+                  onChange={(e) => setShipCity(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">State / Province</label>
+                <input
+                  type="text"
+                  value={shipState}
+                  onChange={(e) => setShipState(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">ZIP / Postal Code</label>
+                <input
+                  type="text"
+                  value={shipZip}
+                  onChange={(e) => setShipZip(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Contact Phone</label>
+              <input
+                type="text"
+                value={shipPhone}
+                onChange={(e) => setShipPhone(e.target.value)}
+                className="w-full p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsAddressModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                submitTaskAction(5, 'st5-5');
+                setIsAddressModalOpen(false);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Confirm Shipping Address</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 5. Inline Document Action Confirmation Modal */}
+      <Modal
+        isOpen={isInlineDocModalOpen}
+        onClose={() => setIsInlineDocModalOpen(false)}
+        title={activeActionTask ? `Evidence Submission: ${activeActionTask.name}` : "Upload Case Evidence Documents"}
+        subtitle="Attach supporting documents and submit directly to immigration staff for review"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-950 space-y-2">
+            <div className="flex items-center gap-2">
+              <Upload className="w-4 h-4 text-blue-600" />
+              <span className="font-bold">Required Evidence Upload</span>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-slate-700">
+              Upload your documents directly below. Once uploaded, the file will be attached to this task, placed in your case vault, and sent for legal review.
+            </p>
+          </div>
+
+          {/* Already Attached Documents for this task */}
+          {activeActionTask && (() => {
+            const currentTaskDocs = getTaskMatchingDocuments({ id: activeActionTask.id, name: activeActionTask.name }, clientDocs);
+            if (currentTaskDocs.length === 0) return null;
+            return (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="font-bold text-slate-700 block text-[11px]">
+                  Attached to this task ({currentTaskDocs.length}):
+                </span>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {currentTaskDocs.map(doc => (
+                    <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="font-semibold text-slate-800 truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
+                        {doc.fileSize && <span className="text-[10px] text-slate-400">({doc.fileSize})</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          {doc.status || 'Pending Review'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => downloadDocumentFile(doc)}
+                          className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded cursor-pointer"
+                          title="Download file"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Direct File Upload Area */}
+          <div>
+            <input
+              type="file"
+              id="direct-subtask-file-input"
+              className="hidden"
+              onChange={handleDirectInlineFileUpload}
+              disabled={isInlineUploading}
+            />
+            <label
+              htmlFor="direct-subtask-file-input"
+              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                isInlineUploading 
+                  ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-75' 
+                  : 'bg-slate-50 hover:bg-blue-50/50 border-slate-300 hover:border-blue-400'
+              }`}
+            >
+              {isInlineUploading ? (
+                <div className="flex flex-col items-center gap-2 text-blue-600">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                  <span className="font-bold text-xs">Uploading &amp; attaching document...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <span className="font-bold text-slate-800 text-xs">Click here to select and upload document</span>
+                  <span className="text-[11px] text-slate-500 mt-0.5">PDF, DOCX, PNG, JPG (up to 25MB)</span>
+                </>
+              )}
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                if (openNewDocModal) openNewDocModal();
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer flex items-center gap-1"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Or Open Full Vault Uploader</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsInlineDocModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  submitTaskAction(activeActionTask?.stageId || 1, activeActionTask?.id || 'st1-2');
+                  setIsInlineDocModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-1.5 text-xs"
+              >
+                <Check className="w-4 h-4" />
+                <span>Submit for Legal Review</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Document View / Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        document={previewDoc}
+      />
 
     </div>
   );

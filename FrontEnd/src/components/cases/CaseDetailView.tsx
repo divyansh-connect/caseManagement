@@ -25,13 +25,17 @@ import {
   ArrowUp,
   ArrowDown,
   ShieldCheck,
-  Slash
+  Slash,
+  Paperclip,
+  Eye
 } from 'lucide-react';
 import { CaseItem, StageId, CaseDocument, Recommender, CaseMessage, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { StageBadge, RiskBadge, StatusBadge } from '../common/Badge';
 import { api } from '../../services/api';
 import { downloadDocumentFile } from '../../utils/downloadHelper';
+import { getTaskMatchingDocuments } from '../../utils/documentTaskMatcher';
+import { DocumentPreviewModal } from '../modals/DocumentPreviewModal';
 
 export type TaskStatus = 
   | 'Not Started' 
@@ -148,16 +152,42 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
 
 const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGroup[] => {
   if (!cData) return INITIAL_WORKFLOW_STAGES;
+
+  // 1. Direct database-persisted workflowTasks if present on caseData
+  if ((cData as any)?.workflowTasks && Array.isArray((cData as any).workflowTasks) && (cData as any).workflowTasks.length > 0) {
+    return (cData as any).workflowTasks;
+  }
+
   let savedGroups: StageGroup[] | null = null;
-  try {
-    const saved = localStorage.getItem(`workflow_stage_tasks_${cData.id}`);
-    if (saved) {
-      savedGroups = JSON.parse(saved);
-    }
-  } catch (e) {}
+  const candidateKeys = [
+    'workflow_stage_tasks_master',
+    `workflow_stage_tasks_${cData.id}`,
+    cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null,
+    cData.clientId ? `workflow_stage_tasks_${cData.clientId}` : null,
+    'workflow_stage_tasks_shared',
+    'workflow_stage_tasks_latest'
+  ].filter(Boolean) as string[];
+
+  for (const k of candidateKeys) {
+    try {
+      const saved = localStorage.getItem(k);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          savedGroups = parsed;
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // If already customized and saved in localStorage, respect saved tasks directly!
+  if (savedGroups) {
+    return savedGroups;
+  }
 
   const currStage = Number(cData.currentStage) || 1;
-  const base = savedGroups || INITIAL_WORKFLOW_STAGES.map(stage => {
+  const base = INITIAL_WORKFLOW_STAGES.map(stage => {
     if (stage.id < currStage) {
       return {
         ...stage,
@@ -186,14 +216,10 @@ const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGr
       return {
         ...stage,
         tasks: stage.tasks.map(t => {
-          if (t.id === 'st1-2') {
-            if (hasDocs || clientCompleted.includes('st1-5') || clientCompleted.includes('st1-2')) {
-              if (t.status === 'Not Started' || t.status === 'Awaiting Client') {
-                return { ...t, status: 'Approved/Completed' as TaskStatus };
-              }
-            }
+          if (t.id === 'st1-2' && (hasDocs || clientCompleted.includes('st1-2') || clientCompleted.includes('st1-5'))) {
+            return { ...t, status: 'Under Review' as TaskStatus };
           }
-          if (clientCompleted.includes(t.id) && (t.status === 'Not Started' || t.status === 'Awaiting Client')) {
+          if (clientCompleted.includes(t.id)) {
             return { ...t, status: 'Approved/Completed' as TaskStatus };
           }
           return t;
@@ -232,6 +258,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
   const [expandedStage, setExpandedStage] = useState<number>(() => caseData?.currentStage || 1);
   const [stageGroups, setStageGroups] = useState<StageGroup[]>(() => getInitialStageGroups(caseData));
+  const [previewDoc, setPreviewDoc] = useState<CaseDocument | null>(null);
 
   // Comprehensive active case exhibits combining direct documents prop and caseData.documents
   const activeCaseDocs = React.useMemo(() => {
@@ -259,6 +286,49 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
     if (caseData?.id) {
       setStageGroups(getInitialStageGroups(caseData, activeCaseDocs.length));
       setExpandedStage(Number(caseData.currentStage) || 1);
+
+      const reloadTasks = () => {
+        try {
+          const saved = localStorage.getItem(`workflow_stage_tasks_${caseData.id}`);
+          if (saved) {
+            setStageGroups(JSON.parse(saved));
+          }
+        } catch {}
+      };
+
+      const handleWorkflowEvent = (e: any) => {
+        if (!e.detail?.caseId || e.detail.caseId === caseData.id) {
+          reloadTasks();
+        }
+      };
+
+      const handleStorageEvent = (e: StorageEvent) => {
+        if (e.key === `workflow_stage_tasks_${caseData.id}`) {
+          reloadTasks();
+        }
+      };
+
+      window.addEventListener('workflow_task_updated', handleWorkflowEvent);
+      window.addEventListener('storage', handleStorageEvent);
+
+      let bc: BroadcastChannel | null = null;
+      try {
+        bc = new BroadcastChannel('jurisflow_workflow_sync');
+        bc.onmessage = (msg) => {
+          if (!msg.data?.caseId || msg.data.caseId === caseData.id) {
+            reloadTasks();
+          }
+        };
+      } catch {}
+
+      const interval = setInterval(reloadTasks, 2500);
+
+      return () => {
+        window.removeEventListener('workflow_task_updated', handleWorkflowEvent);
+        window.removeEventListener('storage', handleStorageEvent);
+        if (bc) bc.close();
+        clearInterval(interval);
+      };
     }
   }, [caseData?.id, caseData?.currentStage, activeCaseDocs.length]);
 
@@ -335,10 +405,20 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
         return { ...group, tasks: updatedTasks };
       });
 
-      // Persist to localStorage for this specific case
+      // Persist to localStorage across all candidate keys for seamless client sync
       try {
+        const serialized = JSON.stringify(updatedGroups);
+        localStorage.setItem('workflow_stage_tasks_master', serialized);
         if (caseData?.id) {
-          localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, JSON.stringify(updatedGroups));
+          localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
+          if (caseData.caseNumber) {
+            localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
+          }
+          if (caseData.clientId) {
+            localStorage.setItem(`workflow_stage_tasks_${caseData.clientId}`, serialized);
+          }
+          localStorage.setItem('workflow_stage_tasks_shared', serialized);
+          localStorage.setItem('workflow_stage_tasks_latest', serialized);
           
           // Keep completed_client_tasks in sync as well
           const clientKey = `completed_client_tasks_${caseData.id}`;
@@ -353,7 +433,33 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           } else {
             clientCompleted = clientCompleted.filter(id => id !== taskId && id !== clientEquivId);
           }
-          localStorage.setItem(clientKey, JSON.stringify(clientCompleted));
+          const clientCompletedStr = JSON.stringify(clientCompleted);
+          localStorage.setItem(clientKey, clientCompletedStr);
+          if (caseData.caseNumber) {
+            localStorage.setItem(`completed_client_tasks_${caseData.caseNumber}`, clientCompletedStr);
+          }
+          localStorage.setItem('completed_client_tasks_shared', clientCompletedStr);
+
+          // Broadcast to client portal and other tabs immediately
+          window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+            detail: { caseId: caseData.id, caseNumber: caseData.caseNumber, stageId, taskId, newStatus }
+          }));
+          try {
+            const bc = new BroadcastChannel('jurisflow_workflow_sync');
+            bc.postMessage({ caseId: caseData.id, caseNumber: caseData.caseNumber, stageId, taskId, newStatus });
+            bc.close();
+          } catch {}
+
+          // Persist directly to backend DB so other browsers & incognito sessions receive status immediately
+          const caseIdentifier = caseData.caseNumber || caseData.id;
+          if (caseIdentifier) {
+            api.patch(`/cases/${caseIdentifier}`, {
+              notes: JSON.stringify({
+                workflowTasks: updatedGroups,
+                lastUpdated: new Date().toISOString()
+              })
+            }).catch(() => {});
+          }
         }
       } catch (e) {}
 
@@ -562,17 +668,23 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       {activeTab === 'workflow' && (
         <div className="space-y-3">
           {/* Legend / Key */}
-          {userRole === 'superadmin' && (
+          {(userRole === 'superadmin' || userRole === 'admin') && (
             <div className="flex flex-wrap items-center gap-2 bg-slate-900 text-white rounded-xl px-4 py-3 text-[11px]">
               <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="font-bold text-amber-300 mr-1">Super Admin Controls Active:</span>
-              <span className="text-slate-300">Change task status via dropdown</span>
+              <span className="font-bold text-amber-300 mr-1">{userRole === 'superadmin' ? 'Super Admin' : 'Case Admin'} Interactive Controls:</span>
+              <span className="text-slate-300">Set status to "Awaiting Client" to prompt client</span>
               <span className="text-slate-500">•</span>
-              <span className="text-slate-300">Reorder tasks ▲▼</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-slate-300">Waive / mark Not Applicable</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-slate-300">Override Unlock Stage</span>
+              <span className="text-slate-300">1-Click Approve / Revise submissions</span>
+              {userRole === 'superadmin' && (
+                <>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-300">Reorder tasks ▲▼</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-300">Waive tasks</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-300">Override Unlock Stage</span>
+                </>
+              )}
             </div>
           )}
 
@@ -691,11 +803,26 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                     {stage.tasks.map((task, taskIdx) => {
                       const isNA = task.status === 'Not Applicable';
                       const isDone = task.status === 'Approved/Completed';
+                      const isSubmitted = task.status === 'Submitted' || task.status === 'Under Review';
+                      const isAwaiting = task.status === 'Awaiting Client';
+                      const isRevision = task.status === 'Revision Required';
+                      const canManage = userRole === 'superadmin' || userRole === 'admin';
+
                       return (
                         <div
                           key={task.id}
-                          className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 text-xs transition-colors ${
-                            isNA ? 'opacity-50 bg-zinc-50' : isDone ? 'bg-emerald-50/40' : 'bg-white hover:bg-slate-50/60'
+                          className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 text-xs transition-all ${
+                            isNA
+                              ? 'opacity-50 bg-zinc-50'
+                              : isSubmitted
+                              ? 'bg-amber-50/80 border-l-4 border-l-amber-500 shadow-2xs'
+                              : isAwaiting
+                              ? 'bg-purple-50/40 border-l-4 border-l-purple-400'
+                              : isRevision
+                              ? 'bg-rose-50/40 border-l-4 border-l-rose-400'
+                              : isDone
+                              ? 'bg-emerald-50/40'
+                              : 'bg-white hover:bg-slate-50/60'
                           }`}
                         >
                           {/* Super Admin reorder buttons */}
@@ -722,8 +849,15 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 
                           {/* Task name + assignment */}
                           <div className="flex-1 min-w-0">
-                            <div className={`font-semibold text-slate-800 leading-snug ${isNA ? 'line-through text-slate-400' : ''}`}>
-                              {task.name}
+                            <div className="flex items-center gap-2">
+                              <span className={`font-semibold text-slate-800 leading-snug ${isNA ? 'line-through text-slate-400' : ''}`}>
+                                {task.name}
+                              </span>
+                              {isSubmitted && (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-200 text-amber-900 border border-amber-300 animate-pulse">
+                                  Action Submitted
+                                </span>
+                              )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -746,6 +880,53 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                                 </span>
                               )}
                             </div>
+
+                            {/* Attached / Uploaded Evidence for this specific sub-task */}
+                            {(() => {
+                              const taskDocs = getTaskMatchingDocuments(task, activeCaseDocs);
+                              if (taskDocs.length === 0) return null;
+                              return (
+                                <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                                    <Paperclip className="w-3 h-3 text-blue-600" />
+                                    Attached Documents ({taskDocs.length}):
+                                  </span>
+                                  {taskDocs.map(doc => (
+                                    <div
+                                      key={doc.id}
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200 text-[10px] text-blue-900 font-medium transition-colors"
+                                    >
+                                      <FileText className="w-3 h-3 text-blue-600 shrink-0" />
+                                      <span className="max-w-[150px] truncate font-semibold" title={doc.name}>{doc.name}</span>
+                                      {doc.fileSize && <span className="text-[9px] text-slate-400 font-mono">({doc.fileSize})</span>}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPreviewDoc(doc);
+                                        }}
+                                        className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                        title="View / Preview Document"
+                                      >
+                                        <Eye className="w-2.5 h-2.5" />
+                                        <span>View</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          downloadDocumentFile(doc);
+                                        }}
+                                        className="p-0.5 text-slate-400 hover:text-blue-700 hover:bg-blue-200/60 rounded cursor-pointer transition-colors"
+                                        title="Download Document"
+                                      >
+                                        <Download className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Status badge */}
@@ -753,21 +934,60 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                             {getTaskStatusBadge(task.status)}
                           </div>
 
-                          {/* Super Admin Controls */}
-                          {userRole === 'superadmin' && (
-                            <div className="flex items-center gap-2 shrink-0">
+                          {/* Super Admin & Admin Controls */}
+                          {canManage && (
+                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                              {/* 1-Click Quick Actions when client submitted */}
+                              {isSubmitted && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateTaskStatus(stage.id, task.id, 'Approved/Completed')}
+                                    className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer animate-pulse"
+                                    title="Approve client's submission and mark task as completed"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateTaskStatus(stage.id, task.id, 'Revision Required')}
+                                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                    title="Request changes/corrections from client"
+                                  >
+                                    <AlertCircle className="w-3 h-3" />
+                                    Revise
+                                  </button>
+                                </>
+                              )}
+
+                              {/* 1-Click Request Client Action when task is Not Started and assigned to Client */}
+                              {task.status === 'Not Started' && task.assignedTo === 'Client' && (
+                                <button
+                                  onClick={() => handleUpdateTaskStatus(stage.id, task.id, 'Awaiting Client')}
+                                  className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors cursor-pointer"
+                                  title="Notify client and prompt them to take action"
+                                >
+                                  <Send className="w-3 h-3 text-purple-600" />
+                                  Request Action
+                                </button>
+                              )}
+
                               {/* Status dropdown */}
                               <select
                                 value={task.status}
                                 onChange={(e) => handleUpdateTaskStatus(stage.id, task.id, e.target.value as TaskStatus)}
-                                className="text-[10px] border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className={`text-[10px] border rounded-md px-2 py-1 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                  isSubmitted
+                                    ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold'
+                                    : 'border-slate-200 bg-white text-slate-700'
+                                }`}
                               >
                                 {(['Not Started', 'Awaiting Client', 'Submitted', 'Under Review', 'Revision Required', 'Approved/Completed', 'Not Applicable'] as TaskStatus[]).map(s => (
                                   <option key={s} value={s}>{s}</option>
                                 ))}
                               </select>
+
                               {/* Waive button */}
-                              {!isNA && (
+                              {userRole === 'superadmin' && !isNA && (
                                 <button
                                   onClick={() => handleWaiveTask(stage.id, task.id)}
                                   className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-100 text-zinc-600 border border-zinc-200 hover:bg-zinc-200 transition-colors cursor-pointer"
@@ -1306,6 +1526,13 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           </form>
         </div>
       )}
+
+      {/* Document View / Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        document={previewDoc}
+      />
     </div>
   );
 };
