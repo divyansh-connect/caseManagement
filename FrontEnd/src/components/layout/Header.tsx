@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'payments': return 'Retainers & Fees';
       case 'templates': return 'NIW Case Templates';
       case 'reports': return 'Analytics & USCIS Reports';
-      case 'settings': return 'System Settings & Security';
+      case 'settings': return userRole === 'client' ? 'Profile & Account Settings' : 'System Settings & Security';
       case 'clientPortal': return 'Client Petition Portal';
       default: return 'Babel Global Workspace';
     }
