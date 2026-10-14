@@ -418,12 +418,25 @@ export default function App() {
     }
   };
 
-  // Navigate to Tab & Update URL
-  const navigateToTab = (tab: NavTab) => {
+  // Navigate to Tab & Update URL (supports optional filter parameters)
+  const navigateToTab = (tab: NavTab, options?: { stageIds?: number[]; category?: string }) => {
     setActiveTab(tab);
     setSelectedCaseId(null);
     setIsMobileMenuOpen(false);
-    const targetPath = TAB_TO_PATH[tab] || '/dashboard';
+    let targetPath = TAB_TO_PATH[tab] || '/dashboard';
+    if (tab === 'cases' && options) {
+      const params = new URLSearchParams();
+      if (options.stageIds && options.stageIds.length > 0) {
+        params.set('stageIds', options.stageIds.join(','));
+      }
+      if (options.category) {
+        params.set('category', options.category);
+      }
+      const qs = params.toString();
+      if (qs) {
+        targetPath = `${targetPath}?${qs}`;
+      }
+    }
     navigate(targetPath);
   };
 

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -10,10 +11,28 @@ import {
   ShieldCheck,
   Building2,
   Users,
-  Briefcase
+  Briefcase,
+  Layers,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { CaseItem, RiskLevel, UserRole } from '../../types';
 import { StageBadge, RiskBadge } from '../common/Badge';
+
+export interface FunnelStageConfig {
+  id: string;
+  cat: string;
+  stages: string;
+  stageIds: number[];
+}
+
+export const FUNNEL_STAGES: FunnelStageConfig[] = [
+  { id: 'stage-1', cat: 'Consultation & Onboarding', stages: 'Stage 1', stageIds: [1] },
+  { id: 'stage-2', cat: 'Strategy & Recommenders', stages: 'Stage 2', stageIds: [2] },
+  { id: 'stage-3', cat: 'Forms Preparation', stages: 'Stage 3', stageIds: [3] },
+  { id: 'stage-4', cat: 'Drafting & Review', stages: 'Stage 4', stageIds: [4] },
+  { id: 'stage-5-6', cat: 'Package & Filing', stages: 'Stages 5 - 6', stageIds: [5, 6, 7] },
+];
 
 interface CasesListViewProps {
   cases: CaseItem[];
@@ -30,9 +49,84 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
   openAIAssistant,
   userRole = 'admin',
 }) => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Helper to parse active stage filter from URL search parameters
+  const parseStageFromParams = () => {
+    const stageIdsParam = searchParams.get('stageIds');
+    const categoryParam = searchParams.get('category');
+
+    if (stageIdsParam) {
+      const ids = stageIdsParam.split(',').map(n => Number(n.trim())).filter(n => !isNaN(n));
+      const matched = FUNNEL_STAGES.find(g => 
+        g.stageIds.length === ids.length && g.stageIds.every(id => ids.includes(id))
+      );
+      if (matched) return matched.id;
+    }
+
+    if (categoryParam) {
+      const matched = FUNNEL_STAGES.find(g => 
+        g.cat.toLowerCase() === categoryParam.toLowerCase()
+      );
+      if (matched) return matched.id;
+    }
+
+    return 'all';
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRisk, setSelectedRisk] = useState<string>('all');
   const [selectedCenter, setSelectedCenter] = useState<string>('all');
+  const [selectedStage, setSelectedStage] = useState<string>(parseStageFromParams);
+
+  // Sync selectedStage whenever URL searchParams change
+  useEffect(() => {
+    setSelectedStage(parseStageFromParams());
+  }, [searchParams]);
+
+  const currentFunnelGroup = FUNNEL_STAGES.find(g => g.id === selectedStage);
+  const isStageFiltered = selectedStage !== 'all' && Boolean(currentFunnelGroup);
+
+  // Handler to clear stage filter and show all cases
+  const handleClearStageFilter = () => {
+    setSelectedStage('all');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('stageIds');
+    nextParams.delete('category');
+    nextParams.delete('stage');
+    if (Array.from(nextParams.keys()).length === 0) {
+      navigate('/cases', { replace: true });
+    } else {
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
+
+  // Handler to change stage dropdown
+  const handleStageChange = (newStage: string) => {
+    setSelectedStage(newStage);
+    const nextParams = new URLSearchParams(searchParams);
+    if (newStage === 'all') {
+      nextParams.delete('stageIds');
+      nextParams.delete('category');
+      nextParams.delete('stage');
+      navigate('/cases', { replace: true });
+    } else {
+      const group = FUNNEL_STAGES.find(g => g.id === newStage);
+      if (group) {
+        nextParams.set('stageIds', group.stageIds.join(','));
+        nextParams.set('category', group.cat);
+        setSearchParams(nextParams, { replace: true });
+      }
+    }
+  };
+
+  const handleResetAllFilters = () => {
+    setSearchTerm('');
+    setSelectedRisk('all');
+    setSelectedCenter('all');
+    handleClearStageFilter();
+  };
 
   const filteredCases = cases.filter(c => {
     const matchesSearch = 
@@ -42,8 +136,13 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
     
     const matchesRisk = selectedRisk === 'all' || c.riskLevel === selectedRisk;
     const matchesCenter = selectedCenter === 'all' || c.uscisServiceCenter.includes(selectedCenter);
+    
+    const matchesStage = (() => {
+      if (selectedStage === 'all' || !currentFunnelGroup) return true;
+      return currentFunnelGroup.stageIds.includes(Number(c.currentStage));
+    })();
 
-    return matchesSearch && matchesRisk && matchesCenter;
+    return matchesSearch && matchesRisk && matchesCenter && matchesStage;
   });
 
   return (
@@ -51,13 +150,37 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">Cases Directory (EB-1A &amp; EB-2 NIW)</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">Cases Directory (EB-1A &amp; EB-2 NIW)</h1>
+            {isStageFiltered && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                Filtered: {currentFunnelGroup?.stages}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-            Manage active petition pipelines, EB-1A extraordinary criteria, and Dhanasar argument structures.
+            {isStageFiltered ? (
+              <span>
+                Filtered by <strong>{currentFunnelGroup?.cat}</strong> ({filteredCases.length} of {cases.length} active cases).
+              </span>
+            ) : (
+              'Manage active petition pipelines, EB-1A extraordinary criteria, and Dhanasar argument structures.'
+            )}
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+          {isStageFiltered && (
+            <button
+              onClick={handleClearStageFilter}
+              className="px-3.5 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-300 font-semibold text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto shadow-2xs"
+              title="Show all cases without stage filtering"
+            >
+              <Users className="w-3.5 h-3.5 text-blue-600" />
+              <span>All Cases ({cases.length})</span>
+            </button>
+          )}
+
           <button
             onClick={openAIAssistant}
             className="px-3.5 py-2 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 font-semibold text-xs hover:bg-amber-100 transition-colors flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
@@ -95,6 +218,27 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
 
           {/* Select Filters */}
           <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full md:w-auto">
+            {/* Workflow Stage Filter Dropdown */}
+            <select
+              value={selectedStage}
+              onChange={(e) => handleStageChange(e.target.value)}
+              className={`w-full sm:w-auto border text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 truncate font-medium transition-colors ${
+                isStageFiltered 
+                  ? 'bg-blue-50 border-blue-300 text-blue-900 font-bold' 
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <option value="all">All Stages ({cases.length})</option>
+              {FUNNEL_STAGES.map(g => {
+                const count = cases.filter(c => g.stageIds.includes(Number(c.currentStage))).length;
+                return (
+                  <option key={g.id} value={g.id}>
+                    {g.stages}: {g.cat} ({count})
+                  </option>
+                );
+              })}
+            </select>
+
             <select
               value={selectedRisk}
               onChange={(e) => setSelectedRisk(e.target.value)}
@@ -115,9 +259,61 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
               <option value="Nebraska">Nebraska (NSC)</option>
               <option value="Texas">Texas (TSC)</option>
             </select>
+
+            {(isStageFiltered || selectedRisk !== 'all' || selectedCenter !== 'all' || searchTerm) && (
+              <button
+                onClick={handleResetAllFilters}
+                className="text-xs text-slate-500 hover:text-slate-800 font-semibold flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Reset all filters"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Active Stage Funnel Filter Alert / Banner */}
+      {isStageFiltered && currentFunnelGroup && (
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50/40 to-white border border-blue-200 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+                  {currentFunnelGroup.stages} Funnel Filter
+                </span>
+                <span className="text-sm font-bold text-slate-900">
+                  {currentFunnelGroup.cat}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Displaying <strong>{filteredCases.length}</strong> of {cases.length} cases in this petition workflow stage
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0 justify-end">
+            <button
+              onClick={handleClearStageFilter}
+              className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>All Cases</span>
+            </button>
+            <button
+              onClick={handleClearStageFilter}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+              title="Remove filter"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cases Container */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -277,13 +473,39 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
 
         {filteredCases.length === 0 && (
           <div className="p-8 sm:p-12 text-center">
-            <p className="text-slate-500 text-sm">No NIW cases match the current filter criteria.</p>
-            <button 
-              onClick={() => { setSearchTerm(''); setSelectedRisk('all'); setSelectedCenter('all'); }} 
-              className="mt-2 text-xs text-blue-600 font-medium hover:underline cursor-pointer"
-            >
-              Reset all filters
-            </button>
+            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <Filter className="w-6 h-6" />
+            </div>
+            <p className="text-slate-800 font-semibold text-sm">
+              {isStageFiltered 
+                ? `No active cases in ${currentFunnelGroup?.cat}`
+                : 'No cases match the current filter criteria.'
+              }
+            </p>
+            <p className="text-slate-500 text-xs mt-1">
+              {isStageFiltered 
+                ? `There are currently 0 cases in ${currentFunnelGroup?.stages}. Click below to see all active petitions.`
+                : 'Try clearing your search query or reset the risk and center filters.'
+              }
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {isStageFiltered && (
+                <button
+                  onClick={handleClearStageFilter}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>View All Cases ({cases.length})</span>
+                </button>
+              )}
+              <button 
+                onClick={handleResetAllFilters} 
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-lg cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset all filters</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
