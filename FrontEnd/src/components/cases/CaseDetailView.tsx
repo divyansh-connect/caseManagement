@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   Slash,
   Paperclip,
-  Eye
+  Eye,
+  X
 } from 'lucide-react';
 import { CaseItem, StageId, CaseDocument, Recommender, CaseMessage, UserRole } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
@@ -379,13 +380,52 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       } catch {}
     };
 
+    const handleDocDeleted = (e: any) => {
+      const docId = e?.detail?.documentId;
+      const docName = e?.detail?.docName;
+      const taskId = e?.detail?.taskId;
+      if (docId || docName) {
+        setLocalFreshDocs(prev => prev.filter(d => d.id !== docId && d.name !== docName));
+      }
+      if (taskId) {
+        setStageGroups(prev => prev.map(st => ({
+          ...st,
+          tasks: st.tasks.map(t => {
+            if (t.id === taskId) {
+              const existingDocs = Array.isArray(t.submission?.documents) ? t.submission.documents : [];
+              const remainingDocs = existingDocs.filter((d: any) => d.id !== docId && d.name !== docName);
+              if (remainingDocs.length > 0) {
+                return {
+                  ...t,
+                  submission: {
+                    ...t.submission,
+                    docName: remainingDocs[0].name,
+                    documents: remainingDocs
+                  }
+                };
+              } else {
+                return {
+                  ...t,
+                  status: 'Awaiting Client' as TaskStatus,
+                  submission: undefined
+                };
+              }
+            }
+            return t;
+          })
+        })));
+      }
+    };
+
     fetchLatestDocs();
 
     window.addEventListener('document_uploaded', fetchLatestDocs);
     window.addEventListener('workflow_task_updated', fetchLatestDocs);
+    window.addEventListener('document_deleted', handleDocDeleted);
     return () => {
       window.removeEventListener('document_uploaded', fetchLatestDocs);
       window.removeEventListener('workflow_task_updated', fetchLatestDocs);
+      window.removeEventListener('document_deleted', handleDocDeleted);
     };
   }, [caseData?.id]);
 
@@ -393,14 +433,26 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const activeCaseDocs = React.useMemo(() => {
     const map = new Map<string, CaseDocument>();
 
+    const isDeleted = (d: CaseDocument) => {
+      try {
+        const deletedIds: string[] = JSON.parse(localStorage.getItem('deleted_doc_ids') || '[]');
+        const deletedNames: string[] = JSON.parse(localStorage.getItem('deleted_doc_names') || '[]');
+        return deletedIds.includes(d.id) || (d.name && deletedNames.includes(d.name));
+      } catch {
+        return false;
+      }
+    };
+
     // 1. Case attached docs on case object
     const caseAttachedDocs = Array.isArray((caseData as any)?.documents) ? (caseData as any).documents : [];
-    caseAttachedDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    caseAttachedDocs.forEach((d: CaseDocument) => { 
+      if (d?.id && !isDeleted(d)) map.set(d.id, d); 
+    });
 
     // 2. Documents passed via props or fresh API fetch
     const candidateDocs = [...(documents || []), ...localFreshDocs];
     candidateDocs.forEach((d: CaseDocument) => {
-      if (!d?.id) return;
+      if (!d?.id || isDeleted(d)) return;
       const matchesCase = 
         !caseData?.id || 
         d.caseId === caseData.id || 
@@ -429,7 +481,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) {
             parsed.forEach((d: CaseDocument) => {
-              if (d?.id && !map.has(d.id)) map.set(d.id, d);
+              if (d?.id) map.set(d.id, d);
             });
           }
         }
@@ -438,6 +490,173 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 
     return Array.from(map.values());
   }, [documents, caseData, localFreshDocs]);
+
+  // Handler to delete a document (from backend, localStorage, and active task submissions)
+  const handleDeleteDocument = async (doc: CaseDocument, taskId?: string) => {
+    if (!window.confirm(`Are you sure you want to remove document "${doc.name}"?`)) {
+      return;
+    }
+
+    try {
+      if (doc.id && !doc.id.startsWith('mock-') && !doc.id.startsWith('doc-client-')) {
+        try {
+          await api.delete(`/documents/${doc.id}`);
+        } catch (apiErr) {
+          console.warn('Backend delete document non-critical error:', apiErr);
+        }
+      }
+
+      // Add to deleted tracking sets in localStorage
+      const deletedIdsRaw = localStorage.getItem('deleted_doc_ids') || '[]';
+      const deletedIds: string[] = JSON.parse(deletedIdsRaw);
+      if (doc.id && !deletedIds.includes(doc.id)) deletedIds.push(doc.id);
+      localStorage.setItem('deleted_doc_ids', JSON.stringify(deletedIds));
+
+      const deletedNamesRaw = localStorage.getItem('deleted_doc_names') || '[]';
+      const deletedNames: string[] = JSON.parse(deletedNamesRaw);
+      if (doc.name && !deletedNames.includes(doc.name)) deletedNames.push(doc.name);
+      localStorage.setItem('deleted_doc_names', JSON.stringify(deletedNames));
+
+      // Remove from all local storage caches
+      const candidateDocKeys = [
+        'local_case_documents_master',
+        caseData?.id ? `local_case_documents_${caseData.id}` : null,
+        caseData?.caseNumber ? `local_case_documents_${caseData.caseNumber}` : null,
+      ].filter(Boolean) as string[];
+
+      for (const k of candidateDocKeys) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list: CaseDocument[] = JSON.parse(raw);
+            const filtered = list.filter(d => d.id !== doc.id && d.name !== doc.name);
+            localStorage.setItem(k, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+
+      // Update task submission if attached to a task
+      const targetTaskId = taskId || (doc as any).attachedTaskId || reviewSubmissionTask?.task?.id;
+      if (targetTaskId) {
+        const candidateTaskKeys = [
+          'workflow_stage_tasks_master',
+          caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
+          caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+          caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+          'workflow_stage_tasks_shared',
+          'workflow_stage_tasks_latest'
+        ].filter(Boolean) as string[];
+
+        for (const k of candidateTaskKeys) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const stages = JSON.parse(raw);
+              if (Array.isArray(stages)) {
+                const updatedStages = stages.map((st: any) => ({
+                  ...st,
+                  tasks: st.tasks.map((t: any) => {
+                    if (t.id === targetTaskId) {
+                      const existingDocs = Array.isArray(t.submission?.documents) ? t.submission.documents : [];
+                      const remainingDocs = existingDocs.filter((d: any) => d.id !== doc.id && d.name !== doc.name);
+                      
+                      if (remainingDocs.length > 0) {
+                        return {
+                          ...t,
+                          submission: {
+                            ...t.submission,
+                            docName: remainingDocs[0].name,
+                            documents: remainingDocs
+                          }
+                        };
+                      } else {
+                        return {
+                          ...t,
+                          status: 'Awaiting Client',
+                          submission: undefined
+                        };
+                      }
+                    }
+                    return t;
+                  })
+                }));
+                localStorage.setItem(k, JSON.stringify(updatedStages));
+              }
+            }
+          } catch {}
+        }
+
+        // Update stageGroups state
+        setStageGroups(prev => prev.map(st => ({
+          ...st,
+          tasks: st.tasks.map(t => {
+            if (t.id === targetTaskId) {
+              const existingDocs = Array.isArray(t.submission?.documents) ? t.submission.documents : [];
+              const remainingDocs = existingDocs.filter((d: any) => d.id !== doc.id && d.name !== doc.name);
+              if (remainingDocs.length > 0) {
+                return {
+                  ...t,
+                  submission: {
+                    ...t.submission,
+                    docName: remainingDocs[0].name,
+                    documents: remainingDocs
+                  }
+                };
+              } else {
+                return {
+                  ...t,
+                  status: 'Awaiting Client' as TaskStatus,
+                  submission: undefined
+                };
+              }
+            }
+            return t;
+          })
+        })));
+      }
+
+      // Update local state
+      setLocalFreshDocs(prev => prev.filter(d => d.id !== doc.id && d.name !== doc.name));
+
+      if (reviewSubmissionTask && reviewSubmissionTask.task?.id === targetTaskId) {
+        const remainingReviewDocs = (reviewSubmissionTask.task?.submission?.documents || []).filter(
+          (d: any) => d.id !== doc.id && d.name !== doc.name
+        );
+        if (remainingReviewDocs.length === 0) {
+          setReviewSubmissionTask(null);
+        } else {
+          setReviewSubmissionTask({
+            ...reviewSubmissionTask,
+            task: {
+              ...reviewSubmissionTask.task,
+              submission: {
+                ...reviewSubmissionTask.task.submission,
+                documents: remainingReviewDocs
+              }
+            }
+          });
+        }
+      }
+
+      // Broadcast deletion to all components
+      window.dispatchEvent(new CustomEvent('document_deleted', {
+        detail: { documentId: doc.id, docName: doc.name, taskId: targetTaskId }
+      }));
+      window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+        detail: { taskId: targetTaskId }
+      }));
+      try {
+        const bc = new BroadcastChannel('jurisflow_workflow_sync');
+        bc.postMessage({ taskId: targetTaskId });
+        setTimeout(() => {
+          try { bc.close(); } catch {}
+        }, 1000);
+      } catch {}
+
+    } catch (err) {
+      console.error('Error deleting document:', err);
+    }
+  };
 
   // Helper to extract rich client submission payload for any task
   const getTaskClientSubmission = (task: any) => {
@@ -480,6 +699,17 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
             sub.type = 'document';
           }
         }
+      }
+
+      // Filter out any documents that were deleted by user
+      if (Array.isArray(sub.documents)) {
+        try {
+          const deletedIds: string[] = JSON.parse(localStorage.getItem('deleted_doc_ids') || '[]');
+          const deletedNames: string[] = JSON.parse(localStorage.getItem('deleted_doc_names') || '[]');
+          sub.documents = sub.documents.filter((d: any) => 
+            !deletedIds.includes(d.id) && !deletedNames.includes(d.name)
+          );
+        } catch {}
       }
 
       // If matching documents were found, ensure type is document so document review card renders
@@ -1253,6 +1483,17 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                                         title="Download Document"
                                       >
                                         <Download className="w-2.5 h-2.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteDocument(doc, task.id);
+                                        }}
+                                        className="p-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-100/80 rounded cursor-pointer transition-colors ml-0.5"
+                                        title="Remove / Delete wrong document"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
                                       </button>
                                     </div>
                                   ))}
@@ -2119,6 +2360,14 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                             title="Download Document"
                           >
                             <Download className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(doc, reviewSubmissionTask?.task?.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-lg cursor-pointer transition-colors border border-slate-200 bg-white shadow-2xs"
+                            title="Remove / Delete wrong document"
+                          >
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
