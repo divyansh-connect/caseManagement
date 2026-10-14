@@ -2207,52 +2207,86 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-slate-800 block text-sm">Babel Global Service Agreement</span>
-                <span className="text-slate-500">Executed on Jan 10, 2026 • SHA256 Encryption Signed</span>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                Executed
-              </span>
-            </div>
+            {(() => {
+              const isAgreementExecuted = completedTaskIds.includes('st1-3') || Boolean((caseData as any)?.contractSigned);
+              return (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800 block text-sm">Babel Global Service Agreement</span>
+                    <span className="text-slate-500">
+                      {isAgreementExecuted
+                        ? 'Executed & Signed • SHA-256 Digitally Encrypted'
+                        : 'Awaiting Client Signature • Engagement Retainer Agreement Draft Ready'}
+                    </span>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    isAgreementExecuted
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {isAgreementExecuted ? 'Executed' : 'Awaiting Signature'}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Payment Plan & History */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-base">Payment Plan &amp; Milestones</h3>
-            <div className="divide-y divide-slate-100 text-xs">
-              {payments && payments.length > 0 ? (
-                payments.map((p: any) => (
-                  <div key={p.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">{p.description}</span>
-                      <span className="text-slate-400">{p.status === 'Paid' ? `Paid ${p.paidAt || p.dueDate}` : `Due ${p.dueDate}`}</span>
-                    </div>
-                    <span className={`font-bold ${p.status === 'Paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                      ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">Initial Retainer Deposit</span>
-                      <span className="text-slate-400">Paid Jan 10, 2026</span>
-                    </div>
-                    <span className="font-bold text-emerald-600">$4,000.00 (Paid)</span>
-                  </div>
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">Milestone 2: Petition Draft</span>
-                      <span className="text-slate-400">Due upon recommendation letter completion</span>
-                    </div>
-                    <span className="font-bold text-slate-800">$3,500.00 (Pending)</span>
-                  </div>
-                </>
-              )}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">Payment Plan &amp; Milestones</h3>
+                <p className="text-xs text-slate-500">Official retainer deposit and installment schedule</p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                {(() => {
+                  const clientPayments = (payments || []).filter((p: any) => 
+                    (caseData?.id && p.caseId === caseData.id) || 
+                    (p.case?.id && p.case.id === caseData?.id)
+                  );
+                  return `${clientPayments.length} Active Records`;
+                })()}
+              </span>
             </div>
+
+            {(() => {
+              const clientPayments = (payments || []).filter((p: any) => 
+                (caseData?.id && p.caseId === caseData.id) || 
+                (p.case?.id && p.case.id === caseData?.id)
+              );
+
+              if (clientPayments.length > 0) {
+                return (
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {clientPayments.map((p: any) => (
+                      <div key={p.id} className="py-3.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-slate-800 block text-sm">{p.description}</span>
+                          <span className="text-slate-400">
+                            {p.status === 'Paid' ? `Paid on ${p.paidAt || p.dueDate}` : `Due: ${p.dueDate}`}
+                          </span>
+                        </div>
+                        <span className={`font-bold text-sm ${
+                          p.status === 'Paid' ? 'text-emerald-600' : p.status === 'Overdue' ? 'text-rose-600' : 'text-amber-600'
+                        }`}>
+                          ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="py-8 px-4 text-center bg-slate-50/60 rounded-xl border border-slate-200/80">
+                  <CreditCard className="w-10 h-10 mx-auto text-slate-300 mb-2 stroke-1" />
+                  <p className="font-bold text-slate-700 text-sm">No Payments or Invoices Recorded</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                    Abhi tak koi payment invoice ya retainer fee record generate nahi hua hai. Jab administrative team invoice issue karegi, wo yahan payment options ke sath show hogi.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
