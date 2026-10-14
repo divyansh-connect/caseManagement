@@ -898,6 +898,24 @@ export default function App() {
     }
   };
 
+  const handleDeleteCase = async (caseId: string) => {
+    try {
+      const res = await api.delete(`/cases/${caseId}`);
+      if (res && res.success) {
+        setCases(prev => prev.filter(c => c.id !== caseId));
+        if (selectedCaseId === caseId) {
+          setSelectedCaseId(null);
+          navigate('/cases');
+        }
+      } else {
+        alert(res?.error || 'Failed to delete case');
+      }
+    } catch (err: any) {
+      console.error('Error deleting case:', err.message);
+      alert(`Failed to delete case: ${err.message || 'Network error'}`);
+    }
+  };
+
   // Current active case detail object
   const activeCase = cases.find(c => c.id === selectedCaseId);
 
@@ -1077,6 +1095,7 @@ export default function App() {
                 openNewCaseModal={() => setIsNewCaseModalOpen(true)}
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 userRole={userRole}
+                onDeleteCase={handleDeleteCase}
               />
             )
           ) : activeTab === 'clients' ? (

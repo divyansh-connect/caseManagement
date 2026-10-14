@@ -14,7 +14,8 @@ import {
   Briefcase,
   Layers,
   X,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { CaseItem, RiskLevel, UserRole } from '../../types';
 import { StageBadge, RiskBadge } from '../common/Badge';
@@ -40,6 +41,7 @@ interface CasesListViewProps {
   openNewCaseModal: () => void;
   openAIAssistant: () => void;
   userRole?: UserRole;
+  onDeleteCase?: (caseId: string) => void;
 }
 
 export const CasesListView: React.FC<CasesListViewProps> = ({
@@ -48,6 +50,7 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
   openNewCaseModal,
   openAIAssistant,
   userRole = 'admin',
+  onDeleteCase,
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -390,16 +393,33 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
                   </td>
 
                   <td className="px-5 py-4 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectCase(c.id);
-                      }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white font-medium text-xs transition-colors shadow-xs cursor-pointer"
-                    >
-                      <span>Open Workspace</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectCase(c.id);
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white font-medium text-xs transition-colors shadow-xs cursor-pointer"
+                      >
+                        <span>Open Workspace</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      {(userRole === 'superadmin' || userRole === 'admin') && onDeleteCase && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to delete case ${c.caseNumber} (${c.clientName})? This cannot be undone.`)) {
+                              onDeleteCase(c.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title={`Delete case ${c.caseNumber}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -457,16 +477,33 @@ export const CasesListView: React.FC<CasesListViewProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectCase(c.id);
-                }}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
-              >
-                <span>Open Case Workspace</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectCase(c.id);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                >
+                  <span>Open Case Workspace</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                {(userRole === 'superadmin' || userRole === 'admin') && onDeleteCase && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Are you sure you want to delete case ${c.caseNumber} (${c.clientName})? This cannot be undone.`)) {
+                        onDeleteCase(c.id);
+                      }
+                    }}
+                    className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title={`Delete case ${c.caseNumber}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
