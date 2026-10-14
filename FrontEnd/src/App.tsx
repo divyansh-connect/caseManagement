@@ -300,6 +300,27 @@ export default function App() {
     }
   };
 
+  const applyDocStatusOverrides = (docs: any[]) => {
+    try {
+      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
+      return docs.map(d => ({
+        ...d,
+        status: overrides[d.id] || d.status || 'Pending Review'
+      }));
+    } catch {
+      return docs;
+    }
+  };
+
+  const handleUpdateDocStatus = (docId: string, newStatus: any) => {
+    try {
+      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
+      overrides[docId] = newStatus;
+      localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
+    } catch {}
+    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: newStatus } : d));
+  };
+
   // 2. Fetch data dynamically based on the active tab
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -320,7 +341,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (dashDocs.success) {
-              setDocuments(dashDocs.data);
+              setDocuments(applyDocStatusOverrides(dashDocs.data));
             }
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
@@ -340,7 +361,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (casesDocs.success) {
-              setDocuments(casesDocs.data);
+              setDocuments(applyDocStatusOverrides(casesDocs.data));
             }
             break;
 
@@ -369,14 +390,14 @@ export default function App() {
                 });
               }
               const myDocsRes = await api.get('/documents');
-              if (myDocsRes.success) setDocuments(myDocsRes.data);
+              if (myDocsRes.success) setDocuments(applyDocStatusOverrides(myDocsRes.data));
             }
             break;
 
           case 'documents':
             const docsRes = await api.get('/documents');
             if (docsRes.success) {
-              setDocuments(docsRes.data);
+              setDocuments(applyDocStatusOverrides(docsRes.data));
             }
             break;
 
@@ -969,6 +990,7 @@ export default function App() {
               documents={documents}
               openNewDocModal={() => setIsNewDocModalOpen(true)}
               openAIAssistant={() => setIsAiModalOpen(true)}
+              onUpdateDocStatus={handleUpdateDocStatus}
             />
           ) : activeTab === 'reviews' ? (
             <ReviewsView
