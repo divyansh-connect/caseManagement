@@ -25,6 +25,7 @@ interface CommunicationViewProps {
   viewMode?: 'hub' | 'whatsapp';
   userRole?: UserRole;
   currentUser?: { id: string; name: string; email: string; role: UserRole; avatar?: string } | null;
+  onNewMessage?: (msg: CaseMessage) => void;
 }
 
 export const CommunicationView: React.FC<CommunicationViewProps> = ({ 
@@ -32,11 +33,22 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
   messages: initialMessages,
   viewMode = 'whatsapp',
   userRole,
-  currentUser
+  currentUser,
+  onNewMessage
 }) => {
   const [selectedCaseId, setSelectedCaseId] = useState<string>(cases[0]?.id || '');
-  const [messages, setMessages] = useState<CaseMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<CaseMessage[]>(() => {
+    try {
+      const cached = localStorage.getItem('babel_hub_admin_messages_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return initialMessages;
+  });
   const [newMsgText, setNewMsgText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [channelFilter, setChannelFilter] = useState<'all' | 'email' | 'whatsapp' | 'internal'>('all');
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
@@ -50,13 +62,101 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
 
   // Sync messages when prop updates
   useEffect(() => {
-    setMessages(initialMessages);
+    if (initialMessages && initialMessages.length > 0) {
+      setMessages(prev => {
+        const map = new Map<string, CaseMessage>();
+        prev.forEach(m => map.set(m.id, m));
+        initialMessages.forEach(m => map.set(m.id, m));
+        return Array.from(map.values()).sort((a, b) => 
+          (a.timestamp || '').localeCompare(b.timestamp || '')
+        );
+      });
+    }
   }, [initialMessages]);
+
+  // Persist messages in localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem('babel_hub_admin_messages_cache', JSON.stringify(messages));
+      } catch {}
+    }
+  }, [messages]);
+
+  // Real-time automatic polling for new Messaging Hub messages without needing page refresh
+  useEffect(() => {
+    let isMounted = true;
+
+    const pollHubMessages = async () => {
+      try {
+        const res = await api.get('/messages');
+        if (!isMounted || !res.success || !Array.isArray(res.data)) return;
+
+        setMessages(prev => {
+          const map = new Map<string, CaseMessage>();
+          prev.forEach(m => map.set(m.id, m));
+          res.data.forEach((m: any) => map.set(m.id, m));
+          const merged = Array.from(map.values()).sort((a, b) => 
+            (a.timestamp || '').localeCompare(b.timestamp || '')
+          );
+          if (merged.length !== prev.length || merged.some((m, idx) => m.id !== prev[idx]?.id)) {
+            return merged;
+          }
+          return prev;
+        });
+      } catch (err) {
+        // Silently ignore background polling errors
+      }
+    };
+
+    // Trigger immediately on mount
+    pollHubMessages();
+
+    const interval = setInterval(pollHubMessages, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedCase = cases.find(c => c.id === selectedCaseId) || cases[0];
-  const caseMessages = messages.filter(m => m.caseId === selectedCase?.id);
+
+  // Map all case IDs belonging to this client to ensure entire conversation thread is visible
+  const clientCaseIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedCase?.id) ids.add(selectedCase.id);
+    const targetClientId = selectedCase?.clientId || (selectedCase as any)?.client?.id;
+    const targetEmail = (selectedCase?.clientEmail || (selectedCase as any)?.client?.email || '').toLowerCase().trim();
+    const targetName = (selectedCase?.clientName || (selectedCase as any)?.client?.name || '').toLowerCase().trim();
+
+    cases.forEach(c => {
+      const cClientId = c.clientId || (c as any).client?.id;
+      const cEmail = (c.clientEmail || (c as any).client?.email || '').toLowerCase().trim();
+      const cName = (c.clientName || (c as any).client?.name || '').toLowerCase().trim();
+      if (
+        (targetClientId && cClientId === targetClientId) ||
+        (targetEmail && cEmail === targetEmail) ||
+        (targetName && cName === targetName)
+      ) {
+        ids.add(c.id);
+      }
+    });
+    return ids;
+  }, [selectedCase, cases]);
+
+  const caseMessages = messages.filter(m => {
+    const matchCase = (m.caseId && clientCaseIds.has(m.caseId)) || m.caseId === selectedCase?.id;
+    const targetName = (selectedCase?.clientName || '').toLowerCase().trim();
+    const sName = (m.senderName || '').toLowerCase().trim();
+    const matchClientName = targetName && sName && (sName === targetName || sName.includes(targetName) || targetName.includes(sName));
+    if (!matchCase && !matchClientName) return false;
+
+    const text = m.content || '';
+    const isWa = (m as any).channel === 'whatsapp' || text.startsWith('[WA] ') || text.startsWith('[wa]: ');
+    return !isWa;
+  });
 
   // Auto-scroll to bottom of conversation thread
   useEffect(() => {
@@ -86,25 +186,45 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
       contentToSend += ` [Attachment: ${attachedFileName}]`;
     }
 
-    try {
-      const isClientRole = userRole === 'client';
-      const myRole = isClientRole ? 'client' : (userRole || 'admin');
-      const myName = currentUser?.name || (isClientRole ? (selectedCase.clientName || 'Client') : (userRole === 'superadmin' ? 'Super Administrator' : 'Sarah Jenkins (Editorial Specialist)'));
+    setNewMsgText('');
+    setAttachedFileName(null);
+    setIsSending(true);
 
+    const isClientRole = userRole === 'client';
+    const myRole = isClientRole ? 'client' : (userRole || 'admin');
+    const myName = currentUser?.name || (isClientRole ? (selectedCase.clientName || 'Client') : (userRole === 'superadmin' ? 'Super Administrator' : 'Sarah Jenkins (Editorial Specialist)'));
+    const targetCaseId = selectedCase.id;
+
+    // 1. Optimistic send
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: CaseMessage = {
+      id: tempId,
+      caseId: targetCaseId,
+      senderName: myName,
+      senderRole: myRole,
+      content: contentToSend,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    try {
       const data = await api.post('/messages', {
-        caseId: selectedCase.id,
+        caseId: targetCaseId,
         senderName: myName,
         senderRole: myRole,
-        content: contentToSend
+        content: contentToSend,
+        channel: 'portal'
       });
 
-      if (data.success) {
-        setMessages(prev => [...prev, data.data]);
-        setNewMsgText('');
-        setAttachedFileName(null);
+      if (data && data.success && data.data) {
+        setMessages(prev => prev.map(m => m.id === tempId ? data.data : m));
+        if (onNewMessage) onNewMessage(data.data);
       }
     } catch (err: any) {
-      alert(`Message send failed: ${err.message}`);
+      console.error('Failed to send admin message:', err.message);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -356,12 +476,12 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           )}
 
           {/* Message Input & Send Form */}
-          <form onSubmit={handleSend} className="p-3 border-t border-slate-200 flex items-center gap-2 bg-white">
+          <form onSubmit={handleSend} className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 flex items-center gap-2.5 bg-white">
             <button
               type="button"
               onClick={handleSimulateFileSelect}
               title="Attach File / Document"
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors shrink-0 cursor-pointer"
+              className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors shrink-0 cursor-pointer shadow-2xs"
             >
               <Paperclip className="w-4 h-4" />
             </button>
@@ -371,16 +491,18 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               value={newMsgText}
               onChange={(e) => setNewMsgText(e.target.value)}
               placeholder={`Write message to ${selectedCase?.clientName || 'applicant'}...`}
-              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
-            <button
-              type="submit"
-              className="px-3.5 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
-            >
-              <span>Send</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
+            <div className="shrink-0 pl-1 pr-1">
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+              >
+                <span>Send</span>
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </form>
         </div>
       </div>
