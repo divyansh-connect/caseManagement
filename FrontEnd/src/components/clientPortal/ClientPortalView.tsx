@@ -38,6 +38,7 @@ import {
   X
 } from 'lucide-react';
 import { CaseItem, CaseDocument, CaseMessage, CaseTask } from '../../types';
+import { downloadDocumentFile } from '../../utils/downloadHelper';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
 import { api } from '../../services/api';
@@ -118,10 +119,10 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Profile assessment, engagement agreement, flexible payment & document collection',
     internalStages: [1, 2, 3, 4, 5],
     tasks: [
-      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Payment before documentation', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-5', name: 'Documentation: [Upload supporting documents, Identify missing documents & Resume/CV, preparation or improvement, when required, Documentation and Qualification Review, categorize academic, employment, publication, award, membership, media, citation, judging, contribution, and other records, Approve the evidence checklist for drafting]', assignedTo: 'Client', status: 'Approved/Completed' },
+      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Payment before documentation', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st1-5', name: 'Documentation: [Upload supporting documents, Identify missing documents & Resume/CV, preparation or improvement, when required, Documentation and Qualification Review, categorize academic, employment, publication, award, membership, media, citation, judging, contribution, and other records, Approve the evidence checklist for drafting]', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Payment after evidence assessment & profile improvement', assignedTo: 'Client', status: 'Not Applicable' }
     ]
   },
@@ -131,9 +132,9 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Proposed endeavor development & expert recommender letters',
     internalStages: [6, 7, 8],
     tasks: [
-      { id: 'st2-1', name: 'Review or develop the proposed endeavor: [Send the proposed endeavor to the client for review, correction, and approval]', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st2-2', name: 'Identify suitable recommenders: [Provide the client with the recommended categories of people who should write letters, Client provides each recommender’s CV, relationship information, and relevant accomplishments]', assignedTo: 'Client', status: 'Awaiting Client', deadline: 'Mar 10, 2026' },
-      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st2-1', name: 'Review or develop the proposed endeavor: [Send the proposed endeavor to the client for review, correction, and approval]', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st2-2', name: 'Identify suitable recommenders: [Provide the client with the recommended categories of people who should write letters, Client provides each recommender’s CV, relationship information, and relevant accomplishments]', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 10, 2026' },
+      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st2-4', name: 'Client reviews the letters and sends them to the recommenders', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st2-5', name: 'Client uploads the signed letters on official letterhead', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st2-6', name: 'Staff reviews and approves the completed letters', assignedTo: 'Babel Global Team', status: 'Not Started' }
@@ -145,9 +146,9 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'USCIS questionnaires & official form packages (I-140, ETA-9089, G-1145)',
     internalStages: [9],
     tasks: [
-      { id: 'st3-1', name: 'Client completes a simplified questionnaire', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st3-2', name: 'Information is transferred to the applicable forms', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st3-3', name: 'Staff reviews the information', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st3-1', name: 'Client completes a simplified questionnaire', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st3-2', name: 'Information is transferred to the applicable forms', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st3-3', name: 'Staff reviews the information', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st3-4', name: 'Client makes corrections or provides missing details', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st3-5', name: 'Client reviews and signs the completed forms where required with blue ink', assignedTo: 'Client', status: 'Not Started' }
     ]
@@ -158,8 +159,8 @@ const CLIENT_STAGES: ClientStageGroup[] = [
     subtitle: 'Legal petition memorandum drafting under Dhanasar 3-Prong framework',
     internalStages: [9, 10, 11, 12],
     tasks: [
-      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Under Review', deadline: 'Mar 15, 2026' },
+      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 15, 2026' },
       { id: 'st4-3', name: 'Senior QA Reviewer', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st4-4', name: 'Provide draft to client for factual review & approval', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st4-5', name: 'Final revisions & petition approval for packaging', assignedTo: 'Babel Global Team', status: 'Not Started' }
@@ -241,7 +242,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       onNavigateTab(PORTAL_TO_NAV_TAB[tab]);
     }
   };
-  const [expandedStage, setExpandedStage] = useState<number>(2); // Default open to current stage 2
+  const [expandedStage, setExpandedStage] = useState<number>(() => Number(caseData?.currentStage) || 1);
   const [stage1FlowMode, setStage1FlowMode] = useState<'standard' | 'evidence_first'>('standard');
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'sms' | 'whatsapp' | null>(null);
   const [messages, setMessages] = useState<CaseMessage[]>(() => {
@@ -273,9 +274,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   };
 
   const clientDocs = caseData 
-    ? documents.filter(d => d.caseId === caseData.id || (documents.length > 0 && !d.caseId))
-    : (documents || []);
-  const hasUploadedDocs = (clientDocs.length > 0) || (documents.length > 0) || (Boolean(caseData?.documentsCount && caseData.documentsCount > 0));
+    ? documents.filter(d => d.caseId === caseData.id)
+    : [];
+  const hasUploadedDocs = clientDocs.length > 0 || Boolean(caseData?.documentsCount && caseData.documentsCount > 0);
 
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
     try {
@@ -285,6 +286,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       return [];
     }
   });
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`completed_client_tasks_${caseData?.id || 'default'}`);
+      setCompletedTaskIds(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setCompletedTaskIds([]);
+    }
+    setExpandedStage(Number(caseData?.currentStage) || 1);
+  }, [caseData?.id, caseData?.currentStage]);
 
   const markTaskCompleted = (taskId: string) => {
     setCompletedTaskIds(prev => {
@@ -297,17 +308,33 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     });
   };
 
-  const getResolvedTaskStatus = (task: any): ClientStageGroup['tasks'][0]['status'] => {
+  const getResolvedTaskStatus = (task: any, stageId?: number): ClientStageGroup['tasks'][0]['status'] => {
     if (completedTaskIds.includes(task.id)) {
+      return 'Approved/Completed';
+    }
+    const currentStageNum = Number(caseData?.currentStage) || 1;
+    if (stageId && stageId < currentStageNum) {
       return 'Approved/Completed';
     }
     if (task.id === 'st1-5' && hasUploadedDocs) {
       return 'Approved/Completed';
     }
-    if (task.id === 'st2-2' && (hasUploadedDocs || (caseData?.recommenders && caseData.recommenders.length > 0))) {
+    if (task.id === 'st2-2' && caseData?.recommenders && caseData.recommenders.length >= 3) {
       return 'Approved/Completed';
     }
     return task.status;
+  };
+
+  const getStageTasks = (stageGroup: ClientStageGroup) => {
+    if (stageGroup.id !== 1) return stageGroup.tasks;
+    if (stage1FlowMode === 'standard') return stageGroup.tasks;
+    return [
+      { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: completedTaskIds.includes('st1-1') ? 'Approved/Completed' as const : 'Awaiting Client' as const },
+      { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: completedTaskIds.includes('st1-3') ? 'Approved/Completed' as const : 'Not Started' as const },
+      { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
+      { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
+      { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
+    ];
   };
 
   const handleTaskAction = (task: any) => {
@@ -414,33 +441,29 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Dynamic Next Action Calculation
   let nextActionTask: any = null;
+  const currentStageNum = Number(caseData?.currentStage) || 1;
+
   for (const stage of CLIENT_STAGES) {
     if (stage.isOptional) continue;
-    const stageTasks = stage.id === 1 ? (
-      stage1FlowMode === 'standard' ? stage.tasks : [
-        { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
-        { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
-        { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
-        { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
-        { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
-      ]
-    ) : stage.tasks;
+    if (stage.id < currentStageNum) continue;
+
+    const stageTasks = getStageTasks(stage);
 
     const pendingClientTask = stageTasks.find(
       (t) => {
-        const resolved = getResolvedTaskStatus(t);
+        const resolved = getResolvedTaskStatus(t, stage.id);
         return t.assignedTo === 'Client' && (resolved === 'Not Started' || resolved === 'Awaiting Client' || resolved === 'Revision Required');
       }
     );
     if (pendingClientTask) {
-      nextActionTask = { stageId: stage.id, ...pendingClientTask, status: getResolvedTaskStatus(pendingClientTask) };
+      nextActionTask = { stageId: stage.id, ...pendingClientTask, status: getResolvedTaskStatus(pendingClientTask, stage.id) };
       break;
     }
   }
 
   if (!nextActionTask) {
     nextActionTask = {
-      stageId: 2,
+      stageId: currentStageNum,
       id: 'fallback',
       name: 'All caught up! No pending actions.',
       assignedTo: 'Client',
@@ -661,8 +684,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             {/* 6 Stage Horizontal Bar */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
               {CLIENT_STAGES.filter(st => !st.isOptional).map((st) => {
-                const isCompleted = st.id < 2;
-                const isCurrent = st.id === 2;
+                const isCompleted = st.id < currentStageNum;
+                const isCurrent = st.id === currentStageNum;
                 return (
                   <div
                     key={st.id}
@@ -740,9 +763,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="space-y-4">
             {CLIENT_STAGES.map((stageGroup) => {
               const isExpanded = expandedStage === stageGroup.id;
-              const isCompleted = stageGroup.id < 2;
-              const isCurrent = stageGroup.id === 2;
-              const isLocked = stageGroup.id > 2;
+              const isCompleted = stageGroup.id < currentStageNum;
+              const isCurrent = stageGroup.id === currentStageNum;
+              const isLocked = stageGroup.id > currentStageNum;
 
               return (
                 <div
@@ -792,16 +815,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
                     <div className="flex items-center gap-3">
                       {(() => {
-                        const tasksForStage = stageGroup.id === 1 ? (
-                          stage1FlowMode === 'standard' ? stageGroup.tasks : [
-                            { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
-                            { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client' as const, status: 'Approved/Completed' as const },
-                            { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client' as const, status: 'Not Applicable' as const },
-                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Approved/Completed' as const : 'Awaiting Client' as const },
-                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client' as const, status: hasUploadedDocs ? 'Awaiting Client' as const : 'Not Started' as const }
-                          ]
-                        ) : stageGroup.tasks;
-                        const completedCount = tasksForStage.filter(t => getResolvedTaskStatus(t) === 'Approved/Completed').length;
+                        const tasksForStage = getStageTasks(stageGroup);
+                        const completedCount = tasksForStage.filter(t => getResolvedTaskStatus(t, stageGroup.id) === 'Approved/Completed').length;
                         const pct = Math.round((completedCount / tasksForStage.length) * 100);
                         return (
                           <div className="flex flex-col items-end mr-2">
@@ -922,18 +937,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           </div>
                         </div>
                       )}
-                      {(
-                        stageGroup.id === 1 ? (
-                          stage1FlowMode === 'standard' ? stageGroup.tasks : [
-                            { id: 'st1-1', name: 'Initial consultation/intake', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-3', name: 'Review and sign the engagement agreement', assignedTo: 'Client', status: 'Approved/Completed' },
-                            { id: 'st1-4a', name: 'Select a payment plan and make payment', flowLabel: 'Standard Flow: Skipped in Evidence-First mode', assignedTo: 'Client', status: 'Not Applicable' },
-                            { id: 'st1-5', name: 'Documentation: [Upload supporting documents & CV to prepare/improve profile first before main payment]', flowLabel: 'Active First Step: Upload Evidence', assignedTo: 'Client', status: hasUploadedDocs ? 'Approved/Completed' : 'Awaiting Client' },
-                            { id: 'st1-4b', name: 'Select a payment plan and make payment', flowLabel: 'Flexible Flow: Complete payment after profile evaluation', assignedTo: 'Client', status: hasUploadedDocs ? 'Awaiting Client' : 'Not Started' }
-                          ]
-                        ) : stageGroup.tasks
-                      ).map((task) => {
-                        const resolvedStatus = getResolvedTaskStatus(task);
+                      {getStageTasks(stageGroup).map((task) => {
+                        const resolvedStatus = getResolvedTaskStatus(task, stageGroup.id);
                         return (
                           <div key={task.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                             <div className="space-y-1">
@@ -1016,14 +1021,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     {doc.status}
                   </span>
                   <button
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = '#';
-                      link.setAttribute('download', `${doc.name.replace(/\s+/g, '_')}`);
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
+                    onClick={() => downloadDocumentFile(doc)}
                     className="p-2 text-slate-400 hover:text-blue-600 cursor-pointer"
                     title="Download File"
                   >

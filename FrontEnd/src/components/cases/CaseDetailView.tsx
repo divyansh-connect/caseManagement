@@ -31,6 +31,7 @@ import { CaseItem, StageId, CaseDocument, Recommender, CaseMessage, UserRole } f
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { StageBadge, RiskBadge, StatusBadge } from '../common/Badge';
 import { api } from '../../services/api';
+import { downloadDocumentFile } from '../../utils/downloadHelper';
 
 export type TaskStatus = 
   | 'Not Started' 
@@ -64,11 +65,11 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
     title: 'Stage 1: Consultation and Onboarding',
     subtitle: 'Profile assessment, engagement agreement, flexible payment & document collection',
     tasks: [
-      { id: 'st1-1', name: 'Initial consultation and intake evaluation', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-2', name: 'Upload existing CV and academic degree certificates', assignedTo: 'Client', status: 'Approved/Completed', requiredDocs: ['Curriculum Vitae', 'Degree Certificate'] },
-      { id: 'st1-3', name: 'Review and sign engagement retainer agreement', assignedTo: 'Client', status: 'Approved/Completed', requiredDocs: ['Signed Engagement Agreement'] },
-      { id: 'st1-4', name: 'Select payment plan and confirm retainer deposit', assignedTo: 'Client', status: 'Approved/Completed' },
-      { id: 'st1-5', name: 'Profile evaluation & evidence checklist approval', assignedTo: 'Babel Global Team', status: 'Approved/Completed' }
+      { id: 'st1-1', name: 'Initial consultation and intake evaluation', assignedTo: 'Client', status: 'Awaiting Client' },
+      { id: 'st1-2', name: 'Upload existing CV and academic degree certificates', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Curriculum Vitae', 'Degree Certificate'] },
+      { id: 'st1-3', name: 'Review and sign engagement retainer agreement', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Engagement Agreement'] },
+      { id: 'st1-4', name: 'Select payment plan and confirm retainer deposit', assignedTo: 'Client', status: 'Not Started' },
+      { id: 'st1-5', name: 'Profile evaluation & evidence checklist approval', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
   },
   {
@@ -76,10 +77,10 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
     title: 'Stage 2: Case Strategy & Recommendation Letters',
     subtitle: 'Proposed endeavor development & expert recommender letters',
     tasks: [
-      { id: 'st2-1', name: 'Review and approve proposed endeavor statement', assignedTo: 'Client', status: 'Approved/Completed', deadline: 'Mar 01, 2026' },
-      { id: 'st2-2', name: 'Identify 3-5 independent expert recommenders', assignedTo: 'Client', status: 'Approved/Completed', deadline: 'Mar 10, 2026', requiredDocs: ['Recommender CVs'] },
-      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Under Review', deadline: 'Mar 12, 2026', requiredDocs: ['Draft Letters 1-3'] },
-      { id: 'st2-4', name: 'Send drafted letters to recommenders for review', assignedTo: 'Client', status: 'Awaiting Client', deadline: 'Mar 15, 2026' },
+      { id: 'st2-1', name: 'Review and approve proposed endeavor statement', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 01, 2026' },
+      { id: 'st2-2', name: 'Identify 3-5 independent expert recommenders', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 10, 2026', requiredDocs: ['Recommender CVs'] },
+      { id: 'st2-3', name: 'Draft recommendation letters', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 12, 2026', requiredDocs: ['Draft Letters 1-3'] },
+      { id: 'st2-4', name: 'Send drafted letters to recommenders for review', assignedTo: 'Client', status: 'Not Started', deadline: 'Mar 15, 2026' },
       { id: 'st2-5', name: 'Upload signed recommendation letters on official letterhead', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Recommendation Letters'] },
       { id: 'st2-6', name: 'Staff reviews and approves completed letters', assignedTo: 'Babel Global Team', status: 'Not Started' }
     ]
@@ -89,9 +90,9 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
     title: 'Stage 3: Forms Preparation',
     subtitle: 'USCIS questionnaires & official form packages (I-140, ETA-9089, G-1145)',
     tasks: [
-      { id: 'st3-1', name: 'Client completes simplified USCIS questionnaire', assignedTo: 'Client', status: 'Approved/Completed', requiredDocs: ['USCIS Questionnaire'] },
-      { id: 'st3-2', name: 'Transfer data to applicable forms (I-140, ETA-9089)', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st3-3', name: 'Editorial staff reviews form data and accuracy', assignedTo: 'Babel Global Team', status: 'Under Review' },
+      { id: 'st3-1', name: 'Client completes simplified USCIS questionnaire', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['USCIS Questionnaire'] },
+      { id: 'st3-2', name: 'Transfer data to applicable forms (I-140, ETA-9089)', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st3-3', name: 'Editorial staff reviews form data and accuracy', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st3-4', name: 'Client reviews & signs completed forms with blue ink', assignedTo: 'Client', status: 'Not Started', requiredDocs: ['Signed Form I-140', 'Form G-1145'] }
     ]
   },
@@ -100,8 +101,8 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
     title: 'Stage 4: Petition Drafting & Review',
     subtitle: 'Legal petition memorandum drafting under Dhanasar 3-Prong framework',
     tasks: [
-      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Approved/Completed' },
-      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Under Review', deadline: 'Mar 15, 2026', requiredDocs: ['Petition Memorandum Draft'] },
+      { id: 'st4-1', name: 'Assign petition to Senior Drafter', assignedTo: 'Babel Global Team', status: 'Not Started' },
+      { id: 'st4-2', name: 'Draft Petition Memorandum (Dhanasar Prongs 1, 2, 3)', assignedTo: 'Babel Global Team', status: 'Not Started', deadline: 'Mar 15, 2026', requiredDocs: ['Petition Memorandum Draft'] },
       { id: 'st4-3', name: 'Senior QA Reviewer audit & legal signoff', assignedTo: 'Babel Global Team', status: 'Not Started' },
       { id: 'st4-4', name: 'Provide draft to client for factual review & approval', assignedTo: 'Client', status: 'Not Started' },
       { id: 'st4-5', name: 'Final revisions & petition approval for packaging', assignedTo: 'Babel Global Team', status: 'Not Started' }
@@ -145,6 +146,33 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
   }
 ];
 
+const getInitialStageGroups = (cData?: CaseItem): StageGroup[] => {
+  if (!cData) return INITIAL_WORKFLOW_STAGES;
+  try {
+    const saved = localStorage.getItem(`workflow_stage_tasks_${cData.id}`);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {}
+
+  const currStage = Number(cData.currentStage) || 1;
+  return INITIAL_WORKFLOW_STAGES.map(stage => {
+    if (stage.id < currStage) {
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => ({ ...t, status: 'Approved/Completed' as TaskStatus }))
+      };
+    } else if (stage.id === currStage) {
+      return stage;
+    } else {
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => ({ ...t, status: 'Not Started' as TaskStatus }))
+      };
+    }
+  });
+};
+
 interface CaseDetailViewProps {
   caseData: CaseItem;
   documents: CaseDocument[];
@@ -172,7 +200,14 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
   const [expandedStage, setExpandedStage] = useState<number>(() => caseData?.currentStage || 1);
-  const [stageGroups, setStageGroups] = useState<StageGroup[]>(INITIAL_WORKFLOW_STAGES);
+  const [stageGroups, setStageGroups] = useState<StageGroup[]>(() => getInitialStageGroups(caseData));
+
+  React.useEffect(() => {
+    if (caseData?.id) {
+      setStageGroups(getInitialStageGroups(caseData));
+      setExpandedStage(Number(caseData.currentStage) || 1);
+    }
+  }, [caseData?.id, caseData?.currentStage]);
   const [messages, setMessages] = useState<CaseMessage[]>(() => {
     return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
   });
@@ -259,6 +294,13 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
         return { ...group, tasks: updatedTasks };
       });
 
+      // Persist to localStorage for this specific case
+      try {
+        if (caseData?.id) {
+          localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, JSON.stringify(updatedGroups));
+        }
+      } catch (e) {}
+
       // Check for automatic stage advancement
       const currentGroup = updatedGroups.find(g => g.id === caseData.currentStage);
       if (currentGroup) {
@@ -276,7 +318,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const handleMoveTask = (stageId: number, index: number, direction: 'up' | 'down') => {
     if (userRole !== 'superadmin') return;
     setStageGroups(prevGroups => {
-      return prevGroups.map(group => {
+      const updated = prevGroups.map(group => {
         if (group.id !== stageId) return group;
         const tasks = [...group.tasks];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -286,6 +328,12 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
         tasks[targetIndex] = temp;
         return { ...group, tasks };
       });
+      try {
+        if (caseData?.id) {
+          localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, JSON.stringify(updated));
+        }
+      } catch (e) {}
+      return updated;
     });
   };
 
@@ -967,18 +1015,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button 
-                          onClick={() => {
-                            if (doc.fileUrl) {
-                              const link = document.createElement('a');
-                              link.href = doc.fileUrl;
-                              link.target = '_blank';
-                              link.rel = 'noopener noreferrer';
-                              link.setAttribute('download', doc.name);
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }
-                          }}
+                          onClick={() => downloadDocumentFile(doc)}
                           className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
                           title="Download document"
                         >
@@ -1018,18 +1055,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                     </span>
 
                     <button 
-                      onClick={() => {
-                        if (doc.fileUrl) {
-                          const link = document.createElement('a');
-                          link.href = doc.fileUrl;
-                          link.target = '_blank';
-                          link.rel = 'noopener noreferrer';
-                          link.setAttribute('download', doc.name);
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }
-                      }}
+                      onClick={() => downloadDocumentFile(doc)}
                       className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
