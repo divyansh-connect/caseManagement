@@ -24,7 +24,10 @@ import {
   RefreshCw,
   UserPlus,
   UserX,
-  Power
+  Power,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Client, UserRole } from '../../types';
 import { StatusBadge } from '../common/Badge';
@@ -186,6 +189,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
   const [editErrorMsg, setEditErrorMsg] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [editForm, setEditForm] = useState({
     citationsCount: 0,
     publicationsCount: 0,
@@ -194,11 +198,13 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     highestDegree: "Ph.D." as Client['highestDegree'],
     university: '',
     countryOfBirth: '',
-    status: 'Active' as Client['status']
+    status: 'Active' as Client['status'],
+    password: ''
   });
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
+    setShowEditPassword(false);
     setEditForm({
       citationsCount: client.citationsCount ?? (client as any).citationCount ?? 0,
       publicationsCount: client.publicationsCount ?? (client as any).paperCount ?? 0,
@@ -207,7 +213,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       highestDegree: (client.highestDegree || "Ph.D.") as Client['highestDegree'],
       university: client.university || '',
       countryOfBirth: client.countryOfBirth || '',
-      status: client.status || 'Active'
+      status: client.status || 'Active',
+      password: ''
     });
     setEditSuccessMsg('');
     setEditErrorMsg('');
@@ -217,11 +224,18 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     e.preventDefault();
     if (!editingClient) return;
 
+    if (editForm.password && editForm.password.trim().length > 0) {
+      if (editForm.password.trim().length < 6) {
+        setEditErrorMsg('Password must be at least 6 characters long.');
+        return;
+      }
+    }
+
     setIsSaving(true);
     setEditSuccessMsg('');
     setEditErrorMsg('');
     try {
-      const payload = {
+      const payload: any = {
         citationsCount: Number(editForm.citationsCount),
         publicationsCount: Number(editForm.publicationsCount),
         patentsCount: Number(editForm.patentsCount),
@@ -232,10 +246,18 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         status: editForm.status
       };
 
+      if (editForm.password && editForm.password.trim().length >= 6) {
+        payload.password = editForm.password.trim();
+      }
+
       const res = await api.put(`/clients/${editingClient.id}`, payload);
 
       if (res.success) {
-        setEditSuccessMsg('Client profile & metrics updated successfully in database!');
+        if (payload.password) {
+          setEditSuccessMsg(`Client profile & new password '${payload.password}' updated successfully! Client can now log in with this password.`);
+        } else {
+          setEditSuccessMsg('Client profile & metrics updated successfully in database!');
+        }
         
         const updatedRecord: Client = {
           ...editingClient,
@@ -254,7 +276,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           if (activeProfileClient && activeProfileClient.id === editingClient.id) {
             setActiveProfileClient(updatedRecord);
           }
-        }, 800);
+        }, 1200);
       } else {
         setEditErrorMsg(res.error || 'Failed to update client.');
       }
@@ -952,6 +974,17 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       <option value="Archived">Archived</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Reset Password</label>
+                  <input 
+                    type="text"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Enter new password (optional)"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 font-medium"
+                  />
                 </div>
               </div>
 
