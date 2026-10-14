@@ -124,7 +124,35 @@ export default function App() {
   const [documents, setDocuments] = useState<CaseDocument[]>([]);
   const [tasks, setTasks] = useState<CaseTask[]>([]);
   const [payments, setPayments] = useState<PaymentMilestone[]>([]);
-  const [messages, setMessages] = useState<CaseMessage[]>([]);
+  const [messages, setMessages] = useState<CaseMessage[]>(() => {
+    try {
+      const cached = localStorage.getItem('babel_app_messages_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem('babel_app_messages_cache', JSON.stringify(messages));
+      } catch {}
+    }
+  }, [messages]);
+
+  const handleMergeMessages = (incoming: CaseMessage[]) => {
+    setMessages(prev => {
+      const map = new Map<string, CaseMessage>();
+      prev.forEach(m => map.set(m.id, m));
+      incoming.forEach(m => map.set(m.id, m));
+      return Array.from(map.values()).sort((a, b) => 
+        (a.timestamp || '').localeCompare(b.timestamp || '')
+      );
+    });
+  };
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [templates, setTemplates] = useState<CaseTemplate[]>([]);
   const [systemSettings, setSystemSettings] = useState<any>(null);
@@ -353,14 +381,37 @@ export default function App() {
             break;
 
           case 'communication':
+            if (userRole === 'client') {
+              const myCaseRes = await api.get('/cases/my-case');
+              if (myCaseRes.success && myCaseRes.data) {
+                const mapped = mapCaseData(myCaseRes.data);
+                setCases(prev => {
+                  const exists = prev.find(c => c.id === mapped.id);
+                  return exists ? prev.map(c => (c.id === mapped.id ? mapped : c)) : [mapped, ...prev];
+                });
+              }
+            }
             // Chat needs cases (for selection) and message threads
             const commCases = await api.get('/cases');
-            if (commCases.success) {
-              setCases(commCases.data.map(mapCaseData));
+            if (commCases.success && Array.isArray(commCases.data)) {
+              const mappedCases = commCases.data.map(mapCaseData);
+              setCases(prev => {
+                if (userRole === 'client') {
+                  const clientMatches = mappedCases.filter((c: any) => 
+                    c.clientId === currentUser?.id || 
+                    c.clientEmail === currentUser?.email || 
+                    c.clientName === currentUser?.name
+                  );
+                  clientMatches.sort((a: any, b: any) => (b.documentsCount || 0) - (a.documentsCount || 0));
+                  const otherCases = mappedCases.filter((c: any) => !clientMatches.some((m: any) => m.id === c.id));
+                  return [...clientMatches, ...otherCases];
+                }
+                return mappedCases;
+              });
             }
             const messagesRes = await api.get('/messages');
-            if (messagesRes.success) {
-              setMessages(messagesRes.data);
+            if (messagesRes.success && Array.isArray(messagesRes.data)) {
+              handleMergeMessages(messagesRes.data);
             }
             break;
 
@@ -420,7 +471,9 @@ export default function App() {
               const myDocsRes = await api.get('/documents');
               if (myDocsRes.success) setDocuments(myDocsRes.data);
               const myMsgsRes = await api.get('/messages');
-              if (myMsgsRes.success) setMessages(myMsgsRes.data);
+              if (myMsgsRes.success && Array.isArray(myMsgsRes.data)) {
+                handleMergeMessages(myMsgsRes.data);
+              }
             }
             break;
 
@@ -751,6 +804,28 @@ export default function App() {
   // Current active case detail object
   const activeCase = cases.find(c => c.id === selectedCaseId);
 
+  // Priority client case selector: match client id/email/name, and pick the case that has documents/activity
+  const activeClientCase = React.useMemo(() => {
+    if (userRole !== 'client') return null;
+    const clientMatches = cases.filter(c => {
+      const matchId = currentUser?.id && (c.clientId === currentUser.id || (c as any).client?.id === currentUser.id);
+      const matchEmail = (currentUser?.email || currentUserEmail) && (
+        c.clientEmail === currentUser?.email || 
+        c.clientEmail === currentUserEmail ||
+        (c as any).client?.email === currentUser?.email ||
+        (c as any).client?.email === currentUserEmail
+      );
+      const matchName = currentUser?.name && (
+        c.clientName === currentUser.name ||
+        (c as any).client?.name === currentUser.name
+      );
+      return matchId || matchEmail || matchName;
+    });
+
+    if (clientMatches.length === 0) return cases[0];
+    return clientMatches.sort((a, b) => (b.documentsCount || 0) - (a.documentsCount || 0))[0];
+  }, [cases, userRole, currentUser, currentUserEmail]);
+
   // Filter cases accessible to current user role (Drafters can access assigned or active drafting pipeline cases)
   const roleFilteredCases = cases.filter(c => {
     if (userRole === 'writer') {
@@ -801,7 +876,7 @@ export default function App() {
         <main className="flex-1 p-3 sm:p-6 overflow-y-auto max-w-full">
           {userRole === 'client' || activeTab === 'clientPortal' ? (
             <ClientPortalView
-              caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+              caseData={(userRole === 'client' && activeClientCase) ? activeClientCase : (roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0])}
               documents={documents}
               messages={messages}
               appointments={appointments}
@@ -815,6 +890,9 @@ export default function App() {
               onNavigateTab={navigateToTab}
               commViewMode={commViewMode}
               setCommViewMode={setCommViewMode}
+              currentUser={currentUser}
+              allCases={cases}
+              onNewMessage={(newMsg) => setMessages(prev => [...prev, newMsg])}
             />
           ) : activeTab === 'dashboard' ? (
             selectedCaseId ? (
@@ -906,6 +984,7 @@ export default function App() {
               viewMode={commViewMode} 
               userRole={userRole}
               currentUser={currentUser}
+              onNewMessage={(newMsg) => setMessages(prev => [...prev, newMsg])}
             />
           ) : activeTab === 'appointments' ? (
             <AppointmentsView

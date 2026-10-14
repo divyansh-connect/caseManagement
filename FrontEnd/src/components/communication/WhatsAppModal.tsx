@@ -109,20 +109,28 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         const casesList = casesRes.success && Array.isArray(casesRes.data) ? casesRes.data : [];
         const allMessages = msgsRes.success && Array.isArray(msgsRes.data) ? msgsRes.data : [];
 
-        // Build messages map grouped by caseId
+        // Build messages map grouped by caseId - ONLY WHATSAPP MESSAGES
         const newMessagesMap: Record<string, WhatsAppMessage[]> = {};
         allMessages.forEach((m: any) => {
+          const rawContent = m.content || m.text || '';
+          const isWhatsAppMessage = 
+            m.channel === 'whatsapp' || 
+            rawContent.startsWith('[WA] ') || 
+            rawContent.startsWith('[wa]: ');
+
+          // Skip portal / messaging hub messages in WhatsApp Live Chat
+          if (!isWhatsAppMessage) return;
+
+          let cleanText = rawContent;
+          if (cleanText.startsWith('[WA] ')) cleanText = cleanText.substring(5);
+          else if (cleanText.startsWith('[wa]: ')) cleanText = cleanText.substring(6);
+
           if (!newMessagesMap[m.caseId]) {
             newMessagesMap[m.caseId] = [];
           }
 
-          // Heal previously bugged test messages where client sent "Hi" while hardcoded as Editorial Specialist
           let sRole = m.senderRole || 'admin';
           let sName = m.senderName || 'Legal Team';
-          if (m.senderName === 'Editorial Specialist' && (m.content === 'Hi' || m.content === 'hi' || m.content === 'Hello')) {
-            sRole = 'client';
-            sName = defaultClientName || currentUser?.name || 'Applicant';
-          }
 
           newMessagesMap[m.caseId].push({
             id: m.id,
@@ -130,7 +138,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             senderRole: sRole,
             senderName: sName,
             sender: sRole === 'client' ? 'client' : 'me',
-            text: m.content || m.text,
+            text: cleanText,
             timestamp: m.timestamp ? (m.timestamp.length > 10 ? m.timestamp.substring(11, 16) : m.timestamp) : '12:00',
             status: 'read'
           });
@@ -151,8 +159,29 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
           }
         }
 
+        // Deduplicate contacts so each unique client appears only once
+        const uniqueCases: any[] = [];
+        const seenClients = new Set<string>();
+
+        relevantCases.forEach((c: any) => {
+          const clientIdentifier = (
+            c.clientId || 
+            c.client?.id || 
+            c.client?.email || 
+            c.clientEmail || 
+            c.client?.name || 
+            c.clientName || 
+            c.id
+          ).toLowerCase().trim();
+
+          if (!seenClients.has(clientIdentifier)) {
+            seenClients.add(clientIdentifier);
+            uniqueCases.push(c);
+          }
+        });
+
         // Build contacts
-        const mappedContacts: ChatContact[] = relevantCases.map((c: any, index: number) => {
+        const mappedContacts: ChatContact[] = uniqueCases.map((c: any, index: number) => {
           const caseMsgs = newMessagesMap[c.id] || [];
           const lastMsgObj = caseMsgs.length > 0 ? caseMsgs[caseMsgs.length - 1] : null;
 
@@ -211,6 +240,87 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
     fetchData();
   }, [defaultClientName, isClient, currentUser]);
 
+  // Real-time automatic polling for new WhatsApp messages without needing page refresh
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+
+    const pollLatestWhatsAppMessages = async () => {
+      try {
+        const msgsRes = await api.get('/messages');
+        if (!isMounted || !msgsRes.success || !Array.isArray(msgsRes.data)) return;
+
+        const allMessages = msgsRes.data;
+
+        setMessagesMap(prevMap => {
+          let hasChanged = false;
+          const updatedMap: Record<string, WhatsAppMessage[]> = { ...prevMap };
+
+          allMessages.forEach((m: any) => {
+            const rawContent = m.content || m.text || '';
+            const isWhatsAppMessage = 
+              m.channel === 'whatsapp' || 
+              rawContent.startsWith('[WA] ') || 
+              rawContent.startsWith('[wa]: ');
+
+            if (!isWhatsAppMessage) return;
+
+            let cleanText = rawContent;
+            if (cleanText.startsWith('[WA] ')) cleanText = cleanText.substring(5);
+            else if (cleanText.startsWith('[wa]: ')) cleanText = cleanText.substring(6);
+
+            if (!updatedMap[m.caseId]) {
+              updatedMap[m.caseId] = [];
+            }
+
+            const exists = updatedMap[m.caseId].some(existing => existing.id === m.id);
+            if (!exists) {
+              hasChanged = true;
+              let sRole = m.senderRole || 'admin';
+              let sName = m.senderName || 'Legal Team';
+
+              updatedMap[m.caseId].push({
+                id: m.id,
+                caseId: m.caseId,
+                senderRole: sRole,
+                senderName: sName,
+                sender: isClient ? (sRole === 'client' ? 'client' : 'me') : (sRole === 'client' ? 'client' : 'me'),
+                text: cleanText,
+                timestamp: m.timestamp ? (m.timestamp.length > 10 ? m.timestamp.substring(11, 16) : m.timestamp) : '12:00',
+                status: 'read'
+              });
+            }
+          });
+
+          if (hasChanged) {
+            setContacts(prevContacts => prevContacts.map(c => {
+              const cMsgs = updatedMap[c.id] || [];
+              const latest = cMsgs.length > 0 ? cMsgs[cMsgs.length - 1] : null;
+              if (latest && (c.lastMsg !== latest.text || c.lastTime !== latest.timestamp)) {
+                return { ...c, lastMsg: latest.text, lastTime: latest.timestamp };
+              }
+              return c;
+            }));
+            return updatedMap;
+          }
+
+          return prevMap;
+        });
+      } catch (err) {
+        // Silently ignore background polling errors
+      }
+    };
+
+    // Fast polling every 2.5 seconds
+    const interval = setInterval(pollLatestWhatsAppMessages, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isOpen, isClient]);
+
   const activeContact = contacts.find(c => c.id === selectedContactId) || contacts[0];
   const activeMessages = activeContact ? (messagesMap[activeContact.id] || []) : [];
 
@@ -235,22 +345,29 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
       : (effectiveRole === 'superadmin' ? 'Super Administrator' : 'Legal Counsel'));
 
     try {
+      // Prefix with [WA] to ensure persistent channel isolation across databases
+      const payloadContent = `[WA] ${contentToSend}`;
       const res = await api.post('/messages', {
         caseId: activeContact.id,
         senderName: myName,
         senderRole: myRole,
-        content: contentToSend
+        content: payloadContent,
+        channel: 'whatsapp'
       });
 
       if (res.success && res.data) {
         const created = res.data;
+        let cleanText = created.content || contentToSend;
+        if (cleanText.startsWith('[WA] ')) cleanText = cleanText.substring(5);
+        else if (cleanText.startsWith('[wa]: ')) cleanText = cleanText.substring(6);
+
         const newMsg: WhatsAppMessage = {
           id: created.id,
           caseId: activeContact.id,
           senderRole: created.senderRole || myRole,
           senderName: created.senderName || myName,
           sender: isClient ? 'client' : 'me',
-          text: created.content,
+          text: cleanText,
           timestamp: created.timestamp ? (created.timestamp.length > 10 ? created.timestamp.substring(11, 16) : created.timestamp) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
           status: 'read'
         };
@@ -494,51 +611,12 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                     className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className={`relative max-w-[85%] sm:max-w-md p-2.5 sm:p-3 rounded-xl text-xs leading-relaxed shadow-sm transition-all ${
+                      className={`relative max-w-[85%] sm:max-w-md px-3.5 py-2.5 rounded-xl text-xs leading-relaxed shadow-sm transition-all ${
                         isMe
                           ? 'bg-[#005c4b] text-slate-100 rounded-tr-none border border-[#005c4b]/80'
                           : 'bg-[#202c33] text-slate-100 rounded-tl-none border border-[#2d3a43]'
                       }`}
                     >
-                      {/* Header inside bubble */}
-                      {isMe ? (
-                        /* OUTGOING MESSAGE: RIGHT-HAND SIDE (GREEN) */
-                        <div className="flex items-center justify-end gap-1 mb-1 text-[10px] text-emerald-200/80 font-semibold">
-                          <span>You</span>
-                          <span className="text-emerald-300/60 font-normal">
-                            {isClient ? '(Client)' : `(${effectiveRole === 'superadmin' ? 'Super Admin' : effectiveRole.toUpperCase()})`}
-                          </span>
-                        </div>
-                      ) : (
-                        /* INCOMING MESSAGE: LEFT-HAND SIDE (GREY BOX) WITH ROLE BADGE */
-                        <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-[#2d3a43]">
-                          {msg.senderRole === 'superadmin' ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-purple-500/25 text-purple-300 border border-purple-500/40">
-                              Super Admin
-                            </span>
-                          ) : msg.senderRole === 'admin' ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-blue-500/25 text-blue-300 border border-blue-500/40">
-                              Case Admin
-                            </span>
-                          ) : msg.senderRole === 'writer' ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-teal-500/25 text-teal-300 border border-teal-500/40">
-                              Petition Drafter
-                            </span>
-                          ) : msg.senderRole === 'reviewer' ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-amber-500/25 text-amber-300 border border-amber-500/40">
-                              Senior Reviewer
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
-                              Applicant (Client)
-                            </span>
-                          )}
-                          <span className="text-[11px] font-bold text-slate-200 truncate">
-                            {msg.senderName || (msg.senderRole === 'client' ? 'Client' : 'Legal Team')}
-                          </span>
-                        </div>
-                      )}
-
                       {/* Text Content */}
                       <p className="whitespace-pre-wrap text-xs sm:text-[13px] leading-relaxed text-slate-100 font-normal">
                         {msg.text}
@@ -592,10 +670,10 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             </div>
 
             {/* Input Bar */}
-            <form onSubmit={handleSendMessage} className="bg-[#202c33] p-2.5 border-t border-[#222d34] flex items-center gap-2 z-10 shrink-0">
+            <form onSubmit={handleSendMessage} className="bg-[#202c33] px-3.5 sm:px-5 py-3 border-t border-[#222d34] flex items-center gap-2.5 z-10 shrink-0">
               <button
                 type="button"
-                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors cursor-pointer shrink-0"
                 title="Emojis"
               >
                 <Smile className="w-5 h-5" />
@@ -603,7 +681,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
               
               <button
                 type="button"
-                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors cursor-pointer shrink-0"
                 title="Attach Document or Image"
               >
                 <Paperclip className="w-5 h-5" />
@@ -614,26 +692,28 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={isClient ? "Type a message to your legal team..." : "Type a message to applicant..."}
-                className="flex-1 bg-[#2a3942] text-xs sm:text-sm text-slate-100 placeholder-slate-400 rounded-lg px-4 py-2 border-none focus:outline-none focus:ring-1 focus:ring-[#00a884]"
+                className="flex-1 bg-[#2a3942] text-xs sm:text-sm text-slate-100 placeholder-slate-400 rounded-xl px-4 py-2.5 border border-transparent focus:border-[#00a884]/40 focus:outline-none focus:ring-1 focus:ring-[#00a884]"
               />
 
-              {inputText.trim() ? (
-                <button
-                  type="submit"
-                  className="p-2 bg-[#00a884] hover:bg-[#008f70] text-white rounded-full transition-colors cursor-pointer shadow-sm"
-                  title="Send Message"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors cursor-pointer"
-                  title="Voice Message"
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-              )}
+              <div className="shrink-0 flex items-center pl-1 pr-1 sm:pr-2">
+                {inputText.trim() ? (
+                  <button
+                    type="submit"
+                    className="w-10 h-10 bg-[#00a884] hover:bg-[#008f70] text-white rounded-full transition-all shadow-md flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95"
+                    title="Send Message"
+                  >
+                    <Send className="w-4 h-4 translate-x-0.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="w-10 h-10 text-slate-400 hover:text-slate-200 hover:bg-[#374248] rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                    title="Voice Message"
+                  >
+                    <Mic className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
             </form>
           </div>
         ) : (

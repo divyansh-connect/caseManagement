@@ -37,7 +37,7 @@ import {
   Loader2,
   X
 } from 'lucide-react';
-import { CaseItem, CaseDocument, CaseMessage, CaseTask } from '../../types';
+import { CaseItem, CaseDocument, CaseMessage, CaseTask, UserRole } from '../../types';
 import { downloadDocumentFile } from '../../utils/downloadHelper';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { WhatsAppModal } from '../communication/WhatsAppModal';
@@ -58,6 +58,9 @@ interface ClientPortalViewProps {
   onNavigateTab?: (tab: any) => void;
   commViewMode?: 'hub' | 'whatsapp';
   setCommViewMode?: (mode: 'hub' | 'whatsapp') => void;
+  currentUser?: { id: string; name: string; email: string; role: UserRole; avatar?: string } | null;
+  allCases?: CaseItem[];
+  onNewMessage?: (msg: CaseMessage) => void;
 }
 
 export type ClientPortalTab =
@@ -229,7 +232,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   activeNavTab,
   onNavigateTab,
   commViewMode = 'whatsapp',
-  setCommViewMode
+  setCommViewMode,
+  currentUser,
+  allCases = [],
+  onNewMessage
 }) => {
   const currentTab = activeNavTab ? (NAV_TO_PORTAL_TAB[activeNavTab] || 'overview') : 'overview';
   const [internalTab, setInternalTab] = useState<ClientPortalTab>(currentTab);
@@ -245,10 +251,151 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [expandedStage, setExpandedStage] = useState<number>(() => Number(caseData?.currentStage) || 1);
   const [stage1FlowMode, setStage1FlowMode] = useState<'standard' | 'evidence_first'>('standard');
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'sms' | 'whatsapp' | null>(null);
+
+  // Set of all case IDs belonging to this client to ensure cross-case thread consistency
+  const clientCaseIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (caseData?.id) ids.add(caseData.id);
+    const targetClientId = caseData?.clientId || (caseData as any)?.client?.id || currentUser?.id;
+    const targetEmail = (caseData?.clientEmail || (caseData as any)?.client?.email || currentUser?.email || '').toLowerCase().trim();
+    const targetName = (caseData?.clientName || (caseData as any)?.client?.name || currentUser?.name || '').toLowerCase().trim();
+
+    if (allCases && allCases.length > 0) {
+      allCases.forEach(c => {
+        const cClientId = c.clientId || (c as any).client?.id;
+        const cEmail = (c.clientEmail || (c as any).client?.email || '').toLowerCase().trim();
+        const cName = (c.clientName || (c as any).client?.name || '').toLowerCase().trim();
+        if (
+          (targetClientId && cClientId === targetClientId) ||
+          (targetEmail && cEmail === targetEmail) ||
+          (targetName && cName === targetName)
+        ) {
+          ids.add(c.id);
+        }
+      });
+    }
+    return ids;
+  }, [caseData, allCases, currentUser]);
+
+  const isRelevantPortalMessage = React.useCallback((m: any) => {
+    if (!m) return false;
+    const text = m.content || m.text || '';
+    const isWa = m.channel === 'whatsapp' || text.startsWith('[WA] ') || text.startsWith('[wa]: ');
+    if (isWa) return false;
+
+    // Match if belongs to this case or any case of this client
+    if (m.caseId && clientCaseIds.has(m.caseId)) return true;
+    if (caseData?.id && m.caseId === caseData.id) return true;
+
+    // Match by client/sender name
+    const targetName = (caseData?.clientName || currentUser?.name || '').toLowerCase().trim();
+    const sName = (m.senderName || '').toLowerCase().trim();
+    if (targetName && sName && (sName === targetName || sName.includes(targetName) || targetName.includes(sName))) {
+      return true;
+    }
+    return false;
+  }, [clientCaseIds, caseData?.id, caseData?.clientName, currentUser?.name]);
+
+  const clientStorageKey = React.useMemo(() => {
+    const idKey = caseData?.clientId || (caseData as any)?.client?.id || currentUser?.id;
+    const emailKey = caseData?.clientEmail || (caseData as any)?.client?.email || currentUser?.email;
+    const cleanKey = (idKey || emailKey || caseData?.clientName || 'default').replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `babel_portal_hub_messages_${cleanKey}`;
+  }, [caseData, currentUser]);
+
   const [messages, setMessages] = useState<CaseMessage[]>(() => {
-    return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
+    // 1. Try persistent storage so conversation is NEVER deleted across logouts
+    try {
+      const saved = localStorage.getItem(clientStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+
+    // 2. Try initial messages prop
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages.filter(isRelevantPortalMessage);
+    }
+    return [];
   });
+
   const [newMsg, setNewMsg] = useState('');
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of conversation thread
+  React.useEffect(() => {
+    if (activeTab === 'messages') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeTab]);
+
+  // Persist messages in localStorage whenever they change
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(clientStorageKey, JSON.stringify(messages));
+      } catch {}
+    }
+  }, [messages, clientStorageKey]);
+
+  // Synchronize when initialMessages prop updates from App.tsx
+  React.useEffect(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      const relevant = initialMessages.filter(isRelevantPortalMessage);
+      if (relevant.length > 0) {
+        setMessages(prev => {
+          const map = new Map<string, CaseMessage>();
+          prev.forEach(m => map.set(m.id, m));
+          relevant.forEach(m => map.set(m.id, m));
+          return Array.from(map.values()).sort((a, b) => 
+            (a.timestamp || '').localeCompare(b.timestamp || '')
+          );
+        });
+      }
+    }
+  }, [initialMessages, isRelevantPortalMessage]);
+
+  // Real-time automatic polling for new Messaging Hub messages without needing page refresh
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const pollPortalMessages = async () => {
+      try {
+        const res = await api.get('/messages');
+        if (!isMounted || !res.success || !Array.isArray(res.data)) return;
+
+        const relevant = res.data.filter(isRelevantPortalMessage);
+
+        setMessages(prev => {
+          const map = new Map<string, CaseMessage>();
+          prev.forEach(m => map.set(m.id, m));
+          relevant.forEach(m => map.set(m.id, m));
+          const merged = Array.from(map.values()).sort((a, b) => 
+            (a.timestamp || '').localeCompare(b.timestamp || '')
+          );
+          if (merged.length !== prev.length || merged.some((m, idx) => m.id !== prev[idx]?.id)) {
+            return merged;
+          }
+          return prev;
+        });
+      } catch (err) {
+        // Silently ignore background polling errors
+      }
+    };
+
+    // Trigger immediately on component mount
+    pollPortalMessages();
+
+    const interval = setInterval(pollPortalMessages, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isRelevantPortalMessage]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,20 +403,42 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
     const contentToSend = newMsg.trim();
     setNewMsg('');
+    setIsSendingMsg(true);
+
+    const clientName = caseData.clientName || currentUser?.name || 'demoooooooo';
+    const targetCaseId = caseData.id;
+
+    // 1. Optimistic instant message display
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: CaseMessage = {
+      id: tempId,
+      caseId: targetCaseId,
+      senderName: clientName,
+      senderRole: 'client',
+      content: contentToSend,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
 
     try {
       const res = await api.post('/messages', {
-        caseId: caseData.id,
-        senderName: caseData.clientName,
+        caseId: targetCaseId,
+        senderName: clientName,
         senderRole: 'client',
-        content: contentToSend
+        content: contentToSend,
+        channel: 'portal'
       });
 
-      if (res.success && res.data) {
-        setMessages(prev => [...prev, res.data]);
+      if (res && res.success && res.data) {
+        setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
+        if (onNewMessage) onNewMessage(res.data);
       }
     } catch (err: any) {
-      console.error('Failed to send message:', err.message);
+      console.error('Failed to send message to backend:', err.message);
+      // Even if network fails, the message remains preserved in local state & localStorage!
+    } finally {
+      setIsSendingMsg(false);
     }
   };
 
@@ -1327,35 +1496,65 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </div>
 
               <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-slate-50/50">
-                {messages.map(m => (
-                  <div
-                    key={m.id}
-                    className={`p-4 rounded-2xl max-w-md ${m.senderRole === 'client'
-                        ? 'bg-blue-600 text-white ml-auto shadow-sm'
-                        : 'bg-white text-slate-800 mr-auto border border-slate-200 shadow-xs'
-                      }`}
-                  >
-                    <div className="text-[10px] opacity-75 mb-1 font-bold">{m.senderName} • {m.timestamp}</div>
-                    <p className="text-xs leading-relaxed">{m.content}</p>
+                {messages
+                  .filter(m => {
+                    const text = m.content || '';
+                    const isWa = (m as any).channel === 'whatsapp' || text.startsWith('[WA] ') || text.startsWith('[wa]: ');
+                    return !isWa;
+                  })
+                  .length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-12 text-slate-400">
+                    <MessageSquare className="w-10 h-10 text-slate-300 mb-2 stroke-1" />
+                    <p className="text-xs font-semibold text-slate-600">No messages in Messaging Hub yet</p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-xs">Send a direct message below to communicate directly with your assigned petition drafter &amp; attorney.</p>
                   </div>
-                ))}
+                ) : (
+                  messages
+                    .filter(m => {
+                      const text = m.content || '';
+                      const isWa = (m as any).channel === 'whatsapp' || text.startsWith('[WA] ') || text.startsWith('[wa]: ');
+                      return !isWa;
+                    })
+                    .map(m => {
+                      const isMe = m.senderRole === 'client';
+                      return (
+                        <div
+                          key={m.id}
+                          className={`p-3.5 sm:p-4 rounded-2xl max-w-[85%] sm:max-w-md ${isMe
+                              ? 'bg-blue-600 text-white ml-auto shadow-sm rounded-br-xs'
+                              : 'bg-white text-slate-800 mr-auto border border-slate-200 shadow-xs rounded-bl-xs'
+                            }`}
+                        >
+                          <div className={`text-[10px] mb-1 font-semibold flex items-center justify-between gap-3 ${isMe ? 'text-blue-100' : 'text-slate-500'}`}>
+                            <span>{m.senderName}</span>
+                            <span>{m.timestamp}</span>
+                          </div>
+                          <p className="text-xs leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                        </div>
+                      );
+                    })
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 flex items-center gap-3 bg-white">
+              <form onSubmit={handleSendMessage} className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 flex items-center gap-3 bg-white">
                 <input
                   type="text"
                   value={newMsg}
                   onChange={(e) => setNewMsg(e.target.value)}
                   placeholder="Ask your attorney or petition writer a question..."
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send</span>
-                </button>
+                <div className="shrink-0 pl-1 pr-1">
+                  <button
+                    type="submit"
+                    disabled={!newMsg.trim() || isSendingMsg}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:shadow-md active:scale-95"
+                  >
+                    <span>Send</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </form>
             </div>
           )}
