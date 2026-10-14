@@ -23,7 +23,7 @@ interface DashboardViewProps {
   openNewCaseModal: () => void;
   openAIAssistant: () => void;
   userRole: UserRole;
-  onNavigateTab?: (tab: any) => void;
+  onNavigateTab?: (tab: any, options?: { stageIds?: number[]; category?: string }) => void;
 }
 
 import { api } from '../../services/api';
@@ -230,9 +230,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             return (
               <div 
                 key={item.cat} 
-                onClick={() => onNavigateTab ? onNavigateTab('cases') : null}
-                className={`p-3 rounded-lg border ${item.color} flex flex-col justify-between cursor-pointer transition-all hover:shadow-sm`}
-                title={`View active cases in ${item.cat}`}
+                onClick={() => onNavigateTab ? onNavigateTab('cases', { stageIds: item.stageIds, category: item.cat }) : null}
+                className={`p-3 rounded-lg border ${item.color} flex flex-col justify-between cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group`}
+                title={`Filter and view cases in ${item.cat}`}
               >
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-wider opacity-75">{item.stages}</div>
@@ -240,7 +240,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-lg sm:text-xl font-extrabold">{count}</span>
-                  <span className="text-[10px] opacity-75">cases →</span>
+                  <span className="text-[10px] opacity-75 group-hover:translate-x-1 transition-transform">cases →</span>
                 </div>
               </div>
             );
@@ -496,7 +496,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           onClick={() => {
                             setIsMatrixModalOpen(false);
                             if (onNavigateTab) {
-                              onNavigateTab('cases');
+                              onNavigateTab('cases', { stageIds: [st.id], category: st.name });
                             }
                           }}
                           className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
