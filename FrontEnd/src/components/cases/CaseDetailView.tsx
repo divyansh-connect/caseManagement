@@ -271,6 +271,7 @@ interface CaseDetailViewProps {
   openNewRecommenderModal: () => void;
   openResumeBuildingModal?: (caseItem: CaseItem) => void;
   userRole: UserRole;
+  onUpdateDocStatus?: (docId: string, newStatus: any) => Promise<boolean> | void;
 }
 
 export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
@@ -284,6 +285,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   openNewRecommenderModal,
   openResumeBuildingModal,
   userRole,
+  onUpdateDocStatus,
 }) => {
   const [activeTab, setActiveTab] = useState<'workflow' | 'overview' | 'dhanasar' | 'documents' | 'recommenders' | 'builder' | 'messages'>('workflow');
   const [expandedStage, setExpandedStage] = useState<number>(() => caseData?.currentStage || 1);
@@ -427,7 +429,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) {
             parsed.forEach((d: CaseDocument) => {
-              if (d?.id) map.set(d.id, d);
+              if (d?.id && !map.has(d.id)) map.set(d.id, d);
             });
           }
         }
@@ -1879,27 +1881,59 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
         isOpen={Boolean(previewDoc)}
         onClose={() => setPreviewDoc(null)}
         document={previewDoc}
-        onApprove={reviewSubmissionTask ? () => {
-          handleUpdateTaskStatus(reviewSubmissionTask.stageId, reviewSubmissionTask.task.id, 'Approved/Completed');
+        onApprove={reviewSubmissionTask ? async () => {
           if (previewDoc?.id) {
             try {
-              const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-              overrides[previewDoc.id] = 'Approved';
-              localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
-            } catch {}
+              let res: any;
+              try {
+                res = await api.patch(`/documents/${previewDoc.id}`, { status: 'Approved' });
+              } catch {
+                res = await api.put(`/documents/${previewDoc.id}`, { status: 'Approved' });
+              }
+              if (!res || !res.success) {
+                throw new Error(res?.error || 'Server rejected document approval');
+              }
+              const updatedDoc = res.data || { ...previewDoc, status: 'Approved' };
+              setLocalFreshDocs(prev => prev.map(d => d.id === previewDoc.id ? updatedDoc : d));
+              if (onUpdateDocStatus) {
+                await onUpdateDocStatus(previewDoc.id, 'Approved');
+              }
+              window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: updatedDoc } }));
+            } catch (err: any) {
+              console.error('Failed to persist document approval:', err);
+              alert(`Failed to approve document on server: ${err?.message || 'Server error'}`);
+              return;
+            }
           }
+          handleUpdateTaskStatus(reviewSubmissionTask.stageId, reviewSubmissionTask.task.id, 'Approved/Completed');
           setPreviewDoc(null);
           setReviewSubmissionTask(null);
         } : undefined}
-        onRequestRevision={reviewSubmissionTask ? () => {
-          handleUpdateTaskStatus(reviewSubmissionTask.stageId, reviewSubmissionTask.task.id, 'Revision Required');
+        onRequestRevision={reviewSubmissionTask ? async () => {
           if (previewDoc?.id) {
             try {
-              const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-              overrides[previewDoc.id] = 'Revision Required';
-              localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
-            } catch {}
+              let res: any;
+              try {
+                res = await api.patch(`/documents/${previewDoc.id}`, { status: 'Needs Revision' });
+              } catch {
+                res = await api.put(`/documents/${previewDoc.id}`, { status: 'Needs Revision' });
+              }
+              if (!res || !res.success) {
+                throw new Error(res?.error || 'Server rejected document revision request');
+              }
+              const updatedDoc = res.data || { ...previewDoc, status: 'Needs Revision' };
+              setLocalFreshDocs(prev => prev.map(d => d.id === previewDoc.id ? updatedDoc : d));
+              if (onUpdateDocStatus) {
+                await onUpdateDocStatus(previewDoc.id, 'Needs Revision');
+              }
+              window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: updatedDoc } }));
+            } catch (err: any) {
+              console.error('Failed to persist document revision:', err);
+              alert(`Failed to request revision for document on server: ${err?.message || 'Server error'}`);
+              return;
+            }
           }
+          handleUpdateTaskStatus(reviewSubmissionTask.stageId, reviewSubmissionTask.task.id, 'Revision Required');
           setPreviewDoc(null);
           setReviewSubmissionTask(null);
         } : undefined}
@@ -2115,19 +2149,36 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      handleUpdateTaskStatus(stageId, taskId, 'Revision Required');
-                      if (sub.documents && Array.isArray(sub.documents)) {
-                        sub.documents.forEach((d: any) => {
-                          if (d?.id) {
+                    onClick={async () => {
+                      const docsToUpdate = Array.isArray(sub.documents) ? sub.documents.filter((d: any) => Boolean(d?.id)) : [];
+                      if (docsToUpdate.length > 0) {
+                        try {
+                          for (const d of docsToUpdate) {
+                            let res: any;
                             try {
-                              const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-                              overrides[d.id] = 'Revision Required';
-                              localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
-                            } catch {}
+                              res = await api.patch(`/documents/${d.id}`, { status: 'Needs Revision' });
+                            } catch {
+                              res = await api.put(`/documents/${d.id}`, { status: 'Needs Revision' });
+                            }
+                            if (!res || !res.success) {
+                              throw new Error(res?.error || `Failed to update document "${d.name || d.id}"`);
+                            }
+                            if (onUpdateDocStatus) {
+                              await onUpdateDocStatus(d.id, 'Needs Revision');
+                            }
                           }
-                        });
+                          setLocalFreshDocs(prev => prev.map(d => {
+                            const match = docsToUpdate.find((u: any) => u.id === d.id);
+                            return match ? { ...d, status: 'Needs Revision' } : d;
+                          }));
+                          window.dispatchEvent(new CustomEvent('document_uploaded'));
+                        } catch (err: any) {
+                          console.error('Failed to persist document revision status:', err);
+                          alert(`Failed to save revision status to server: ${err?.message || 'Server error'}`);
+                          return;
+                        }
                       }
+                      handleUpdateTaskStatus(stageId, taskId, 'Revision Required');
                       setReviewSubmissionTask(null);
                     }}
                     className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold flex items-center gap-1.5 cursor-pointer"
@@ -2137,19 +2188,36 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      handleUpdateTaskStatus(stageId, taskId, 'Approved/Completed');
-                      if (sub.documents && Array.isArray(sub.documents)) {
-                        sub.documents.forEach((d: any) => {
-                          if (d?.id) {
+                    onClick={async () => {
+                      const docsToUpdate = Array.isArray(sub.documents) ? sub.documents.filter((d: any) => Boolean(d?.id)) : [];
+                      if (docsToUpdate.length > 0) {
+                        try {
+                          for (const d of docsToUpdate) {
+                            let res: any;
                             try {
-                              const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-                              overrides[d.id] = 'Approved';
-                              localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
-                            } catch {}
+                              res = await api.patch(`/documents/${d.id}`, { status: 'Approved' });
+                            } catch {
+                              res = await api.put(`/documents/${d.id}`, { status: 'Approved' });
+                            }
+                            if (!res || !res.success) {
+                              throw new Error(res?.error || `Failed to update document "${d.name || d.id}"`);
+                            }
+                            if (onUpdateDocStatus) {
+                              await onUpdateDocStatus(d.id, 'Approved');
+                            }
                           }
-                        });
+                          setLocalFreshDocs(prev => prev.map(d => {
+                            const match = docsToUpdate.find((u: any) => u.id === d.id);
+                            return match ? { ...d, status: 'Approved' } : d;
+                          }));
+                          window.dispatchEvent(new CustomEvent('document_uploaded'));
+                        } catch (err: any) {
+                          console.error('Failed to persist document approval:', err);
+                          alert(`Failed to save document approval to server: ${err?.message || 'Server error'}`);
+                          return;
+                        }
                       }
+                      handleUpdateTaskStatus(stageId, taskId, 'Approved/Completed');
                       setReviewSubmissionTask(null);
                     }}
                     className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md flex items-center gap-2 cursor-pointer"

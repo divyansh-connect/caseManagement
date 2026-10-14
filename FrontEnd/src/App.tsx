@@ -345,25 +345,35 @@ export default function App() {
     }
   };
 
-  const applyDocStatusOverrides = (docs: any[]) => {
+  // Clear legacy stale document status overrides from localStorage so database is authoritative
+  useEffect(() => {
     try {
-      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-      return docs.map(d => ({
-        ...d,
-        status: overrides[d.id] || d.status || 'Pending Review'
-      }));
-    } catch {
-      return docs;
-    }
-  };
-
-  const handleUpdateDocStatus = (docId: string, newStatus: any) => {
-    try {
-      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-      overrides[docId] = newStatus;
-      localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
+      localStorage.removeItem('document_status_overrides');
     } catch {}
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: newStatus } : d));
+  }, []);
+
+  const handleUpdateDocStatus = async (docId: string, newStatus: any): Promise<boolean> => {
+    try {
+      let res: any;
+      try {
+        res = await api.patch(`/documents/${docId}`, { status: newStatus });
+      } catch (patchErr) {
+        res = await api.put(`/documents/${docId}`, { status: newStatus });
+      }
+
+      if (res && res.success && res.data) {
+        const confirmedDoc: CaseDocument = res.data;
+        setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: confirmedDoc.status || newStatus } : d));
+        window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: confirmedDoc } }));
+        return true;
+      } else {
+        throw new Error(res?.error || 'Document status update was not confirmed by the server');
+      }
+    } catch (err: any) {
+      console.error('Failed to persist document status:', err);
+      alert(`Failed to save document status to database: ${err?.message || 'Server error'}`);
+      return false;
+    }
   };
 
   // Real-time synchronization of newly uploaded documents & task events across components & roles
@@ -381,7 +391,7 @@ export default function App() {
       // Authoritative background refresh from server
       api.get('/documents').then(res => {
         if (res.success && Array.isArray(res.data)) {
-          setDocuments(applyDocStatusOverrides(res.data));
+          setDocuments(res.data);
         }
       }).catch(() => {});
     };
@@ -431,7 +441,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (dashDocs.success) {
-              setDocuments(applyDocStatusOverrides(dashDocs.data));
+              setDocuments(dashDocs.data);
             }
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
@@ -451,7 +461,7 @@ export default function App() {
               ensureCasesForClients(mapped);
             }
             if (casesDocs.success) {
-              setDocuments(applyDocStatusOverrides(casesDocs.data));
+              setDocuments(casesDocs.data);
             }
             break;
 
@@ -480,14 +490,14 @@ export default function App() {
                 });
               }
               const myDocsRes = await api.get('/documents');
-              if (myDocsRes.success) setDocuments(applyDocStatusOverrides(myDocsRes.data));
+              if (myDocsRes.success) setDocuments(myDocsRes.data);
             }
             break;
 
           case 'documents':
             const docsRes = await api.get('/documents');
             if (docsRes.success) {
-              setDocuments(applyDocStatusOverrides(docsRes.data));
+              setDocuments(docsRes.data);
             }
             break;
 
@@ -1112,6 +1122,7 @@ export default function App() {
                 openNewRecommenderModal={() => setIsNewRecModalOpen(true)}
                 openResumeBuildingModal={handleOpenResumeBuilding}
                 userRole={userRole}
+                onUpdateDocStatus={handleUpdateDocStatus}
               />
             ) : (
               <DashboardView
@@ -1141,6 +1152,7 @@ export default function App() {
                 openNewRecommenderModal={() => setIsNewRecModalOpen(true)}
                 openResumeBuildingModal={handleOpenResumeBuilding}
                 userRole={userRole}
+                onUpdateDocStatus={handleUpdateDocStatus}
               />
             ) : (
               <CasesListView

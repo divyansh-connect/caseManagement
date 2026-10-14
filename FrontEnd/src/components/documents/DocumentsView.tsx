@@ -31,7 +31,7 @@ interface DocumentsViewProps {
   documents: CaseDocument[];
   openNewDocModal: () => void;
   openAIAssistant: () => void;
-  onUpdateDocStatus?: (docId: string, newStatus: 'Pending Review' | 'Verified' | 'Needs Revision' | 'Approved') => void;
+  onUpdateDocStatus?: (docId: string, newStatus: 'Pending Review' | 'Verified' | 'Needs Revision' | 'Approved') => Promise<boolean> | void;
 }
 
 export type DocumentStatus = 'Pending Review' | 'Verified' | 'Needs Revision' | 'Approved';
@@ -132,38 +132,37 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     setUpdatingDocId(doc.id);
     setOpenStatusDropdownId(null);
 
-    // 1. Persist to localStorage override
     try {
-      const overrides = JSON.parse(localStorage.getItem('document_status_overrides') || '{}');
-      overrides[doc.id] = newStatus;
-      localStorage.setItem('document_status_overrides', JSON.stringify(overrides));
-    } catch (e) {}
-
-    // 2. Call parent callback if available
-    if (onUpdateDocStatus) {
-      onUpdateDocStatus(doc.id, newStatus);
-    }
-
-    // 3. Update viewingDoc if currently open in View Modal
-    if (viewingDoc && viewingDoc.id === doc.id) {
-      setViewingDoc({ ...viewingDoc, status: newStatus });
-    }
-
-    // 4. Send API request to backend
-    try {
-      await api.patch(`/documents/${doc.id}`, { status: newStatus });
-    } catch (err) {
-      try {
-        await api.put(`/documents/${doc.id}`, { status: newStatus });
-      } catch (e) {
-        console.warn('Backend update failed, kept in local storage:', e);
+      if (onUpdateDocStatus) {
+        const success = await onUpdateDocStatus(doc.id, newStatus);
+        if (success === false) {
+          return;
+        }
+      } else {
+        let res: any;
+        try {
+          res = await api.patch(`/documents/${doc.id}`, { status: newStatus });
+        } catch {
+          res = await api.put(`/documents/${doc.id}`, { status: newStatus });
+        }
+        if (!res || !res.success) {
+          throw new Error(res?.error || 'Server rejected document status update');
+        }
       }
+
+      // Update viewingDoc if currently open in View Modal
+      if (viewingDoc && viewingDoc.id === doc.id) {
+        setViewingDoc({ ...viewingDoc, status: newStatus });
+      }
+
+      setDownloadToast(`Status for "${doc.name}" updated to "${newStatus}"`);
+      setTimeout(() => setDownloadToast(''), 4000);
+    } catch (err: any) {
+      console.error('Document status update failed:', err);
+      alert(`Failed to update status for "${doc.name}": ${err?.message || 'Server error'}`);
     } finally {
       setUpdatingDocId(null);
     }
-
-    setDownloadToast(`Status for "${doc.name}" updated to "${newStatus}"`);
-    setTimeout(() => setDownloadToast(''), 4000);
   };
 
   return (
