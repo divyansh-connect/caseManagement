@@ -70,13 +70,21 @@ export const AddClientModal = ({ isOpen, onClose }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-300">Phone Number</label>
+              <span className="text-[10px] text-slate-400">10 Digits</span>
+            </div>
             <input
               type="tel"
-              placeholder="+1 (555) 000-0000"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="e.g. 5550123456"
               value={formData.phone}
-              onChange={e => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+              onChange={e => {
+                const numericOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setFormData({ ...formData, phone: numericOnly });
+              }}
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
             />
           </div>
 
