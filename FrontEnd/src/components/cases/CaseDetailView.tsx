@@ -294,9 +294,16 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const [previewDoc, setPreviewDoc] = useState<CaseDocument | null>(null);
   const [reviewSubmissionTask, setReviewSubmissionTask] = useState<{ stageId: number; task: any } | null>(null);
 
-  // Active recommenders merging caseData.recommenders + client submitted recommenders
+  // Local state for freshly fetched recommenders and documents to sync across views
+  const [localFreshRecs, setLocalFreshRecs] = useState<Recommender[]>([]);
+  const [localFreshDocs, setLocalFreshDocs] = useState<CaseDocument[]>([]);
+
+  // Active recommenders merging caseData.recommenders + localFreshRecs + client submitted recommenders
   const activeRecommenders = React.useMemo(() => {
-    const list: Recommender[] = [...(caseData?.recommenders || [])];
+    const list: Recommender[] = [
+      ...(caseData?.recommenders || []),
+      ...localFreshRecs
+    ];
     const recMap = new Map<string, Recommender>();
     list.forEach(r => {
       if (r?.name) recMap.set(r.name.toLowerCase().trim(), r);
@@ -325,11 +332,10 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       });
     }
 
-    // 2. Check localStorage case_recommenders_
+    // 2. Check case-scoped localStorage (NEVER use global master key)
     try {
-      const savedRecs = localStorage.getItem(`case_recommenders_${caseData?.id}`) || 
-                        (caseData?.caseNumber ? localStorage.getItem(`case_recommenders_${caseData.caseNumber}`) : null) || 
-                        localStorage.getItem('case_recommenders_master');
+      const savedRecs = (caseData?.id ? localStorage.getItem(`case_recommenders_${caseData.id}`) : null) || 
+                        (caseData?.caseNumber ? localStorage.getItem(`case_recommenders_${caseData.caseNumber}`) : null);
       if (savedRecs) {
         const parsed = JSON.parse(savedRecs);
         if (Array.isArray(parsed)) {
@@ -365,10 +371,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
     }
 
     return Array.from(recMap.values());
-  }, [caseData?.recommenders, stageGroups, caseData?.id, caseData?.caseNumber]);
-
-  // Local state for freshly fetched documents to sync across views and components
-  const [localFreshDocs, setLocalFreshDocs] = useState<CaseDocument[]>([]);
+  }, [caseData?.recommenders, localFreshRecs, stageGroups, caseData?.id, caseData?.caseNumber]);
 
   React.useEffect(() => {
     const fetchLatestDocs = async () => {
@@ -417,14 +420,38 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       }
     };
 
+    const fetchLatestRecommenders = async () => {
+      const caseIdentifier = caseData?.caseNumber || caseData?.id;
+      if (!caseIdentifier) return;
+      try {
+        const res = await api.get(`/cases/${caseIdentifier}`);
+        if (res.success && res.data?.recommenders && Array.isArray(res.data.recommenders)) {
+          setLocalFreshRecs(res.data.recommenders);
+        }
+      } catch (err) {
+        console.warn('[CASE DETAIL] Error fetching latest case recommenders:', err);
+      }
+    };
+
+    // Purge legacy global recommenders storage to prevent cross-client leaks
+    try {
+      localStorage.removeItem('case_recommenders_master');
+    } catch {}
+
     fetchLatestDocs();
+    fetchLatestRecommenders();
+
+    const handleWorkflowSync = () => {
+      fetchLatestDocs();
+      fetchLatestRecommenders();
+    };
 
     window.addEventListener('document_uploaded', fetchLatestDocs);
-    window.addEventListener('workflow_task_updated', fetchLatestDocs);
+    window.addEventListener('workflow_task_updated', handleWorkflowSync);
     window.addEventListener('document_deleted', handleDocDeleted);
     return () => {
       window.removeEventListener('document_uploaded', fetchLatestDocs);
-      window.removeEventListener('workflow_task_updated', fetchLatestDocs);
+      window.removeEventListener('workflow_task_updated', handleWorkflowSync);
       window.removeEventListener('document_deleted', handleDocDeleted);
     };
   }, [caseData?.id]);
@@ -724,9 +751,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
     if (task.id === 'st2-2') {
       let recs: any[] = [];
       try {
-        const saved = localStorage.getItem(`case_recommenders_${caseData?.id}`) || 
-                      (caseData?.caseNumber ? localStorage.getItem(`case_recommenders_${caseData.caseNumber}`) : null) || 
-                      localStorage.getItem('case_recommenders_master');
+        const saved = (caseData?.id ? localStorage.getItem(`case_recommenders_${caseData.id}`) : null) || 
+                      (caseData?.caseNumber ? localStorage.getItem(`case_recommenders_${caseData.caseNumber}`) : null);
         if (saved) recs = JSON.parse(saved);
       } catch {}
       if (!recs || recs.length === 0) {

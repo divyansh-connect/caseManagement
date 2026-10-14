@@ -996,6 +996,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [newRecInstitution, setNewRecInstitution] = useState('');
   const [newRecField, setNewRecField] = useState('');
   const [recList, setRecList] = useState<any[]>(() => (Array.isArray(caseData?.recommenders) && caseData.recommenders.length > 0) ? caseData.recommenders : []);
+  const [isSubmittingRecs, setIsSubmittingRecs] = useState(false);
+  const [recSubmitError, setRecSubmitError] = useState<string | null>(null);
+
+  // Sync recList whenever caseData.recommenders changes from server
+  useEffect(() => {
+    if (Array.isArray(caseData?.recommenders) && caseData.recommenders.length > 0) {
+      setRecList(caseData.recommenders);
+    }
+  }, [caseData?.recommenders]);
+
+  // Purge legacy global recommenders storage to prevent cross-client data contamination
+  useEffect(() => {
+    try {
+      localStorage.removeItem('case_recommenders_master');
+    } catch {}
+  }, []);
 
   // Shipping Address State
   const [shipStreet, setShipStreet] = useState('');
@@ -1257,20 +1273,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     if (preparedSubmission?.recommenders && Array.isArray(preparedSubmission.recommenders)) {
       try {
         const serializedRecs = JSON.stringify(preparedSubmission.recommenders);
-        localStorage.setItem('case_recommenders_master', serializedRecs);
+        // Explicitly purge legacy cross-client master fallback to prevent data leaks
+        localStorage.removeItem('case_recommenders_master');
         if (caseData?.id) localStorage.setItem(`case_recommenders_${caseData.id}`, serializedRecs);
         if (caseData?.caseNumber) localStorage.setItem(`case_recommenders_${caseData.caseNumber}`, serializedRecs);
 
-        // Also post each recommender to backend API
+        // Also post recommenders batch to backend API
         const caseIdentifier = caseData?.caseNumber || caseData?.id;
         if (caseIdentifier) {
-          preparedSubmission.recommenders.forEach((rec: any) => {
-            api.post(`/cases/${caseIdentifier}/recommenders`, {
-              name: rec.name,
-              title: rec.field || 'Independent Expert',
-              organization: rec.institution,
-              relationship: rec.relationship || 'Independent Expert'
-            }).catch(() => { });
+          api.post(`/cases/${caseIdentifier}/recommenders`, {
+            recommenders: preparedSubmission.recommenders
+          }).catch((err) => {
+            console.warn('[RECOMMENDER BACKGROUND SYNC]', err);
           });
         }
       } catch { }
@@ -1337,6 +1351,66 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       : '✓ Action submitted! Your submission is now under review by the immigration legal team.'
     );
     setTimeout(() => setActionToastMessage(null), 5000);
+  };
+
+  // Dedicated Recommender Roster Submission with Server Confirmation & Error Handling
+  const handleRecommenderSubmit = async () => {
+    if (!recList || recList.length === 0) {
+      setRecSubmitError('Please add at least one recommender candidate before submitting.');
+      return;
+    }
+
+    const caseIdentifier = caseData?.caseNumber || caseData?.id;
+    if (!caseIdentifier) {
+      setRecSubmitError('Case identifier is missing. Please refresh the page and try again.');
+      return;
+    }
+
+    setIsSubmittingRecs(true);
+    setRecSubmitError(null);
+
+    try {
+      const res = await api.post(`/cases/${caseIdentifier}/recommenders`, {
+        recommenders: recList.map(r => ({
+          name: r.name,
+          title: r.field || r.title || 'Independent Expert',
+          organization: r.institution || r.organization || 'US Research Institute',
+          relationship: r.relationship || 'Independent Expert'
+        }))
+      });
+
+      if (!res || !res.success) {
+        const errorMsg = res?.error || (res?.details ? JSON.stringify(res.details) : 'Failed to save recommenders on server.');
+        setRecSubmitError(errorMsg);
+        setIsSubmittingRecs(false);
+        return;
+      }
+
+      // Purge legacy global key to prevent cross-client leaks
+      try {
+        localStorage.removeItem('case_recommenders_master');
+        const serialized = JSON.stringify(recList);
+        if (caseData?.id) localStorage.setItem(`case_recommenders_${caseData.id}`, serialized);
+        if (caseData?.caseNumber) localStorage.setItem(`case_recommenders_${caseData.caseNumber}`, serialized);
+      } catch {}
+
+      // Commit task completion in workflow
+      submitTaskAction(2, 'st2-2', undefined, {
+        type: 'recommenders',
+        title: 'Nominated Expert Recommenders Roster',
+        recommenders: recList,
+        submittedAt: new Date().toISOString()
+      });
+
+      setIsSubmittingRecs(false);
+      setIsRecommenderActionModalOpen(false);
+      setActionToastMessage('✓ Recommenders submitted! Your nominations have been recorded and are under legal review.');
+      setTimeout(() => setActionToastMessage(null), 5000);
+    } catch (err: any) {
+      console.error('[RECOMMENDER SUBMIT ERROR]', err);
+      setRecSubmitError(err.message || 'Network error occurred while submitting recommenders. Please check connection and try again.');
+      setIsSubmittingRecs(false);
+    }
   };
 
   // Direct Inline Evidence Upload Handler
@@ -3293,7 +3367,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {/* 2. Recommender Identification Modal (st2-2) */}
       <Modal
         isOpen={isRecommenderActionModalOpen}
-        onClose={() => setIsRecommenderActionModalOpen(false)}
+        onClose={() => { if (!isSubmittingRecs) setIsRecommenderActionModalOpen(false); }}
         title="Identify 3 to 5 Expert Recommenders"
         subtitle="USCIS EB-2 NIW Dhanasar Prong 2: Substantial Recognition & Independent Evaluation"
       >
@@ -3303,22 +3377,48 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             USCIS adjudicators place maximum evidentiary weight on testimonial letters provided by <strong>independent experts</strong> who know of your work through citations, implementations, or prestigious conferences, but have not directly collaborated with you.
           </div>
 
+          {/* Submission Error Display */}
+          {recSubmitError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{recSubmitError}</span>
+            </div>
+          )}
+
           {/* Current List */}
           <div>
             <h4 className="font-bold text-slate-900 text-xs mb-2">Identified Recommenders ({recList.length})</h4>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {recList.map((rec, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-slate-800 block">{rec.name}</span>
-                    <span className="text-[11px] text-slate-500">{rec.institution || 'Institutional Affiliation'} • {rec.relationship || 'Independent Expert'}</span>
+            {recList.length === 0 ? (
+              <div className="p-4 border border-dashed border-slate-200 rounded-xl text-center text-slate-400">
+                No recommenders added yet. Use the form below to add 3 to 5 expert candidates.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {recList.map((rec, idx) => (
+                  <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-800 block">{rec.name}</span>
+                      <span className="text-[11px] text-slate-500">{rec.institution || rec.organization || 'Institutional Affiliation'} • {rec.relationship || 'Independent Expert'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                        {rec.relationship || 'Independent'}
+                      </span>
+                      {!isSubmittingRecs && (
+                        <button
+                          type="button"
+                          onClick={() => setRecList(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Remove candidate"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                    {rec.relationship || 'Independent'}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Add New Recommender */}
@@ -3330,14 +3430,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 placeholder="Full Name (e.g., Prof. Elena Rostova)"
                 value={newRecName}
                 onChange={(e) => setNewRecName(e.target.value)}
-                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                disabled={isSubmittingRecs}
+                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs disabled:opacity-50"
               />
               <input
                 type="text"
                 placeholder="Institution (e.g., Johns Hopkins University)"
                 value={newRecInstitution}
                 onChange={(e) => setNewRecInstitution(e.target.value)}
-                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                disabled={isSubmittingRecs}
+                className="p-2.5 rounded-lg border border-slate-200 bg-white text-xs disabled:opacity-50"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -3346,10 +3448,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 placeholder="Field / Specialization"
                 value={newRecField}
                 onChange={(e) => setNewRecField(e.target.value)}
-                className="flex-1 p-2.5 rounded-lg border border-slate-200 bg-white text-xs"
+                disabled={isSubmittingRecs}
+                className="flex-1 p-2.5 rounded-lg border border-slate-200 bg-white text-xs disabled:opacity-50"
               />
               <button
                 type="button"
+                disabled={isSubmittingRecs}
                 onClick={() => {
                   if (newRecName.trim()) {
                     setRecList(prev => [...prev, {
@@ -3361,9 +3465,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     setNewRecName('');
                     setNewRecInstitution('');
                     setNewRecField('');
+                    setRecSubmitError(null);
                   }
                 }}
-                className="px-4 py-2.5 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2.5 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
               >
                 + Add
               </button>
@@ -3373,26 +3478,31 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
+              disabled={isSubmittingRecs}
               onClick={() => setIsRecommenderActionModalOpen(false)}
-              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={() => {
-                submitTaskAction(2, 'st2-2', undefined, {
-                  type: 'recommenders',
-                  title: 'Nominated Expert Recommenders Roster',
-                  recommenders: recList,
-                  submittedAt: new Date().toISOString()
-                });
-                setIsRecommenderActionModalOpen(false);
-              }}
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-2"
+              disabled={isSubmittingRecs}
+              onClick={handleRecommenderSubmit}
+              className={`px-5 py-2.5 rounded-xl text-white font-bold shadow-md flex items-center gap-2 transition-all ${
+                isSubmittingRecs ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
+              }`}
             >
-              <Check className="w-4 h-4" />
-              <span>Submit Recommender Roster for Review</span>
+              {isSubmittingRecs ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Submitting to Legal Team...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Submit Recommender Roster for Review</span>
+                </>
+              )}
             </button>
           </div>
         </div>
