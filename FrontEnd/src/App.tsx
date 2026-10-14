@@ -192,12 +192,23 @@ export default function App() {
           workflowTasks = parsedNotes.workflowTasks;
           try {
             const serialized = JSON.stringify(workflowTasks);
-            localStorage.setItem('workflow_stage_tasks_master', serialized);
             if (c.id) localStorage.setItem(`workflow_stage_tasks_${c.id}`, serialized);
             if (c.caseNumber) localStorage.setItem(`workflow_stage_tasks_${c.caseNumber}`, serialized);
-            localStorage.setItem('workflow_stage_tasks_shared', serialized);
-            localStorage.setItem('workflow_stage_tasks_latest', serialized);
           } catch {}
+        }
+      } catch {}
+    }
+
+    // Newly created / auto-initialized cases must start strictly fresh at Stage 1 Step 1
+    if (c.notes === 'Auto-initialized case for client' || c.notes === 'Auto-initialized case for client portal' || !workflowTasks) {
+      try {
+        if (c.id) {
+          localStorage.removeItem(`workflow_stage_tasks_${c.id}`);
+          localStorage.removeItem(`completed_client_tasks_${c.id}`);
+        }
+        if (c.caseNumber) {
+          localStorage.removeItem(`workflow_stage_tasks_${c.caseNumber}`);
+          localStorage.removeItem(`completed_client_tasks_${c.caseNumber}`);
         }
       } catch {}
     }
@@ -220,8 +231,23 @@ export default function App() {
     };
   };
 
-  // 1. Session verification: verify token with /auth/me in background without redirecting valid active sessions
+  // 1. Session verification & cleanup of obsolete shared workflow keys
   useEffect(() => {
+    // Purge any legacy cross-case workflow keys to prevent cross-contamination
+    [
+      'workflow_stage_tasks_master',
+      'workflow_stage_tasks_shared',
+      'workflow_stage_tasks_latest',
+      'completed_client_tasks_shared',
+      'completed_client_tasks_default',
+      'workflow_stage_tasks_8fd91a8a-eb16-4a08-8a54-f8275760c44f',
+      'workflow_stage_tasks_NIW-2026-002',
+      'completed_client_tasks_8fd91a8a-eb16-4a08-8a54-f8275760c44f',
+      'completed_client_tasks_NIW-2026-002'
+    ].forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
+
     const token = localStorage.getItem('jwt_token');
 
     // If no token exists, send to login
@@ -854,10 +880,7 @@ export default function App() {
     if (targetCaseId) {
       const candidateKeys = [
         `workflow_stage_tasks_${targetCaseId}`,
-        targetCase?.caseNumber ? `workflow_stage_tasks_${targetCase.caseNumber}` : null,
-        targetCase?.clientId ? `workflow_stage_tasks_${targetCase.clientId}` : null,
-        'workflow_stage_tasks_shared',
-        'workflow_stage_tasks_latest'
+        targetCase?.caseNumber ? `workflow_stage_tasks_${targetCase.caseNumber}` : null
       ].filter(Boolean) as string[];
 
       for (const adminKey of candidateKeys) {
@@ -924,6 +947,24 @@ export default function App() {
       }
     } catch (err: any) {
       alert(`Booking failed: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCase = async (caseId: string) => {
+    try {
+      const res = await api.delete(`/cases/${caseId}`);
+      if (res && res.success) {
+        setCases(prev => prev.filter(c => c.id !== caseId));
+        if (selectedCaseId === caseId) {
+          setSelectedCaseId(null);
+          navigate('/cases');
+        }
+      } else {
+        alert(res?.error || 'Failed to delete case');
+      }
+    } catch (err: any) {
+      console.error('Error deleting case:', err.message);
+      alert(`Failed to delete case: ${err.message || 'Network error'}`);
     }
   };
 
@@ -1057,7 +1098,8 @@ export default function App() {
           ) : activeTab === 'dashboard' ? (
             selectedCaseId ? (
               <CaseDetailView
-                caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+                key={selectedCaseId}
+                caseData={cases.find(c => c.id === selectedCaseId) || roleFilteredCases.find(c => c.id === selectedCaseId)!}
                 documents={documents}
                 messages={messages}
                 onBack={() => {
@@ -1085,7 +1127,8 @@ export default function App() {
           ) : activeTab === 'cases' ? (
             selectedCaseId ? (
               <CaseDetailView
-                caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+                key={selectedCaseId}
+                caseData={cases.find(c => c.id === selectedCaseId) || roleFilteredCases.find(c => c.id === selectedCaseId)!}
                 documents={documents}
                 messages={messages}
                 onBack={() => {
@@ -1106,6 +1149,7 @@ export default function App() {
                 openNewCaseModal={() => setIsNewCaseModalOpen(true)}
                 openAIAssistant={() => setIsAiModalOpen(true)}
                 userRole={userRole}
+                onDeleteCase={handleDeleteCase}
               />
             )
           ) : activeTab === 'clients' ? (
@@ -1243,7 +1287,7 @@ export default function App() {
           if (activeCase?.id) {
             const adminKey = `workflow_stage_tasks_${activeCase.id}`;
             try {
-              const saved = localStorage.getItem('workflow_stage_tasks_master') || localStorage.getItem(adminKey);
+              const saved = localStorage.getItem(adminKey) || (activeCase.caseNumber ? localStorage.getItem(`workflow_stage_tasks_${activeCase.caseNumber}`) : null);
               if (saved) {
                 const stages = JSON.parse(saved);
                 const updated = stages.map((st: any) => ({
@@ -1256,7 +1300,6 @@ export default function App() {
                   })
                 }));
                 const serialized = JSON.stringify(updated);
-                localStorage.setItem('workflow_stage_tasks_master', serialized);
                 localStorage.setItem(adminKey, serialized);
                 if (activeCase.caseNumber) localStorage.setItem(`workflow_stage_tasks_${activeCase.caseNumber}`, serialized);
 
@@ -1291,7 +1334,7 @@ export default function App() {
           if (activeCase?.id) {
             const adminKey = `workflow_stage_tasks_${activeCase.id}`;
             try {
-              const saved = localStorage.getItem('workflow_stage_tasks_master') || localStorage.getItem(adminKey);
+              const saved = localStorage.getItem(adminKey) || (activeCase.caseNumber ? localStorage.getItem(`workflow_stage_tasks_${activeCase.caseNumber}`) : null);
               if (saved) {
                 const stages = JSON.parse(saved);
                 const updated = stages.map((st: any) => ({
@@ -1304,7 +1347,6 @@ export default function App() {
                   })
                 }));
                 const serialized = JSON.stringify(updated);
-                localStorage.setItem('workflow_stage_tasks_master', serialized);
                 localStorage.setItem(adminKey, serialized);
                 if (activeCase.caseNumber) localStorage.setItem(`workflow_stage_tasks_${activeCase.caseNumber}`, serialized);
 

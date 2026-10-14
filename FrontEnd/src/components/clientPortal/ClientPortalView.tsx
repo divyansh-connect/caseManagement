@@ -451,7 +451,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     fieldCategory: 'Proposed Endeavor & Research',
     assignedWriter: 'Petition Drafter 1',
     assignedReviewer: 'Senior Reviewer',
-    currentStage: 2,
+    currentStage: 1,
     priorityDate: new Date().toISOString().split('T')[0],
     status: 'In Progress' as any,
     documentsCount: documents?.length || 0,
@@ -851,26 +851,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [newRecName, setNewRecName] = useState('');
   const [newRecInstitution, setNewRecInstitution] = useState('');
   const [newRecField, setNewRecField] = useState('');
-  const [recList, setRecList] = useState<any[]>(() => caseData?.recommenders || [
-    { name: 'Dr. Katherine Bell', institution: 'MIT Lincoln Laboratory', relationship: 'Independent Expert' },
-    { name: 'Prof. Julian Vance', institution: 'Stanford Artificial Intelligence Lab', relationship: 'Independent Citation Expert' },
-    { name: 'Dr. Marcus Vance', institution: 'National Renewable Energy Lab', relationship: 'Independent Senior Fellow' }
-  ]);
+  const [recList, setRecList] = useState<any[]>(() => (Array.isArray(caseData?.recommenders) && caseData.recommenders.length > 0) ? caseData.recommenders : []);
 
   // Shipping Address State
-  const [shipStreet, setShipStreet] = useState('123 Innovation Boulevard, Suite 400');
-  const [shipCity, setShipCity] = useState('Cambridge');
-  const [shipState, setShipState] = useState('MA');
-  const [shipZip, setShipZip] = useState('02142');
-  const [shipPhone, setShipPhone] = useState((caseData as any)?.clientPhone || (caseData as any)?.client?.phone || '+1 (555) 012-3456');
+  const [shipStreet, setShipStreet] = useState('');
+  const [shipCity, setShipCity] = useState('');
+  const [shipState, setShipState] = useState('');
+  const [shipZip, setShipZip] = useState('');
+  const [shipPhone, setShipPhone] = useState((caseData as any)?.clientPhone || (caseData as any)?.client?.phone || '');
 
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
     try {
       const keys = [
         caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
-        caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
-        'completed_client_tasks_shared',
-        'completed_client_tasks_default'
+        caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null
       ].filter(Boolean) as string[];
       for (const k of keys) {
         const saved = localStorage.getItem(k);
@@ -888,9 +882,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       try {
         const keys = [
           caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
-          caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
-          'completed_client_tasks_shared',
-          'completed_client_tasks_default'
+          caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null
         ].filter(Boolean) as string[];
         for (const k of keys) {
           const saved = localStorage.getItem(k);
@@ -914,7 +906,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             const parsed = JSON.parse(res.data.notes);
             if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
               const serialized = JSON.stringify(parsed.workflowTasks);
-              localStorage.setItem('workflow_stage_tasks_master', serialized);
               if (res.data.id) localStorage.setItem(`workflow_stage_tasks_${res.data.id}`, serialized);
               if (res.data.caseNumber) localStorage.setItem(`workflow_stage_tasks_${res.data.caseNumber}`, serialized);
               setWorkflowSyncTick(t => t + 1);
@@ -962,15 +953,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     try {
       let parsedStages: any[] | null = null;
 
-      // 1. LocalStorage candidate keys FIRST (reflecting instant live edits from Super Admin / Admin)
+      // 1. LocalStorage candidate keys FIRST (reflecting instant live edits from Super Admin / Admin for this case)
       const candidateKeys = [
-        'workflow_stage_tasks_master',
         caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
-        caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-        caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-        ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
-        'workflow_stage_tasks_shared',
-        'workflow_stage_tasks_latest'
+        caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
       ].filter(Boolean) as string[];
 
       for (const k of candidateKeys) {
@@ -989,25 +975,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       // 2. Direct database-persisted workflowTasks on caseData fallback
       if (!parsedStages && (caseData as any)?.workflowTasks && Array.isArray((caseData as any).workflowTasks) && (caseData as any).workflowTasks.length > 0) {
         parsedStages = (caseData as any).workflowTasks;
-      }
-
-      // 3. Fallback: inspect any workflow_stage_tasks_ key in localStorage
-      if (!parsedStages) {
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const lk = localStorage.key(i);
-            if (lk && lk.startsWith('workflow_stage_tasks_')) {
-              const val = localStorage.getItem(lk);
-              if (val) {
-                const data = JSON.parse(val);
-                if (Array.isArray(data) && data.length > 0) {
-                  parsedStages = data;
-                  break;
-                }
-              }
-            }
-          }
-        } catch {}
       }
 
       if (parsedStages) {
@@ -1058,13 +1025,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Submits a task action to staff for review (Status: Under Review)
   const submitTaskAction = (stageId: number, taskId: string, attachedDocName?: string, submissionData?: any) => {
     const candidateKeys = [
-      'workflow_stage_tasks_master',
       caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
-      caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-      caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-      ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
-      'workflow_stage_tasks_shared',
-      'workflow_stage_tasks_latest'
+      caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
     ].filter(Boolean) as string[];
 
     let stages: any[] = [];
@@ -2344,52 +2306,86 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-slate-800 block text-sm">Babel Global Service Agreement</span>
-                <span className="text-slate-500">Executed on Jan 10, 2026 • SHA256 Encryption Signed</span>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                Executed
-              </span>
-            </div>
+            {(() => {
+              const isAgreementExecuted = completedTaskIds.includes('st1-3') || Boolean((caseData as any)?.contractSigned);
+              return (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800 block text-sm">Babel Global Service Agreement</span>
+                    <span className="text-slate-500">
+                      {isAgreementExecuted
+                        ? 'Executed & Signed • SHA-256 Digitally Encrypted'
+                        : 'Awaiting Client Signature • Engagement Retainer Agreement Draft Ready'}
+                    </span>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    isAgreementExecuted
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {isAgreementExecuted ? 'Executed' : 'Awaiting Signature'}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Payment Plan & History */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-800 text-base">Payment Plan &amp; Milestones</h3>
-            <div className="divide-y divide-slate-100 text-xs">
-              {payments && payments.length > 0 ? (
-                payments.map((p: any) => (
-                  <div key={p.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">{p.description}</span>
-                      <span className="text-slate-400">{p.status === 'Paid' ? `Paid ${p.paidAt || p.dueDate}` : `Due ${p.dueDate}`}</span>
-                    </div>
-                    <span className={`font-bold ${p.status === 'Paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                      ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">Initial Retainer Deposit</span>
-                      <span className="text-slate-400">Paid Jan 10, 2026</span>
-                    </div>
-                    <span className="font-bold text-emerald-600">$4,000.00 (Paid)</span>
-                  </div>
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-800 block">Milestone 2: Petition Draft</span>
-                      <span className="text-slate-400">Due upon recommendation letter completion</span>
-                    </div>
-                    <span className="font-bold text-slate-800">$3,500.00 (Pending)</span>
-                  </div>
-                </>
-              )}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">Payment Plan &amp; Milestones</h3>
+                <p className="text-xs text-slate-500">Official retainer deposit and installment schedule</p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                {(() => {
+                  const clientPayments = (payments || []).filter((p: any) => 
+                    (caseData?.id && p.caseId === caseData.id) || 
+                    (p.case?.id && p.case.id === caseData?.id)
+                  );
+                  return `${clientPayments.length} Active Records`;
+                })()}
+              </span>
             </div>
+
+            {(() => {
+              const clientPayments = (payments || []).filter((p: any) => 
+                (caseData?.id && p.caseId === caseData.id) || 
+                (p.case?.id && p.case.id === caseData?.id)
+              );
+
+              if (clientPayments.length > 0) {
+                return (
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {clientPayments.map((p: any) => (
+                      <div key={p.id} className="py-3.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-slate-800 block text-sm">{p.description}</span>
+                          <span className="text-slate-400">
+                            {p.status === 'Paid' ? `Paid on ${p.paidAt || p.dueDate}` : `Due: ${p.dueDate}`}
+                          </span>
+                        </div>
+                        <span className={`font-bold text-sm ${
+                          p.status === 'Paid' ? 'text-emerald-600' : p.status === 'Overdue' ? 'text-rose-600' : 'text-amber-600'
+                        }`}>
+                          ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="py-8 px-4 text-center bg-slate-50/60 rounded-xl border border-slate-200/80">
+                  <CreditCard className="w-10 h-10 mx-auto text-slate-300 mb-2 stroke-1" />
+                  <p className="font-bold text-slate-700 text-sm">No Payments or Invoices Recorded</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                    Abhi tak koi payment invoice ya retainer fee record generate nahi hua hai. Jab administrative team invoice issue karegi, wo yahan payment options ke sath show hogi.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2627,14 +2623,29 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {activeTab === 'postFiling' && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-              Stage 6: Guidance &amp; Timeline
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                (caseData?.currentStage || 1) >= 6 
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                  : 'bg-purple-100 text-purple-800 border border-purple-200'
+              }`}>
+                {(caseData?.currentStage || 1) >= 6 ? 'Stage 6: Dispatched to USCIS' : 'Stage 6 Preview: Post-Filing Roadmap'}
+              </span>
+              {(caseData?.currentStage || 1) < 6 && (
+                <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                  Currently in Stage {caseData?.currentStage || 1} of 7 (In Progress)
+                </span>
+              )}
+            </div>
             <h2 className="text-lg font-bold text-slate-900 mt-2">
-              Your Petition Has Been Filed &mdash; What Happens Next?
+              {(caseData?.currentStage || 1) >= 6 
+                ? 'Your Petition Has Been Filed — Live Tracking & Milestones' 
+                : 'Post-Filing Roadmap: What Happens After USCIS Submission?'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Your petition package is shipped to USCIS. Here is what to expect during processing:
+              {(caseData?.currentStage || 1) >= 6 
+                ? 'Your petition package has been dispatched to USCIS. Review real-time processing milestones below:' 
+                : 'Your petition is currently being prepared. Here is the standard 8-step roadmap and timeline of what happens after your petition is shipped to USCIS:'}
             </p>
           </div>
 

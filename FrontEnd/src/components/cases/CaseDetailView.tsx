@@ -155,19 +155,47 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
 const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGroup[] => {
   if (!cData) return INITIAL_WORKFLOW_STAGES;
 
-  // 1. Direct database-persisted workflowTasks if present on caseData
+  // 1. Auto-initialized cases without custom saved tasks MUST start 100% clean at Stage 1, Step 1
+  const isAutoInitCase = !cData.notes || cData.notes.startsWith('Auto-initialized') || !(cData as any)?.workflowTasks;
+
+  if (isAutoInitCase) {
+    try {
+      if (cData.id) {
+        localStorage.removeItem(`workflow_stage_tasks_${cData.id}`);
+        localStorage.removeItem(`completed_client_tasks_${cData.id}`);
+      }
+      if (cData.caseNumber) {
+        localStorage.removeItem(`workflow_stage_tasks_${cData.caseNumber}`);
+        localStorage.removeItem(`completed_client_tasks_${cData.caseNumber}`);
+      }
+    } catch {}
+
+    return INITIAL_WORKFLOW_STAGES.map(stage => {
+      if (stage.id === 1) {
+        return {
+          ...stage,
+          tasks: stage.tasks.map(t => ({
+            ...t,
+            status: t.id === 'st1-1' ? ('Awaiting Client' as TaskStatus) : ('Not Started' as TaskStatus)
+          }))
+        };
+      }
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => ({ ...t, status: 'Not Started' as TaskStatus }))
+      };
+    });
+  }
+
+  // 2. Direct database-persisted workflowTasks if present on caseData
   if ((cData as any)?.workflowTasks && Array.isArray((cData as any).workflowTasks) && (cData as any).workflowTasks.length > 0) {
     return (cData as any).workflowTasks;
   }
 
   let savedGroups: StageGroup[] | null = null;
   const candidateKeys = [
-    'workflow_stage_tasks_master',
-    `workflow_stage_tasks_${cData.id}`,
-    cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null,
-    cData.clientId ? `workflow_stage_tasks_${cData.clientId}` : null,
-    'workflow_stage_tasks_shared',
-    'workflow_stage_tasks_latest'
+    cData.id ? `workflow_stage_tasks_${cData.id}` : null,
+    cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null
   ].filter(Boolean) as string[];
 
   for (const k of candidateKeys) {
@@ -183,7 +211,7 @@ const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGr
     } catch (e) {}
   }
 
-  // If already customized and saved in localStorage, respect saved tasks directly!
+  // If already customized and saved in localStorage for this specific case, respect saved tasks directly!
   if (savedGroups) {
     return savedGroups;
   }
@@ -555,13 +583,13 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 
       const reloadTasks = () => {
         try {
+          if (!caseData || caseData.notes === 'Auto-initialized case for client' || caseData.notes?.startsWith('Auto-initialized') || !(caseData as any)?.workflowTasks) {
+            return;
+          }
+
           const candidateKeys = [
-            'workflow_stage_tasks_master',
-            `workflow_stage_tasks_${caseData.id}`,
-            caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-            caseData.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-            'workflow_stage_tasks_shared',
-            'workflow_stage_tasks_latest'
+            caseData.id ? `workflow_stage_tasks_${caseData.id}` : null,
+            caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
           ].filter(Boolean) as string[];
 
           for (const k of candidateKeys) {
@@ -589,7 +617,6 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
               if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
                 setStageGroups(parsed.workflowTasks);
                 const serialized = JSON.stringify(parsed.workflowTasks);
-                localStorage.setItem('workflow_stage_tasks_master', serialized);
                 if (caseData.id) localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
                 if (caseData.caseNumber) localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
               }
@@ -599,13 +626,16 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       };
 
       const handleWorkflowEvent = (e: any) => {
-        if (!e.detail?.caseId || e.detail.caseId === caseData.id || e.detail.caseNumber === caseData.caseNumber) {
+        if (e.detail?.caseId === caseData.id || (e.detail?.caseNumber && e.detail.caseNumber === caseData.caseNumber)) {
           reloadTasks();
         }
       };
 
       const handleStorageEvent = (e: StorageEvent) => {
-        if (e.key && (e.key.startsWith('workflow_stage_tasks_') || e.key.startsWith('completed_client_tasks_'))) {
+        if (
+          e.key === `workflow_stage_tasks_${caseData.id}` ||
+          (caseData.caseNumber && e.key === `workflow_stage_tasks_${caseData.caseNumber}`)
+        ) {
           reloadTasks();
         }
       };
@@ -617,7 +647,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       try {
         bc = new BroadcastChannel('jurisflow_workflow_sync');
         bc.onmessage = (msg) => {
-          if (!msg.data?.caseId || msg.data.caseId === caseData.id || msg.data.caseNumber === caseData.caseNumber) {
+          if (msg.data?.caseId === caseData.id || (msg.data?.caseNumber && msg.data.caseNumber === caseData.caseNumber)) {
             reloadTasks();
           }
         };
@@ -713,17 +743,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       // Persist to localStorage across all candidate keys for seamless client sync
       try {
         const serialized = JSON.stringify(updatedGroups);
-        localStorage.setItem('workflow_stage_tasks_master', serialized);
         if (caseData?.id) {
           localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
           if (caseData.caseNumber) {
             localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
           }
-          if (caseData.clientId) {
-            localStorage.setItem(`workflow_stage_tasks_${caseData.clientId}`, serialized);
-          }
-          localStorage.setItem('workflow_stage_tasks_shared', serialized);
-          localStorage.setItem('workflow_stage_tasks_latest', serialized);
           
           // Keep completed_client_tasks in sync as well
           const clientKey = `completed_client_tasks_${caseData.id}`;
@@ -743,7 +767,6 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           if (caseData.caseNumber) {
             localStorage.setItem(`completed_client_tasks_${caseData.caseNumber}`, clientCompletedStr);
           }
-          localStorage.setItem('completed_client_tasks_shared', clientCompletedStr);
 
           // Broadcast to client portal and other tabs immediately
           window.dispatchEvent(new CustomEvent('workflow_task_updated', {
