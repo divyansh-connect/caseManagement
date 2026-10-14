@@ -832,7 +832,13 @@ export default function App() {
               onUpdateStage={handleUpdateStage}
             />
           ) : activeTab === 'communication' ? (
-            <CommunicationView cases={roleFilteredCases} messages={messages} viewMode={commViewMode} />
+            <CommunicationView 
+              cases={roleFilteredCases} 
+              messages={messages} 
+              viewMode={commViewMode} 
+              userRole={userRole}
+              currentUser={currentUser}
+            />
           ) : activeTab === 'appointments' ? (
             <AppointmentsView
               appointments={appointments}

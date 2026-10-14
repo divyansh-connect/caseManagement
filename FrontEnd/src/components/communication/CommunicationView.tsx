@@ -15,7 +15,7 @@ import {
   FileText,
   Filter
 } from 'lucide-react';
-import { CaseItem, CaseMessage } from '../../types';
+import { CaseItem, CaseMessage, UserRole } from '../../types';
 import { WhatsAppModal } from './WhatsAppModal';
 import { api } from '../../services/api';
 
@@ -23,12 +23,16 @@ interface CommunicationViewProps {
   cases: CaseItem[];
   messages: CaseMessage[];
   viewMode?: 'hub' | 'whatsapp';
+  userRole?: UserRole;
+  currentUser?: { id: string; name: string; email: string; role: UserRole; avatar?: string } | null;
 }
 
 export const CommunicationView: React.FC<CommunicationViewProps> = ({ 
   cases, 
   messages: initialMessages,
-  viewMode = 'whatsapp'
+  viewMode = 'whatsapp',
+  userRole,
+  currentUser
 }) => {
   const [selectedCaseId, setSelectedCaseId] = useState<string>(cases[0]?.id || '');
   const [messages, setMessages] = useState<CaseMessage[]>(initialMessages);
@@ -83,10 +87,14 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     }
 
     try {
+      const isClientRole = userRole === 'client';
+      const myRole = isClientRole ? 'client' : (userRole || 'admin');
+      const myName = currentUser?.name || (isClientRole ? (selectedCase.clientName || 'Client') : (userRole === 'superadmin' ? 'Super Administrator' : 'Sarah Jenkins (Editorial Specialist)'));
+
       const data = await api.post('/messages', {
         caseId: selectedCase.id,
-        senderName: 'Sarah Jenkins (Editorial Specialist)',
-        senderRole: 'writer',
+        senderName: myName,
+        senderRole: myRole,
         content: contentToSend
       });
 
@@ -163,6 +171,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           isFullPage={true}
           onClose={() => setActiveViewMode('hub')}
           defaultClientName={selectedCase?.clientName}
+          userRole={userRole}
+          currentUser={currentUser}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -295,23 +305,26 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               </div>
             ) : (
               caseMessages.map(m => {
-                const isClient = m.senderRole === 'client';
+                const isMe = userRole === 'client'
+                  ? m.senderRole === 'client'
+                  : m.senderRole !== 'client';
+
                 return (
                   <div 
                     key={m.id} 
-                    className={`flex flex-col ${isClient ? 'items-start' : 'items-end'}`}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                   >
                     <div 
                       className={`p-3 sm:p-3.5 rounded-2xl max-w-[85%] sm:max-w-lg shadow-2xs ${
-                        isClient 
-                          ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs' 
-                          : 'bg-blue-600 text-white rounded-tr-xs'
+                        isMe 
+                          ? 'bg-blue-600 text-white rounded-tr-xs' 
+                          : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
                       }`}
                     >
                       <div className={`flex items-center justify-between gap-3 mb-1 text-[10px] ${
-                        isClient ? 'text-slate-500 font-semibold' : 'text-blue-100 font-semibold'
+                        isMe ? 'text-blue-100 font-semibold' : 'text-slate-500 font-semibold'
                       }`}>
-                        <span className="truncate">{m.senderName}</span>
+                        <span className="truncate">{isMe ? 'You' : m.senderName}</span>
                         <span className="flex items-center gap-1 shrink-0">
                           <Clock className="w-3 h-3" />
                           <span>{m.timestamp}</span>

@@ -1276,6 +1276,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               isFullPage={true}
               onClose={() => setCommViewMode?.('hub')}
               defaultClientName={caseData.clientName}
+              userRole="client"
+              currentUser={{ id: caseData.clientId, name: caseData.clientName, email: caseData.clientEmail, role: 'client' }}
             />
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[500px] overflow-hidden">
@@ -1803,6 +1805,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           isFullPage={false}
           defaultClientName={caseData.clientName}
           onClose={() => setActiveChannelModal(null)}
+          userRole="client"
+          currentUser={{ id: caseData.clientId, name: caseData.clientName, email: caseData.clientEmail, role: 'client' }}
         />
       )}
 
