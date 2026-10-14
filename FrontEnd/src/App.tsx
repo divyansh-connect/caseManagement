@@ -239,7 +239,11 @@ export default function App() {
       'workflow_stage_tasks_shared',
       'workflow_stage_tasks_latest',
       'completed_client_tasks_shared',
-      'completed_client_tasks_default'
+      'completed_client_tasks_default',
+      'workflow_stage_tasks_8fd91a8a-eb16-4a08-8a54-f8275760c44f',
+      'workflow_stage_tasks_NIW-2026-002',
+      'completed_client_tasks_8fd91a8a-eb16-4a08-8a54-f8275760c44f',
+      'completed_client_tasks_NIW-2026-002'
     ].forEach(k => {
       try { localStorage.removeItem(k); } catch {}
     });
@@ -1065,7 +1069,8 @@ export default function App() {
           ) : activeTab === 'dashboard' ? (
             selectedCaseId ? (
               <CaseDetailView
-                caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+                key={selectedCaseId}
+                caseData={cases.find(c => c.id === selectedCaseId) || roleFilteredCases.find(c => c.id === selectedCaseId)!}
                 documents={documents}
                 messages={messages}
                 onBack={() => {
@@ -1093,7 +1098,8 @@ export default function App() {
           ) : activeTab === 'cases' ? (
             selectedCaseId ? (
               <CaseDetailView
-                caseData={roleFilteredCases.find(c => c.id === selectedCaseId) || roleFilteredCases[0] || cases[0]}
+                key={selectedCaseId}
+                caseData={cases.find(c => c.id === selectedCaseId) || roleFilteredCases.find(c => c.id === selectedCaseId)!}
                 documents={documents}
                 messages={messages}
                 onBack={() => {

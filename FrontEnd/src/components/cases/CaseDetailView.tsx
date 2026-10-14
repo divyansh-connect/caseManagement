@@ -153,35 +153,63 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
 const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGroup[] => {
   if (!cData) return INITIAL_WORKFLOW_STAGES;
 
-  // 1. Direct database-persisted workflowTasks if present on caseData
+  // 1. Auto-initialized cases without custom saved tasks MUST start 100% clean at Stage 1, Step 1
+  const isAutoInitCase = !cData.notes || cData.notes.startsWith('Auto-initialized') || !(cData as any)?.workflowTasks;
+
+  if (isAutoInitCase) {
+    try {
+      if (cData.id) {
+        localStorage.removeItem(`workflow_stage_tasks_${cData.id}`);
+        localStorage.removeItem(`completed_client_tasks_${cData.id}`);
+      }
+      if (cData.caseNumber) {
+        localStorage.removeItem(`workflow_stage_tasks_${cData.caseNumber}`);
+        localStorage.removeItem(`completed_client_tasks_${cData.caseNumber}`);
+      }
+    } catch {}
+
+    return INITIAL_WORKFLOW_STAGES.map(stage => {
+      if (stage.id === 1) {
+        return {
+          ...stage,
+          tasks: stage.tasks.map(t => ({
+            ...t,
+            status: t.id === 'st1-1' ? ('Awaiting Client' as TaskStatus) : ('Not Started' as TaskStatus)
+          }))
+        };
+      }
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => ({ ...t, status: 'Not Started' as TaskStatus }))
+      };
+    });
+  }
+
+  // 2. Direct database-persisted workflowTasks if present on caseData
   if ((cData as any)?.workflowTasks && Array.isArray((cData as any).workflowTasks) && (cData as any).workflowTasks.length > 0) {
     return (cData as any).workflowTasks;
   }
 
   let savedGroups: StageGroup[] | null = null;
-  const isAutoInitCase = !cData.notes || cData.notes.startsWith('Auto-initialized');
+  const candidateKeys = [
+    cData.id ? `workflow_stage_tasks_${cData.id}` : null,
+    cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null
+  ].filter(Boolean) as string[];
 
-  if (!isAutoInitCase) {
-    const candidateKeys = [
-      cData.id ? `workflow_stage_tasks_${cData.id}` : null,
-      cData.caseNumber ? `workflow_stage_tasks_${cData.caseNumber}` : null
-    ].filter(Boolean) as string[];
-
-    for (const k of candidateKeys) {
-      try {
-        const saved = localStorage.getItem(k);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            savedGroups = parsed;
-            break;
-          }
+  for (const k of candidateKeys) {
+    try {
+      const saved = localStorage.getItem(k);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          savedGroups = parsed;
+          break;
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
   }
 
-  // If already customized and saved in localStorage, respect saved tasks directly!
+  // If already customized and saved in localStorage for this specific case, respect saved tasks directly!
   if (savedGroups) {
     return savedGroups;
   }
@@ -289,6 +317,10 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 
       const reloadTasks = () => {
         try {
+          if (!caseData || caseData.notes === 'Auto-initialized case for client' || caseData.notes?.startsWith('Auto-initialized') || !(caseData as any)?.workflowTasks) {
+            return;
+          }
+
           const candidateKeys = [
             caseData.id ? `workflow_stage_tasks_${caseData.id}` : null,
             caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null
@@ -328,13 +360,16 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       };
 
       const handleWorkflowEvent = (e: any) => {
-        if (!e.detail?.caseId || e.detail.caseId === caseData.id || e.detail.caseNumber === caseData.caseNumber) {
+        if (e.detail?.caseId === caseData.id || (e.detail?.caseNumber && e.detail.caseNumber === caseData.caseNumber)) {
           reloadTasks();
         }
       };
 
       const handleStorageEvent = (e: StorageEvent) => {
-        if (e.key && (e.key.startsWith('workflow_stage_tasks_') || e.key.startsWith('completed_client_tasks_'))) {
+        if (
+          e.key === `workflow_stage_tasks_${caseData.id}` ||
+          (caseData.caseNumber && e.key === `workflow_stage_tasks_${caseData.caseNumber}`)
+        ) {
           reloadTasks();
         }
       };
@@ -346,7 +381,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       try {
         bc = new BroadcastChannel('jurisflow_workflow_sync');
         bc.onmessage = (msg) => {
-          if (!msg.data?.caseId || msg.data.caseId === caseData.id || msg.data.caseNumber === caseData.caseNumber) {
+          if (msg.data?.caseId === caseData.id || (msg.data?.caseNumber && msg.data.caseNumber === caseData.caseNumber)) {
             reloadTasks();
           }
         };
