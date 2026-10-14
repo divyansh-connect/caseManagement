@@ -224,15 +224,13 @@ const PortalAudioPlayer: React.FC<{ audioUrl: string; duration?: string; isMe: b
   const progress = totalDuration > 0 ? (currentTime / totalDuration) * 100 : (isPlaying ? 50 : 0);
 
   return (
-    <div className={`flex items-center gap-2.5 p-2 rounded-xl min-w-[200px] sm:min-w-[240px] ${
-      isMe ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-800'
-    }`}>
+    <div className={`flex items-center gap-2.5 p-2 rounded-xl min-w-[200px] sm:min-w-[240px] ${isMe ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-800'
+      }`}>
       <button
         type="button"
         onClick={togglePlay}
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-transform active:scale-95 ${
-          isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
-        }`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-transform active:scale-95 ${isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
       >
         {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
       </button>
@@ -547,7 +545,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           return parsed;
         }
       }
-    } catch {}
+    } catch { }
 
     // 2. Try initial messages prop
     if (initialMessages && initialMessages.length > 0) {
@@ -575,7 +573,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     if (messages.length > 0) {
       try {
         localStorage.setItem(clientStorageKey, JSON.stringify(messages));
-      } catch {}
+      } catch { }
     }
   }, [messages, clientStorageKey]);
 
@@ -588,7 +586,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           const map = new Map<string, CaseMessage>();
           prev.forEach(m => map.set(m.id, m));
           relevant.forEach(m => map.set(m.id, m));
-          return Array.from(map.values()).sort((a, b) => 
+          return Array.from(map.values()).sort((a, b) =>
             (a.timestamp || '').localeCompare(b.timestamp || '')
           );
         });
@@ -611,7 +609,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           const map = new Map<string, CaseMessage>();
           prev.forEach(m => map.set(m.id, m));
           relevant.forEach(m => map.set(m.id, m));
-          const merged = Array.from(map.values()).sort((a, b) => 
+          const merged = Array.from(map.values()).sort((a, b) =>
             (a.timestamp || '').localeCompare(b.timestamp || '')
           );
           if (merged.length !== prev.length || merged.some((m, idx) => m.id !== prev[idx]?.id)) {
@@ -706,12 +704,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
         {/* Document Card with direct download */}
         {parsed.type === 'document' && (
-          <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${
-            isMe ? 'bg-blue-700/60 border-blue-500/40 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-          }`}>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-              isMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+          <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${isMe ? 'bg-blue-700/60 border-blue-500/40 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
             }`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+              }`}>
               <FileText className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -722,9 +718,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <a
                 href={parsed.dataUrl}
                 download={parsed.fileName || 'document.pdf'}
-                className={`p-1.5 rounded-lg shrink-0 transition-colors ${
-                  isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'
-                }`}
+                className={`p-1.5 rounded-lg shrink-0 transition-colors ${isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'
+                  }`}
                 title="Download attachment"
               >
                 <Download className="w-4 h-4" />
@@ -813,20 +808,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   const clientDocs = React.useMemo(() => {
     const map = new Map<string, CaseDocument>();
-    const isDeleted = (d: CaseDocument) => 
+    const isDeleted = (d: CaseDocument) =>
       deletedDocIds.has(d.id) || (d.name && deletedDocIds.has(d.name));
 
     const caseAttachedDocs = Array.isArray((caseData as any)?.documents) ? (caseData as any).documents : [];
-    caseAttachedDocs.forEach((d: CaseDocument) => { 
-      if (d?.id && !isDeleted(d)) map.set(d.id, d); 
+    caseAttachedDocs.forEach((d: CaseDocument) => {
+      if (d?.id && !isDeleted(d)) map.set(d.id, d);
     });
 
     if (documents && Array.isArray(documents)) {
       documents.forEach((d: CaseDocument) => {
         if (!d?.id || isDeleted(d)) return;
-        const matchesCase = 
-          !caseData?.id || 
-          d.caseId === caseData.id || 
+        const matchesCase =
+          !caseData?.id ||
+          d.caseId === caseData.id ||
           (caseData.caseNumber && d.caseId === caseData.caseNumber) ||
           (caseData.clientId && (d as any).clientId === caseData.clientId) ||
           (d.uploadedBy && currentUser?.name && d.uploadedBy.toLowerCase() === currentUser.name.toLowerCase()) ||
@@ -856,7 +851,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           }
         }
       }
-    } catch {}
+    } catch { }
 
     return Array.from(map.values());
   }, [documents, caseData, currentUser, allCases, deletedDocIds]);
@@ -904,7 +899,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             const filtered = list.filter(d => d.id !== doc.id && d.name !== doc.name);
             localStorage.setItem(k, JSON.stringify(filtered));
           }
-        } catch {}
+        } catch { }
       }
 
       // 4. Update task submission if attached to a task
@@ -931,7 +926,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     if (t.id === targetTaskId) {
                       const existingDocs = Array.isArray(t.submission?.documents) ? t.submission.documents : [];
                       const remainingDocs = existingDocs.filter((d: any) => d.id !== doc.id && d.name !== doc.name);
-                      
+
                       if (remainingDocs.length > 0) {
                         return {
                           ...t,
@@ -956,7 +951,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 localStorage.setItem(k, JSON.stringify(updatedStages));
               }
             }
-          } catch {}
+          } catch { }
         }
       }
 
@@ -995,7 +990,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Endeavor Review State
   const [endeavorFeedback, setEndeavorFeedback] = useState('');
-  
+
   // Recommender Input State
   const [newRecName, setNewRecName] = useState('');
   const [newRecInstitution, setNewRecInstitution] = useState('');
@@ -1040,7 +1035,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             break;
           }
         }
-      } catch {}
+      } catch { }
       setWorkflowSyncTick(t => t + 1);
     };
 
@@ -1059,9 +1054,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               if (res.data.caseNumber) localStorage.setItem(`workflow_stage_tasks_${res.data.caseNumber}`, serialized);
               setWorkflowSyncTick(t => t + 1);
             }
-          } catch {}
+          } catch { }
         }
-      } catch {}
+      } catch { }
     };
 
     const handleWorkflowEvent = () => {
@@ -1083,7 +1078,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       bc.onmessage = () => {
         reloadWorkflow();
       };
-    } catch {}
+    } catch { }
 
     const localInterval = setInterval(reloadWorkflow, 1000);
     const pollInterval = setInterval(pollBackend, 2500);
@@ -1117,7 +1112,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               parsedStages = data;
               break;
             }
-          } catch {}
+          } catch { }
         }
       }
 
@@ -1129,9 +1124,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       if (parsedStages) {
         const adminStage = parsedStages.find((g: any) => g.id === stageId);
         if (adminStage && Array.isArray(adminStage.tasks)) {
-          const adminTask = adminStage.tasks.find((t: any) => 
-            t.id === task.id || 
-            (task.id === 'st1-2' && t.id === 'st1-5') || 
+          const adminTask = adminStage.tasks.find((t: any) =>
+            t.id === task.id ||
+            (task.id === 'st1-2' && t.id === 'st1-5') ||
             (task.id === 'st1-5' && t.id === 'st1-2')
           );
           if (adminTask && adminTask.status) {
@@ -1139,7 +1134,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (completedTaskIds.includes(task.id)) {
       return 'Approved/Completed';
@@ -1163,10 +1158,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     const t4 = stageGroup.tasks.find(t => t.id === 'st1-4');
     const t5 = stageGroup.tasks.find(t => t.id === 'st1-5');
     return [
-      t1, 
-      t2 ? { ...t2, flowLabel: 'Evidence-First: Upload CV & Degrees Before Retainer Deposit' } : null, 
-      t3, 
-      t4, 
+      t1,
+      t2 ? { ...t2, flowLabel: 'Evidence-First: Upload CV & Degrees Before Retainer Deposit' } : null,
+      t3,
+      t4,
       t5
     ].filter(Boolean) as any[];
   };
@@ -1189,7 +1184,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             break;
           }
         }
-      } catch {}
+      } catch { }
     }
 
     if (!stages || stages.length === 0) {
@@ -1240,8 +1235,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         ...st,
         tasks: st.tasks.map((t: any) => {
           if (t.id === taskId || (taskId === 'st1-2' && t.id === 'st1-5') || (taskId === 'st1-5' && t.id === 'st1-2')) {
-            return { 
-              ...t, 
+            return {
+              ...t,
               status: 'Under Review',
               submission: preparedSubmission
             };
@@ -1255,7 +1250,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     for (const key of candidateKeys) {
       try {
         localStorage.setItem(key, serialized);
-      } catch {}
+      } catch { }
     }
 
     // Persist specific submission data types across storage & backend
@@ -1275,17 +1270,17 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               title: rec.field || 'Independent Expert',
               organization: rec.institution,
               relationship: rec.relationship || 'Independent Expert'
-            }).catch(() => {});
+            }).catch(() => { });
           });
         }
-      } catch {}
+      } catch { }
     }
 
     if (preparedSubmission?.feedback) {
       try {
         localStorage.setItem('endeavor_feedback_master', preparedSubmission.feedback);
         if (caseData?.id) localStorage.setItem(`endeavor_feedback_${caseData.id}`, preparedSubmission.feedback);
-      } catch {}
+      } catch { }
     }
 
     if (preparedSubmission?.shippingAddress) {
@@ -1293,34 +1288,34 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         const serializedAddr = JSON.stringify(preparedSubmission.shippingAddress);
         localStorage.setItem('shipping_address_master', serializedAddr);
         if (caseData?.id) localStorage.setItem(`shipping_address_${caseData.id}`, serializedAddr);
-      } catch {}
+      } catch { }
     }
 
     // Dispatch live event to update CaseDetailView immediately
     window.dispatchEvent(new CustomEvent('workflow_task_updated', {
-      detail: { 
-        caseId: caseData?.id, 
-        caseNumber: caseData?.caseNumber, 
-        stageId, 
-        taskId, 
+      detail: {
+        caseId: caseData?.id,
+        caseNumber: caseData?.caseNumber,
+        stageId,
+        taskId,
         newStatus: 'Under Review',
         submission: preparedSubmission
       }
     }));
     try {
       const bc = new BroadcastChannel('jurisflow_workflow_sync');
-      bc.postMessage({ 
-        caseId: caseData?.id, 
-        caseNumber: caseData?.caseNumber, 
-        stageId, 
-        taskId, 
+      bc.postMessage({
+        caseId: caseData?.id,
+        caseNumber: caseData?.caseNumber,
+        stageId,
+        taskId,
         newStatus: 'Under Review',
         submission: preparedSubmission
       });
       setTimeout(() => {
-        try { bc.close(); } catch {}
+        try { bc.close(); } catch { }
       }, 1000);
-    } catch {}
+    } catch { }
 
     // Persist to backend database as well
     const caseIdentifier = caseData?.caseNumber || caseData?.id;
@@ -1330,14 +1325,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           workflowTasks: updated,
           lastUpdated: new Date().toISOString()
         })
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     setWorkflowSyncTick(t => t + 1);
     setActiveActionTask(null);
 
     // Show toast confirmation
-    setActionToastMessage(attachedDocName 
+    setActionToastMessage(attachedDocName
       ? `✓ Document "${attachedDocName}" uploaded & submitted for legal staff review!`
       : '✓ Action submitted! Your submission is now under review by the immigration legal team.'
     );
@@ -1405,12 +1400,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         if (finalCaseId) localStorage.setItem(`local_case_documents_${finalCaseId}`, JSON.stringify(updated));
         if (caseData?.id) localStorage.setItem(`local_case_documents_${caseData.id}`, JSON.stringify(updated));
         if (caseData?.caseNumber) localStorage.setItem(`local_case_documents_${caseData.caseNumber}`, JSON.stringify(updated));
-      } catch {}
+      } catch { }
 
       // Dispatch document uploaded event across windows/components
       try {
         window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: createdDoc, caseId: finalCaseId } }));
-      } catch {}
+      } catch { }
 
       const existingTaskDocs = getTaskMatchingDocuments({ id: activeActionTask.id, name: activeActionTask.name }, clientDocs)
         .filter(d => d.id !== createdDoc!.id && d.name !== createdDoc!.name);
@@ -1452,11 +1447,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         if (finalCaseId) localStorage.setItem(`local_case_documents_${finalCaseId}`, JSON.stringify(updated));
         if (caseData?.id) localStorage.setItem(`local_case_documents_${caseData.id}`, JSON.stringify(updated));
         if (caseData?.caseNumber) localStorage.setItem(`local_case_documents_${caseData.caseNumber}`, JSON.stringify(updated));
-      } catch {}
+      } catch { }
 
       try {
         window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: mockDoc, caseId: finalCaseId } }));
-      } catch {}
+      } catch { }
 
       const existingTaskDocs = getTaskMatchingDocuments({ id: activeActionTask.id, name: activeActionTask.name }, clientDocs)
         .filter(d => d.id !== mockDoc.id && d.name !== mockDoc.name);
@@ -1867,10 +1862,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                       setExpandedStage(st.id);
                     }}
                     className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${isCompleted
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                        : isCurrent
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-md ring-2 ring-blue-300'
-                          : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                      : isCurrent
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
                       }`}
                   >
                     <div className="text-[10px] uppercase font-bold tracking-wider mb-1">
@@ -1944,8 +1939,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <div
                   key={stageGroup.id}
                   className={`bg-white rounded-2xl border overflow-hidden transition-all ${isCurrent
-                      ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm'
-                      : 'border-slate-200'
+                    ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm'
+                    : 'border-slate-200'
                     }`}
                 >
                   {/* Stage Accordion Header */}
@@ -1955,10 +1950,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${isCompleted
-                          ? 'bg-emerald-500 text-white'
-                          : isCurrent
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-200 text-slate-500'
+                        ? 'bg-emerald-500 text-white'
+                        : isCurrent
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-200 text-slate-500'
                         }`}>
                         {isCompleted ? '✓' : stageGroup.id}
                       </div>
@@ -2030,8 +2025,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                   setStage1FlowMode('standard');
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${stage1FlowMode === 'standard'
-                                    ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                  ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
+                                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                                   }`}
                               >
                                 Standard Flow (Payment First)
@@ -2042,8 +2037,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                   setStage1FlowMode('evidence_first');
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${stage1FlowMode === 'evidence_first'
-                                    ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-300'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                  ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-300'
+                                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                                   }`}
                               >
                                 Evidence-First Flow (Upload Evidence First)
@@ -2117,17 +2112,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         const isCompleted = resolvedStatus === 'Approved/Completed';
 
                         return (
-                          <div 
-                            key={task.id} 
-                            className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                              isAwaitingAction
+                          <div
+                            key={task.id}
+                            className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${isAwaitingAction
                                 ? 'bg-amber-50/80 border-amber-300 shadow-xs ring-1 ring-amber-200'
                                 : isUnderReview
-                                ? 'bg-indigo-50/50 border-indigo-200 shadow-2xs'
-                                : isCompleted
-                                ? 'bg-emerald-50/30 border-emerald-200'
-                                : 'bg-white border-slate-100 hover:border-slate-200'
-                            }`}
+                                  ? 'bg-indigo-50/50 border-indigo-200 shadow-2xs'
+                                  : isCompleted
+                                    ? 'bg-emerald-50/30 border-emerald-200'
+                                    : 'bg-white border-slate-100 hover:border-slate-200'
+                              }`}
                           >
                             <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
@@ -2139,11 +2133,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                     {task.flowLabel}
                                   </span>
                                 )}
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  task.assignedTo === 'Client'
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.assignedTo === 'Client'
                                     ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                     : 'bg-slate-100 text-slate-600'
-                                }`}>
+                                  }`}>
                                   {task.assignedTo === 'Client' ? '👤 Client' : '🏢 Babel Global Team'}
                                 </span>
                               </div>
@@ -2221,7 +2214,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
                             <div className="flex items-center gap-2 shrink-0">
                               {getStatusBadge(resolvedStatus)}
-                              
+
                               {/* Prominent Take Action button when Awaiting Client */}
                               {isAwaitingAction && task.assignedTo === 'Client' && (
                                 <button
@@ -2492,11 +2485,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         : 'Awaiting Client Signature • Engagement Retainer Agreement Draft Ready'}
                     </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    isAgreementExecuted
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${isAgreementExecuted
                       ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-amber-100 text-amber-800 border border-amber-200'
-                  }`}>
+                    }`}>
                     {isAgreementExecuted ? 'Executed' : 'Awaiting Signature'}
                   </span>
                 </div>
@@ -2513,8 +2505,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </div>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
                 {(() => {
-                  const clientPayments = (payments || []).filter((p: any) => 
-                    (caseData?.id && p.caseId === caseData.id) || 
+                  const clientPayments = (payments || []).filter((p: any) =>
+                    (caseData?.id && p.caseId === caseData.id) ||
                     (p.case?.id && p.case.id === caseData?.id)
                   );
                   return `${clientPayments.length} Active Records`;
@@ -2523,8 +2515,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </div>
 
             {(() => {
-              const clientPayments = (payments || []).filter((p: any) => 
-                (caseData?.id && p.caseId === caseData.id) || 
+              const clientPayments = (payments || []).filter((p: any) =>
+                (caseData?.id && p.caseId === caseData.id) ||
                 (p.case?.id && p.case.id === caseData?.id)
               );
 
@@ -2539,9 +2531,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             {p.status === 'Paid' ? `Paid on ${p.paidAt || p.dueDate}` : `Due: ${p.dueDate}`}
                           </span>
                         </div>
-                        <span className={`font-bold text-sm ${
-                          p.status === 'Paid' ? 'text-emerald-600' : p.status === 'Overdue' ? 'text-rose-600' : 'text-amber-600'
-                        }`}>
+                        <span className={`font-bold text-sm ${p.status === 'Paid' ? 'text-emerald-600' : p.status === 'Overdue' ? 'text-rose-600' : 'text-amber-600'
+                          }`}>
                           ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({p.status})
                         </span>
                       </div>
@@ -2579,8 +2570,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 type="button"
                 onClick={() => setCommViewMode?.('whatsapp')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${commViewMode === 'whatsapp'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                   }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -2590,8 +2581,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 type="button"
                 onClick={() => setCommViewMode?.('hub')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${commViewMode === 'hub'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                   }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -2644,8 +2635,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         <div
                           key={m.id}
                           className={`p-3.5 sm:p-4 rounded-2xl max-w-[85%] sm:max-w-md ${isMe
-                              ? 'bg-blue-600 text-white ml-auto shadow-sm rounded-br-xs'
-                              : 'bg-white text-slate-800 mr-auto border border-slate-200 shadow-xs rounded-bl-xs'
+                            ? 'bg-blue-600 text-white ml-auto shadow-sm rounded-br-xs'
+                            : 'bg-white text-slate-800 mr-auto border border-slate-200 shadow-xs rounded-bl-xs'
                             }`}
                         >
                           <div className={`text-[10px] mb-1.5 font-semibold flex items-center justify-between gap-3 ${isMe ? 'text-blue-100' : 'text-slate-500'}`}>
@@ -2752,13 +2743,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 const isUpcoming = apt.status === 'Upcoming';
                 const isCompleted = apt.status === 'Completed';
                 return (
-                  <div key={apt.id} className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                    isUpcoming ? 'bg-blue-50/60 border-blue-100' : 'bg-slate-50 border-slate-200'
-                  }`}>
+                  <div key={apt.id} className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${isUpcoming ? 'bg-blue-50/60 border-blue-100' : 'bg-slate-50 border-slate-200'
+                    }`}>
                     <div className="space-y-1">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        isUpcoming ? 'bg-blue-600 text-white' : isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                      }`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isUpcoming ? 'bg-blue-600 text-white' : isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        }`}>
                         {apt.status} Session
                       </span>
                       <h4 className="font-bold text-slate-900 text-sm">{apt.type}</h4>
@@ -2770,9 +2759,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                       )}
                     </div>
                     {apt.meetingUrl && (
-                      <a 
+                      <a
                         href={apt.meetingUrl}
-                        target="_blank" 
+                        target="_blank"
                         rel="noreferrer"
                         className="px-4 py-2 bg-white text-blue-700 font-bold border border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer text-center shrink-0"
                       >
@@ -2798,11 +2787,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                (caseData?.currentStage || 1) >= 6 
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${(caseData?.currentStage || 1) >= 6
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                   : 'bg-purple-100 text-purple-800 border border-purple-200'
-              }`}>
+                }`}>
                 {(caseData?.currentStage || 1) >= 6 ? 'Stage 6: Dispatched to USCIS' : 'Stage 6 Preview: Post-Filing Roadmap'}
               </span>
               {(caseData?.currentStage || 1) < 6 && (
@@ -2812,13 +2800,13 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               )}
             </div>
             <h2 className="text-lg font-bold text-slate-900 mt-2">
-              {(caseData?.currentStage || 1) >= 6 
-                ? 'Your Petition Has Been Filed — Live Tracking & Milestones' 
+              {(caseData?.currentStage || 1) >= 6
+                ? 'Your Petition Has Been Filed — Live Tracking & Milestones'
                 : 'Post-Filing Roadmap: What Happens After USCIS Submission?'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              {(caseData?.currentStage || 1) >= 6 
-                ? 'Your petition package has been dispatched to USCIS. Review real-time processing milestones below:' 
+              {(caseData?.currentStage || 1) >= 6
+                ? 'Your petition package has been dispatched to USCIS. Review real-time processing milestones below:'
                 : 'Your petition is currently being prepared. Here is the standard 8-step roadmap and timeline of what happens after your petition is shipped to USCIS:'}
             </p>
           </div>
@@ -2846,13 +2834,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </div>
               </div>
               <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  (caseData.currentStage || 0) >= 6
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(caseData.currentStage || 0) >= 6
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                     : (caseData.currentStage || 0) >= 4
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-blue-100 text-blue-800 border border-blue-200'
-                }`}>
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  }`}>
                   {(caseData.currentStage || 0) >= 6
                     ? '✓ Filed — Post-Filing Phase'
                     : `Stage ${caseData.currentStage || 1} of 7`}
@@ -2932,9 +2919,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </div>
 
             {profileMsg && (
-              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                profileMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
-              }`}>
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${profileMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}>
                 {profileMsg.type === 'success' ? <Check className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
                 {profileMsg.text}
               </div>
@@ -3029,9 +3015,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </div>
 
             {passwordMsg && (
-              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                passwordMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
-              }`}>
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${passwordMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}>
                 {passwordMsg.type === 'success' ? <Check className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
                 {passwordMsg.text}
               </div>
@@ -3640,11 +3625,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             />
             <label
               htmlFor="direct-subtask-file-input"
-              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${
-                isInlineUploading 
-                  ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-75' 
+              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${isInlineUploading
+                  ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-75'
                   : 'bg-slate-50 hover:bg-blue-50/50 border-slate-300 hover:border-blue-400'
-              }`}
+                }`}
             >
               {isInlineUploading ? (
                 <div className="flex flex-col items-center gap-2 text-blue-600">
@@ -3716,11 +3700,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       />
 
       {previewImageModal && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
           onClick={() => setPreviewImageModal(null)}
         >
-          <div 
+          <div
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
             onClick={e => e.stopPropagation()}
           >
@@ -3744,9 +3728,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </button>
               </div>
             </div>
-            <img 
-              src={previewImageModal.url} 
-              alt={previewImageModal.name} 
+            <img
+              src={previewImageModal.url}
+              alt={previewImageModal.name}
               className="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl bg-black/40"
             />
           </div>

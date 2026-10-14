@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  MessageSquare, 
-  Send, 
-  Mail, 
-  Phone, 
-  User, 
-  Search, 
+import {
+  MessageSquare,
+  Send,
+  Mail,
+  Phone,
+  User,
+  Search,
   CheckCheck,
   Clock,
   Paperclip,
@@ -202,15 +202,13 @@ const AudioPlayer: React.FC<{ audioUrl: string; duration?: string; isMe: boolean
   const progress = totalDuration > 0 ? (currentTime / totalDuration) * 100 : (isPlaying ? 50 : 0);
 
   return (
-    <div className={`flex items-center gap-2.5 p-2 rounded-xl min-w-[200px] sm:min-w-[240px] ${
-      isMe ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-800'
-    }`}>
+    <div className={`flex items-center gap-2.5 p-2 rounded-xl min-w-[200px] sm:min-w-[240px] ${isMe ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-800'
+      }`}>
       <button
         type="button"
         onClick={togglePlay}
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-transform active:scale-95 ${
-          isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
-        }`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-transform active:scale-95 ${isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
       >
         {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
       </button>
@@ -249,8 +247,8 @@ interface CommunicationViewProps {
   onNewMessage?: (msg: CaseMessage) => void;
 }
 
-export const CommunicationView: React.FC<CommunicationViewProps> = ({ 
-  cases, 
+export const CommunicationView: React.FC<CommunicationViewProps> = ({
+  cases,
   messages: initialMessages,
   viewMode = 'whatsapp',
   userRole,
@@ -265,7 +263,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch { }
     return initialMessages;
   });
   const [newMsgText, setNewMsgText] = useState('');
@@ -290,7 +288,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
         const map = new Map<string, CaseMessage>();
         prev.forEach(m => map.set(m.id, m));
         initialMessages.forEach(m => map.set(m.id, m));
-        return Array.from(map.values()).sort((a, b) => 
+        return Array.from(map.values()).sort((a, b) =>
           (a.timestamp || '').localeCompare(b.timestamp || '')
         );
       });
@@ -302,7 +300,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     if (messages.length > 0) {
       try {
         localStorage.setItem('babel_hub_admin_messages_cache', JSON.stringify(messages));
-      } catch {}
+      } catch { }
     }
   }, [messages]);
 
@@ -319,7 +317,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           const map = new Map<string, CaseMessage>();
           prev.forEach(m => map.set(m.id, m));
           res.data.forEach((m: any) => map.set(m.id, m));
-          const merged = Array.from(map.values()).sort((a, b) => 
+          const merged = Array.from(map.values()).sort((a, b) =>
             (a.timestamp || '').localeCompare(b.timestamp || '')
           );
           if (merged.length !== prev.length || merged.some((m, idx) => m.id !== prev[idx]?.id)) {
@@ -387,7 +385,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
   }, [caseMessages, selectedCaseId]);
 
   // Filter cases by search query
-  const filteredCases = cases.filter(c => 
+  const filteredCases = cases.filter(c =>
     c.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.caseNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.fieldCategory.toLowerCase().includes(searchQuery.toLowerCase())
@@ -517,14 +515,14 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     return (
       <div className="space-y-1.5">
         {parsed.type === 'image' && parsed.dataUrl && (
-          <div 
+          <div
             onClick={() => setPreviewImageModal({ url: parsed.dataUrl!, name: parsed.fileName || 'Photo.jpg' })}
             className="overflow-hidden rounded-xl border border-black/10 relative group cursor-pointer max-w-sm mt-1"
           >
-            <img 
-              src={parsed.dataUrl} 
-              alt={parsed.fileName || 'Image Attachment'} 
-              className="max-h-56 w-auto max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200" 
+            <img
+              src={parsed.dataUrl}
+              alt={parsed.fileName || 'Image Attachment'}
+              className="max-h-56 w-auto max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200"
             />
             <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="bg-black/75 text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
@@ -535,13 +533,11 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
         )}
 
         {parsed.type === 'document' && (
-          <div className={`p-2.5 rounded-xl flex items-center justify-between gap-3 border mt-1 ${
-            isMe ? 'bg-blue-700/60 border-blue-500/40 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
-          }`}>
+          <div className={`p-2.5 rounded-xl flex items-center justify-between gap-3 border mt-1 ${isMe ? 'bg-blue-700/60 border-blue-500/40 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
+            }`}>
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                isMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
-              }`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                }`}>
                 <FileText className="w-4 h-4" />
               </div>
               <div className="min-w-0">
@@ -553,9 +549,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               <a
                 href={parsed.dataUrl}
                 download={parsed.fileName || 'Attachment.pdf'}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-                  isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 title="Download Attachment"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -564,9 +559,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               <button
                 type="button"
                 onClick={() => alert(`Document: ${parsed.fileName}. Available in Document Vault.`)}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-                  isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                }`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  }`}
               >
                 <Download className="w-3.5 h-3.5" />
               </button>
@@ -607,11 +601,10 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveViewMode('whatsapp')}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-              activeViewMode === 'whatsapp'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${activeViewMode === 'whatsapp'
                 ? 'bg-emerald-600 text-white border border-emerald-500 shadow-sm'
                 : 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700'
-            }`}
+              }`}
             title="Switch to WhatsApp Web Live Chat"
           >
             <Smartphone className="w-3.5 h-3.5 shrink-0" />
@@ -621,11 +614,10 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveViewMode('hub')}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-              activeViewMode === 'hub'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${activeViewMode === 'hub'
                 ? 'bg-blue-600 text-white border border-blue-500 shadow-sm'
                 : 'bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700'
-            }`}
+              }`}
             title="Switch to Messaging Hub Logs"
           >
             <MessageSquare className="w-3.5 h-3.5 shrink-0" />
@@ -635,7 +627,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
       </div>
 
       {activeViewMode === 'whatsapp' ? (
-        <WhatsAppModal 
+        <WhatsAppModal
           isOpen={true}
           isFullPage={true}
           onClose={() => setActiveViewMode('hub')}
@@ -645,206 +637,203 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Active Client Threads */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-64 lg:h-[600px]">
-          <div className="p-3.5 sm:p-4 border-b border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-800 text-sm">Active Client Threads</span>
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-bold">
-                {cases.length} Applicants
-              </span>
-            </div>
-
-            {/* Thread Search Bar */}
-            <div className="relative w-full">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search applicant name, case ID..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* List of Clients */}
-          <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
-            {filteredCases.map(c => {
-              const isSelected = c.id === selectedCase?.id;
-              const caseMsgs = messages.filter(m => m.caseId === c.id);
-              const lastMsg = caseMsgs[caseMsgs.length - 1];
-
-              return (
-                <div 
-                  key={c.id} 
-                  onClick={() => setSelectedCaseId(c.id)}
-                  className={`p-3.5 sm:p-4 cursor-pointer transition-all ${
-                    isSelected ? 'bg-blue-50/80 border-l-4 border-blue-600' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-bold text-xs text-slate-900 truncate">{c.clientName}</div>
-                    <span className="text-[10px] text-slate-400 font-mono shrink-0">{c.caseNumber}</span>
-                  </div>
-
-                  <div className="text-[11px] text-slate-500 mt-0.5 truncate font-medium">
-                    {c.fieldCategory}
-                  </div>
-
-                  {lastMsg ? (
-                    <div className="text-[11px] text-slate-400 mt-1 truncate flex items-center gap-1">
-                      <span className="font-semibold text-slate-600">{lastMsg.senderName.split(' ')[0]}:</span>
-                      <span className="truncate">{renderLastMsgPreview(lastMsg.content)}</span>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-slate-400 mt-1 italic">No recent messages</div>
-                  )}
-
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
-                      Stage {c.currentStage}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Live</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Column: Chat Conversation Thread */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[500px] sm:h-[600px]">
-          {/* Thread Header */}
-          <div className="p-3.5 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-900 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
-                {selectedCase?.clientName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+          {/* Left Column: Active Client Threads */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-64 lg:h-[600px]">
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 text-sm">Active Client Threads</span>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {cases.length} Applicants
+                </span>
               </div>
-              <div className="min-w-0">
-                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 truncate">
-                  <span className="truncate">{selectedCase?.clientName}</span>
-                  <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded font-mono font-semibold shrink-0">
-                    {selectedCase?.caseNumber}
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5 truncate">
-                  <span className="truncate">{selectedCase?.clientEmail}</span>
-                  <span>•</span>
-                  <span className="text-slate-600 font-medium truncate">{selectedCase?.fieldCategory}</span>
-                </p>
+
+              {/* Thread Search Bar */}
+              <div className="relative w-full">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search applicant name, case ID..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-              <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold border border-emerald-200">
-                Stage {selectedCase?.currentStage} Active
-              </span>
-            </div>
-          </div>
-
-          {/* Quick AI Response Templates */}
-          <div className="px-3 sm:px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" />
-              Quick:
-            </span>
-            {QUICK_TEMPLATES.map((tmpl, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setNewMsgText(tmpl.text)}
-                className="text-[11px] bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-700 px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs font-medium cursor-pointer"
-              >
-                {tmpl.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto space-y-4 bg-slate-50/30">
-            {caseMessages.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-600">No message history yet</p>
-                <p className="text-xs text-slate-400">Start the conversation with {selectedCase?.clientName} below.</p>
-              </div>
-            ) : (
-              caseMessages.map(m => {
-                const isMe = userRole === 'client'
-                  ? m.senderRole === 'client'
-                  : m.senderRole !== 'client';
+            {/* List of Clients */}
+            <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
+              {filteredCases.map(c => {
+                const isSelected = c.id === selectedCase?.id;
+                const caseMsgs = messages.filter(m => m.caseId === c.id);
+                const lastMsg = caseMsgs[caseMsgs.length - 1];
 
                 return (
-                  <div 
-                    key={m.id} 
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                  >
-                    <div 
-                      className={`p-3 sm:p-3.5 rounded-2xl max-w-[85%] sm:max-w-lg shadow-2xs ${
-                        isMe 
-                          ? 'bg-blue-600 text-white rounded-tr-xs' 
-                          : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
+                  <div
+                    key={c.id}
+                    onClick={() => setSelectedCaseId(c.id)}
+                    className={`p-3.5 sm:p-4 cursor-pointer transition-all ${isSelected ? 'bg-blue-50/80 border-l-4 border-blue-600' : 'hover:bg-slate-50'
                       }`}
-                    >
-                      <div className={`flex items-center justify-between gap-3 mb-1 text-[10px] ${
-                        isMe ? 'text-blue-100 font-semibold' : 'text-slate-500 font-semibold'
-                      }`}>
-                        <span className="truncate">{isMe ? 'You' : m.senderName}</span>
-                        <span className="flex items-center gap-1 shrink-0">
-                          <Clock className="w-3 h-3" />
-                          <span>{m.timestamp}</span>
-                        </span>
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-xs text-slate-900 truncate">{c.clientName}</div>
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0">{c.caseNumber}</span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 mt-0.5 truncate font-medium">
+                      {c.fieldCategory}
+                    </div>
+
+                    {lastMsg ? (
+                      <div className="text-[11px] text-slate-400 mt-1 truncate flex items-center gap-1">
+                        <span className="font-semibold text-slate-600">{lastMsg.senderName.split(' ')[0]}:</span>
+                        <span className="truncate">{renderLastMsgPreview(lastMsg.content)}</span>
                       </div>
-                      {renderMessageBubbleContent(m, isMe)}
+                    ) : (
+                      <div className="text-[10px] text-slate-400 mt-1 italic">No recent messages</div>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
+                        Stage {c.currentStage}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">Live</span>
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
-            <div ref={messagesEndRef} />
+              })}
+            </div>
           </div>
 
-          {/* Attached File Preview Badge */}
-          {attachedFile && (
-            <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center justify-between animate-fadeIn">
-              <div className="flex items-center gap-2.5 min-w-0">
-                {attachedFile.type === 'image' ? (
-                  <img src={attachedFile.dataUrl} alt="preview" className="w-9 h-9 object-cover rounded-lg border border-blue-200 shrink-0" />
-                ) : (
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                )}
+          {/* Right Column: Chat Conversation Thread */}
+          <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[500px] sm:h-[600px]">
+            {/* Thread Header */}
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-900 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                  {selectedCase?.clientName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                </div>
                 <div className="min-w-0">
-                  <span className="text-xs font-bold text-slate-800 block truncate max-w-[200px] sm:max-w-md">{attachedFile.name}</span>
-                  <span className="text-[10px] text-slate-500">{attachedFile.size} • Ready to send</span>
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 truncate">
+                    <span className="truncate">{selectedCase?.clientName}</span>
+                    <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded font-mono font-semibold shrink-0">
+                      {selectedCase?.caseNumber}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5 truncate">
+                    <span className="truncate">{selectedCase?.clientEmail}</span>
+                    <span>•</span>
+                    <span className="text-slate-600 font-medium truncate">{selectedCase?.fieldCategory}</span>
+                  </p>
                 </div>
               </div>
-              <button 
-                type="button"
-                onClick={() => setAttachedFile(null)} 
-                className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0 ml-2"
-                title="Remove attachment"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
 
-          {/* Message Input & Send Form */}
-          <form onSubmit={handleSend} className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 flex items-center gap-2.5 bg-white">
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.csv"
-              onChange={handleFileSelect}
-            />
-            {/* <button
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold border border-emerald-200">
+                  Stage {selectedCase?.currentStage} Active
+                </span>
+              </div>
+            </div>
+
+            {/* Quick AI Response Templates */}
+            <div className="px-3 sm:px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                Quick:
+              </span>
+              {QUICK_TEMPLATES.map((tmpl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setNewMsgText(tmpl.text)}
+                  className="text-[11px] bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-700 px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs font-medium cursor-pointer"
+                >
+                  {tmpl.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto space-y-4 bg-slate-50/30">
+              {caseMessages.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-600">No message history yet</p>
+                  <p className="text-xs text-slate-400">Start the conversation with {selectedCase?.clientName} below.</p>
+                </div>
+              ) : (
+                caseMessages.map(m => {
+                  const isMe = userRole === 'client'
+                    ? m.senderRole === 'client'
+                    : m.senderRole !== 'client';
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`p-3 sm:p-3.5 rounded-2xl max-w-[85%] sm:max-w-lg shadow-2xs ${isMe
+                            ? 'bg-blue-600 text-white rounded-tr-xs'
+                            : 'bg-white border border-slate-200 text-slate-800 rounded-tl-xs'
+                          }`}
+                      >
+                        <div className={`flex items-center justify-between gap-3 mb-1 text-[10px] ${isMe ? 'text-blue-100 font-semibold' : 'text-slate-500 font-semibold'
+                          }`}>
+                          <span className="truncate">{isMe ? 'You' : m.senderName}</span>
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Clock className="w-3 h-3" />
+                            <span>{m.timestamp}</span>
+                          </span>
+                        </div>
+                        {renderMessageBubbleContent(m, isMe)}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Attached File Preview Badge */}
+            {attachedFile && (
+              <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center justify-between animate-fadeIn">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {attachedFile.type === 'image' ? (
+                    <img src={attachedFile.dataUrl} alt="preview" className="w-9 h-9 object-cover rounded-lg border border-blue-200 shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-slate-800 block truncate max-w-[200px] sm:max-w-md">{attachedFile.name}</span>
+                    <span className="text-[10px] text-slate-500">{attachedFile.size} • Ready to send</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0 ml-2"
+                  title="Remove attachment"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Message Input & Send Form */}
+            <form onSubmit={handleSend} className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 flex items-center gap-2.5 bg-white">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.csv"
+                onChange={handleFileSelect}
+              />
+              {/* <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach File / Document"
@@ -853,36 +842,36 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               <Paperclip className="w-4 h-4" />
             </button> */}
 
-            <input
-              type="text"
-              value={newMsgText}
-              onChange={(e) => setNewMsgText(e.target.value)}
-              placeholder={`Write message to ${selectedCase?.clientName || 'applicant'}...`}
-              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              <input
+                type="text"
+                value={newMsgText}
+                onChange={(e) => setNewMsgText(e.target.value)}
+                placeholder={`Write message to ${selectedCase?.clientName || 'applicant'}...`}
+                className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
-            <div className="shrink-0 pl-1 pr-1">
-              <button
-                type="submit"
-                disabled={(!newMsgText.trim() && !attachedFile) || isSending}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
-              >
-                <span>Send</span>
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </form>
+              <div className="shrink-0 pl-1 pr-1">
+                <button
+                  type="submit"
+                  disabled={(!newMsgText.trim() && !attachedFile) || isSending}
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
+                  <span>Send</span>
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
       )}
 
       {/* Lightbox / High-Res Image Preview Modal */}
       {previewImageModal && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
           onClick={() => setPreviewImageModal(null)}
         >
-          <div 
+          <div
             className="relative max-w-4xl w-full max-h-[92vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
