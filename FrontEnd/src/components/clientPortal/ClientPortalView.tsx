@@ -2524,14 +2524,29 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {activeTab === 'postFiling' && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-              Stage 6: Guidance &amp; Timeline
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                (caseData?.currentStage || 1) >= 6 
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                  : 'bg-purple-100 text-purple-800 border border-purple-200'
+              }`}>
+                {(caseData?.currentStage || 1) >= 6 ? 'Stage 6: Dispatched to USCIS' : 'Stage 6 Preview: Post-Filing Roadmap'}
+              </span>
+              {(caseData?.currentStage || 1) < 6 && (
+                <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                  Currently in Stage {caseData?.currentStage || 2} of 7 (In Progress)
+                </span>
+              )}
+            </div>
             <h2 className="text-lg font-bold text-slate-900 mt-2">
-              Your Petition Has Been Filed &mdash; What Happens Next?
+              {(caseData?.currentStage || 1) >= 6 
+                ? 'Your Petition Has Been Filed — Live Tracking & Milestones' 
+                : 'Post-Filing Roadmap: What Happens After USCIS Submission?'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Your petition package is shipped to USCIS. Here is what to expect during processing:
+              {(caseData?.currentStage || 1) >= 6 
+                ? 'Your petition package has been dispatched to USCIS. Review real-time processing milestones below:' 
+                : 'Your petition is currently being prepared. Here is the standard 8-step roadmap and timeline of what happens after your petition is shipped to USCIS:'}
             </p>
           </div>
 
