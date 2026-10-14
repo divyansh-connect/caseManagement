@@ -146,17 +146,18 @@ const INITIAL_WORKFLOW_STAGES: StageGroup[] = [
   }
 ];
 
-const getInitialStageGroups = (cData?: CaseItem): StageGroup[] => {
+const getInitialStageGroups = (cData?: CaseItem, docsCount: number = 0): StageGroup[] => {
   if (!cData) return INITIAL_WORKFLOW_STAGES;
+  let savedGroups: StageGroup[] | null = null;
   try {
     const saved = localStorage.getItem(`workflow_stage_tasks_${cData.id}`);
     if (saved) {
-      return JSON.parse(saved);
+      savedGroups = JSON.parse(saved);
     }
   } catch (e) {}
 
   const currStage = Number(cData.currentStage) || 1;
-  return INITIAL_WORKFLOW_STAGES.map(stage => {
+  const base = savedGroups || INITIAL_WORKFLOW_STAGES.map(stage => {
     if (stage.id < currStage) {
       return {
         ...stage,
@@ -170,6 +171,36 @@ const getInitialStageGroups = (cData?: CaseItem): StageGroup[] => {
         tasks: stage.tasks.map(t => ({ ...t, status: 'Not Started' as TaskStatus }))
       };
     }
+  });
+
+  const hasDocs = docsCount > 0 || Boolean(cData.documentsCount && cData.documentsCount > 0) || (Array.isArray((cData as any).documents) && (cData as any).documents.length > 0);
+
+  let clientCompleted: string[] = [];
+  try {
+    const savedClient = localStorage.getItem(`completed_client_tasks_${cData.id}`);
+    if (savedClient) clientCompleted = JSON.parse(savedClient);
+  } catch (e) {}
+
+  return base.map(stage => {
+    if (stage.id === 1) {
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => {
+          if (t.id === 'st1-2') {
+            if (hasDocs || clientCompleted.includes('st1-5') || clientCompleted.includes('st1-2')) {
+              if (t.status === 'Not Started' || t.status === 'Awaiting Client') {
+                return { ...t, status: 'Approved/Completed' as TaskStatus };
+              }
+            }
+          }
+          if (clientCompleted.includes(t.id) && (t.status === 'Not Started' || t.status === 'Awaiting Client')) {
+            return { ...t, status: 'Approved/Completed' as TaskStatus };
+          }
+          return t;
+        })
+      };
+    }
+    return stage;
   });
 };
 
@@ -202,12 +233,17 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const [expandedStage, setExpandedStage] = useState<number>(() => caseData?.currentStage || 1);
   const [stageGroups, setStageGroups] = useState<StageGroup[]>(() => getInitialStageGroups(caseData));
 
-  React.useEffect(() => {
-    if (caseData?.id) {
-      setStageGroups(getInitialStageGroups(caseData));
-      setExpandedStage(Number(caseData.currentStage) || 1);
-    }
-  }, [caseData?.id, caseData?.currentStage]);
+  // Comprehensive active case exhibits combining direct documents prop and caseData.documents
+  const activeCaseDocs = React.useMemo(() => {
+    if (!caseData) return [];
+    const propDocs = documents.filter(d => d.caseId === caseData.id);
+    const caseAttachedDocs = Array.isArray((caseData as any).documents) ? (caseData as any).documents : [];
+    const map = new Map<string, CaseDocument>();
+    caseAttachedDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    propDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    return Array.from(map.values());
+  }, [documents, caseData]);
+
   const [messages, setMessages] = useState<CaseMessage[]>(() => {
     return caseData ? initialMessages.filter(m => m.caseId === caseData.id) : [];
   });
@@ -219,7 +255,12 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
   const [prong3Draft, setProng3Draft] = useState(() => caseData?.dhanasar?.prong3?.uniqueExpertise || '');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
-  const activeCaseDocs = caseData ? documents.filter(d => d.caseId === caseData.id) : [];
+  React.useEffect(() => {
+    if (caseData?.id) {
+      setStageGroups(getInitialStageGroups(caseData, activeCaseDocs.length));
+      setExpandedStage(Number(caseData.currentStage) || 1);
+    }
+  }, [caseData?.id, caseData?.currentStage, activeCaseDocs.length]);
 
   if (!caseData) {
     return (
@@ -298,6 +339,21 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       try {
         if (caseData?.id) {
           localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, JSON.stringify(updatedGroups));
+          
+          // Keep completed_client_tasks in sync as well
+          const clientKey = `completed_client_tasks_${caseData.id}`;
+          let clientCompleted: string[] = [];
+          const savedClient = localStorage.getItem(clientKey);
+          if (savedClient) clientCompleted = JSON.parse(savedClient);
+
+          const clientEquivId = taskId === 'st1-2' ? 'st1-5' : taskId;
+          if (newStatus === 'Approved/Completed') {
+            if (!clientCompleted.includes(taskId)) clientCompleted.push(taskId);
+            if (!clientCompleted.includes(clientEquivId)) clientCompleted.push(clientEquivId);
+          } else {
+            clientCompleted = clientCompleted.filter(id => id !== taskId && id !== clientEquivId);
+          }
+          localStorage.setItem(clientKey, JSON.stringify(clientCompleted));
         }
       } catch (e) {}
 

@@ -14,7 +14,7 @@ const QUICK_ROLES: { label: string; email: string; role: UserRole }[] = [
   { label: 'Admin / Manager',  email: 'admin@babelglobal.com',          role: 'admin'      },
   { label: 'Drafter',          email: 'writer@babelglobal.com',         role: 'writer'     },
   { label: 'Reviewer',         email: 'reviewer@babelglobal.com',       role: 'reviewer'   },
-  { label: 'Client Portal',    email: 'sofia.mansoor@cyberfortress.net', role: 'client'     }
+  { label: 'Client Portal',    email: 'demoooo@gmail.com',              role: 'client'     }
 ];
 
 // ── Team sub-roles shown after clicking "Babel Global Team" ────────────────────────

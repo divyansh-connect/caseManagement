@@ -273,9 +273,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     }
   };
 
-  const clientDocs = caseData 
-    ? documents.filter(d => d.caseId === caseData.id)
-    : [];
+  const clientDocs = React.useMemo(() => {
+    if (!caseData) return [];
+    const propDocs = documents.filter(d => d.caseId === caseData.id);
+    const caseAttachedDocs = Array.isArray((caseData as any).documents) ? (caseData as any).documents : [];
+    const map = new Map<string, CaseDocument>();
+    caseAttachedDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    propDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    return Array.from(map.values());
+  }, [documents, caseData]);
+
   const hasUploadedDocs = clientDocs.length > 0 || Boolean(caseData?.documentsCount && caseData.documentsCount > 0);
 
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
@@ -299,24 +306,55 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   const markTaskCompleted = (taskId: string) => {
     setCompletedTaskIds(prev => {
-      if (prev.includes(taskId)) return prev;
-      const updated = [...prev, taskId];
+      const updated = prev.includes(taskId) ? prev : [...prev, taskId];
       try {
         localStorage.setItem(`completed_client_tasks_${caseData?.id || 'default'}`, JSON.stringify(updated));
+        // Also sync into workflow_stage_tasks for Super Admin & Admin
+        if (caseData?.id) {
+          const adminKey = `workflow_stage_tasks_${caseData.id}`;
+          const savedAdmin = localStorage.getItem(adminKey);
+          if (savedAdmin) {
+            const parsed = JSON.parse(savedAdmin);
+            const adminTaskId = taskId === 'st1-5' ? 'st1-2' : taskId;
+            const updatedAdmin = parsed.map((grp: any) => ({
+              ...grp,
+              tasks: grp.tasks.map((t: any) => (t.id === adminTaskId || t.id === taskId) ? { ...t, status: 'Approved/Completed' } : t)
+            }));
+            localStorage.setItem(adminKey, JSON.stringify(updatedAdmin));
+          }
+        }
       } catch (e) {}
       return updated;
     });
   };
 
   const getResolvedTaskStatus = (task: any, stageId?: number): ClientStageGroup['tasks'][0]['status'] => {
-    if (completedTaskIds.includes(task.id)) {
+    // Check if Super Admin / Admin set a specific task status in workflow_stage_tasks
+    try {
+      if (caseData?.id) {
+        const adminWorkflow = localStorage.getItem(`workflow_stage_tasks_${caseData.id}`);
+        if (adminWorkflow) {
+          const parsed: any[] = JSON.parse(adminWorkflow);
+          const adminStage = parsed.find((g: any) => g.id === stageId);
+          if (adminStage && Array.isArray(adminStage.tasks)) {
+            const adminTaskId = task.id === 'st1-5' ? 'st1-2' : task.id;
+            const adminTask = adminStage.tasks.find((t: any) => t.id === adminTaskId || t.id === task.id);
+            if (adminTask && adminTask.status && adminTask.status !== 'Not Started') {
+              return adminTask.status as any;
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    if (completedTaskIds.includes(task.id) || (task.id === 'st1-5' && completedTaskIds.includes('st1-2'))) {
       return 'Approved/Completed';
     }
     const currentStageNum = Number(caseData?.currentStage) || 1;
     if (stageId && stageId < currentStageNum) {
       return 'Approved/Completed';
     }
-    if (task.id === 'st1-5' && hasUploadedDocs) {
+    if ((task.id === 'st1-5' || task.id === 'st1-2') && hasUploadedDocs) {
       return 'Approved/Completed';
     }
     if (task.id === 'st2-2' && caseData?.recommenders && caseData.recommenders.length >= 3) {

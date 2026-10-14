@@ -75,12 +75,31 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<UserRole>('admin');
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  // Load saved auth state from localStorage immediately on first render to prevent redirect on refresh
+  const savedUserStr = localStorage.getItem('currentUser');
+  const savedToken = localStorage.getItem('jwt_token');
+  const initialUser = savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch (e) { return null; } })() : null;
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return Boolean(savedToken);
+  });
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    return (initialUser?.role as UserRole) || 'admin';
+  });
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>(() => {
+    return initialUser?.email || '';
+  });
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; role: UserRole; avatar?: string } | null>(initialUser);
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    const p = window.location.pathname;
+    if (p.startsWith('/cases/')) return 'cases';
+    return PATH_TO_TAB[p] || (initialUser?.role === 'client' ? 'clientPortal' : 'dashboard');
+  });
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(() => {
+    const p = window.location.pathname;
+    if (p.startsWith('/cases/')) return p.replace('/cases/', '');
+    return null;
+  });
 
   // Modals State
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
@@ -154,35 +173,49 @@ export default function App() {
     };
   };
 
-  // 1. Auto Login on mount if token exists & fetch authenticated user profile
+  // 1. Session verification: verify token with /auth/me in background without redirecting valid active sessions
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
-    if (token) {
-      const fetchCurrentUser = async () => {
-        try {
-          const res = await api.get('/auth/me');
-          if (res.success && res.user) {
-            setIsAuthenticated(true);
-            setUserRole(res.user.role as UserRole);
-            setCurrentUserEmail(res.user.email);
-            setCurrentUser(res.user);
-          } else {
-            localStorage.removeItem('jwt_token');
-            setIsAuthenticated(false);
-            setCurrentUser(null);
-          }
-        } catch (e) {
-          console.warn('[AUTH] Session verification failed, removing token');
-          localStorage.removeItem('jwt_token');
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-        }
-      };
-      fetchCurrentUser();
-    } else {
+
+    // If no token exists, send to login
+    if (!token) {
       setIsAuthenticated(false);
       setCurrentUser(null);
+      setCurrentUserEmail('');
+      if (location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
+      return;
     }
+
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        if (res.success && res.user) {
+          setIsAuthenticated(true);
+          setUserRole(res.user.role as UserRole);
+          setCurrentUserEmail(res.user.email);
+          setCurrentUser(res.user);
+          localStorage.setItem('currentUser', JSON.stringify(res.user));
+        } else {
+          localStorage.removeItem('jwt_token');
+          localStorage.removeItem('currentUser');
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          navigate('/login', { replace: true });
+        }
+      } catch (e: any) {
+        if (e?.response?.status === 401) {
+          console.warn('[AUTH] Session verification failed, removing token');
+          localStorage.removeItem('jwt_token');
+          localStorage.removeItem('currentUser');
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          navigate('/login', { replace: true });
+        }
+      }
+    };
+    fetchCurrentUser();
   }, []);
 
   // Auto-sync: ensure any registered client missing an active case folder gets one created (e.g. demooooooo)
@@ -191,8 +224,11 @@ export default function App() {
       const clientsRes = await api.get('/clients');
       if (!clientsRes.success || !Array.isArray(clientsRes.data)) return;
       
+      const allCasesRes = await api.get('/cases');
+      const allCases: any[] = allCasesRes.success && Array.isArray(allCasesRes.data) ? allCasesRes.data : currentCases;
+
       const existingClientIds = new Set(
-        currentCases.map(c => c.clientId || (c as any).client?.id).filter(Boolean)
+        allCases.map(c => c.clientId || c.client?.id).filter(Boolean)
       );
 
       const clientsWithoutCases = clientsRes.data.filter(
@@ -244,13 +280,19 @@ export default function App() {
       try {
         switch (activeTab) {
           case 'dashboard':
-            // Dashboard needs stats, cases and tasks
-            const statsRes = await api.get('/dashboard/stats');
-            const dashboardCases = await api.get('/cases');
+            // Dashboard needs stats, cases, tasks and documents
+            const [statsRes, dashboardCases, dashDocs] = await Promise.all([
+              api.get('/dashboard/stats'),
+              api.get('/cases'),
+              api.get('/documents')
+            ]);
             if (dashboardCases.success) {
               const mapped = dashboardCases.data.map(mapCaseData);
               setCases(mapped);
               ensureCasesForClients(mapped);
+            }
+            if (dashDocs.success) {
+              setDocuments(dashDocs.data);
             }
             const dashboardTasks = await api.get('/tasks');
             if (dashboardTasks.success) {
@@ -260,11 +302,17 @@ export default function App() {
 
           case 'cases':
           case 'reviews':
-            const casesRes = await api.get('/cases');
+            const [casesRes, casesDocs] = await Promise.all([
+              api.get('/cases'),
+              api.get('/documents')
+            ]);
             if (casesRes.success) {
               const mapped = casesRes.data.map(mapCaseData);
               setCases(mapped);
               ensureCasesForClients(mapped);
+            }
+            if (casesDocs.success) {
+              setDocuments(casesDocs.data);
             }
             break;
 
@@ -408,7 +456,7 @@ export default function App() {
       return;
     }
 
-    if (path === '/login') {
+    if (path === '/login' || path === '/' || path === '') {
       const defaultTab = userRole === 'client' ? 'clientPortal' : 'dashboard';
       navigate(TAB_TO_PATH[activeTab] || TAB_TO_PATH[defaultTab] || '/dashboard', { replace: true });
       return;
@@ -444,13 +492,6 @@ export default function App() {
       }
       setActiveTab(matchedTab);
       setSelectedCaseId(null);
-    } else if (path === '/' || path === '') {
-      if (!isAuthenticated) {
-        navigate('/login', { replace: true });
-      } else {
-        const defaultTab = userRole === 'client' ? 'clientPortal' : 'dashboard';
-        navigate(TAB_TO_PATH[defaultTab], { replace: true });
-      }
     }
   }, [location.pathname, userRole, isAuthenticated]);
 
@@ -530,6 +571,7 @@ export default function App() {
         setCurrentUser(res.user);
         setUserRole(res.user.role as UserRole);
         setCurrentUserEmail(res.user.email);
+        localStorage.setItem('currentUser', JSON.stringify(res.user));
       }
     } catch (err) {
       console.error('Error fetching current user profile on login:', err);
@@ -556,6 +598,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
+    localStorage.removeItem('currentUser');
     localStorage.removeItem('override_user_role');
     sessionStorage.clear();
     setIsAuthenticated(false);
@@ -640,7 +683,7 @@ export default function App() {
     }
   };
 
-  const handleAddDoc = (newDocOrDocs: CaseDocument | CaseDocument[]) => {
+  const handleAddDoc = async (newDocOrDocs: CaseDocument | CaseDocument[]) => {
     const docsArray = Array.isArray(newDocOrDocs) ? newDocOrDocs : [newDocOrDocs];
     setDocuments(prev => [...docsArray, ...prev]);
     // Also increment documentsCount on the specific cases
@@ -649,11 +692,23 @@ export default function App() {
       if (addedForThisCase > 0) {
         return {
           ...c,
-          documentsCount: c.documentsCount + addedForThisCase
+          documentsCount: (c.documentsCount || 0) + addedForThisCase
         };
       }
       return c;
     }));
+
+    // Re-sync with backend to guarantee all views have the latest documents
+    try {
+      const [freshDocs, freshCases] = await Promise.all([
+        api.get('/documents'),
+        api.get('/cases')
+      ]);
+      if (freshDocs.success) setDocuments(freshDocs.data);
+      if (freshCases.success) setCases(freshCases.data.map(mapCaseData));
+    } catch (e) {
+      console.error('Error syncing after document upload:', e);
+    }
   };
 
   const handleAddRecommender = (rec: Recommender) => {
@@ -917,7 +972,7 @@ export default function App() {
         isOpen={isNewDocModalOpen}
         onClose={() => setIsNewDocModalOpen(false)}
         onAddDoc={handleAddDoc}
-        caseId={selectedCaseId || cases[0]?.id}
+        caseId={selectedCaseId || (userRole === 'client' ? (cases.find(c => c.clientEmail === currentUserEmail || c.clientId === currentUser?.id)?.id || cases[0]?.id) : cases[0]?.id)}
         cases={roleFilteredCases}
         userRole={userRole}
         currentUser={currentUser}
