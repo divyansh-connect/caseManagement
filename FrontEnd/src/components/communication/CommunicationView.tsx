@@ -13,11 +13,232 @@ import {
   Smartphone,
   ShieldCheck,
   FileText,
-  Filter
+  Filter,
+  Download,
+  Play,
+  Pause,
+  X,
+  Maximize2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { CaseItem, CaseMessage, UserRole } from '../../types';
 import { WhatsAppModal } from './WhatsAppModal';
 import { api } from '../../services/api';
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+const compressImageToDataUrl = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(e.target?.result as string);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
+interface ParsedAttachment {
+  type: 'image' | 'document' | 'audio' | 'none';
+  fileName?: string;
+  fileSize?: string;
+  dataUrl?: string;
+  duration?: string;
+  cleanText: string;
+}
+
+function parseMessageAttachments(rawContent: string, rawAttachments?: string[]): ParsedAttachment {
+  let cleanText = (rawContent || '').replace(/^\[WA\]\s*/i, '').replace(/^\[wa\]:\s*/i, '').trim();
+  let type: 'image' | 'document' | 'audio' | 'none' = 'none';
+  let fileName = '';
+  let fileSize = '';
+  let dataUrl = '';
+  let duration = '';
+
+  // 1. Check Voice Note
+  const audioMatch = cleanText.match(/\[AUDIO:(.*?)\]/);
+  if (audioMatch) {
+    type = 'audio';
+    dataUrl = audioMatch[1];
+    cleanText = cleanText.replace(/\[AUDIO:.*?\]/, '').trim();
+    const durMatch = cleanText.match(/🎤\s*\[Voice Note\]\s*\((.*?)\)/i) || cleanText.match(/\((0:[0-9]{2})\)/);
+    if (durMatch) duration = durMatch[1];
+    cleanText = cleanText.replace(/🎤\s*\[Voice Note\]\s*\(.*?\)/i, '').trim();
+    return { type, dataUrl, duration: duration || '0:05', cleanText };
+  }
+
+  // 2. Check Photo / Image with embedded data
+  const photoMatch = cleanText.match(/📷\s*\[Photo:\s*(.*?)\]/i) || cleanText.match(/\[Photo:\s*(.*?)\]/i);
+  const dataMatch = cleanText.match(/\[DATA:(.*?)\]/);
+  if (dataMatch) {
+    dataUrl = dataMatch[1];
+    cleanText = cleanText.replace(/\[DATA:.*?\]/, '').trim();
+  }
+
+  if (photoMatch || (dataUrl && dataUrl.startsWith('data:image/'))) {
+    type = 'image';
+    fileName = photoMatch ? photoMatch[1] : 'Photo.jpg';
+    cleanText = cleanText.replace(/📷\s*\[Photo:\s*.*?\]/i, '').replace(/\[Photo:\s*.*?\]/i, '').trim();
+    return { type, fileName, dataUrl, cleanText };
+  }
+
+  // 3. Check Document Attachment with embedded data
+  const attachWithDataMatch = cleanText.match(/📎\s*\[Attachment:\s*(.*?)\s*\((.*?)\)\]/i) || cleanText.match(/\[Attachment:\s*(.*?)\s*\((.*?)\)\]/i);
+  if (attachWithDataMatch) {
+    type = 'document';
+    fileName = attachWithDataMatch[1];
+    fileSize = attachWithDataMatch[2];
+    cleanText = cleanText.replace(/📎\s*\[Attachment:\s*.*?\]/i, '').replace(/\[Attachment:\s*.*?\]/i, '').trim();
+    return { type, fileName, fileSize, dataUrl, cleanText };
+  }
+
+  // 4. Check legacy [Attachment: filename]
+  const legacyAttach = cleanText.match(/\[Attachment:\s*(.*?)\]/i);
+  if (legacyAttach) {
+    type = 'document';
+    fileName = legacyAttach[1];
+    fileSize = 'PDF Document';
+    cleanText = cleanText.replace(/\[Attachment:\s*.*?\]/i, '').trim();
+    return { type, fileName, fileSize, dataUrl: dataUrl || '', cleanText };
+  }
+
+  // 5. Check if rawAttachments has an image or document
+  if (rawAttachments && rawAttachments.length > 0) {
+    const firstAtt = rawAttachments[0];
+    if (firstAtt.startsWith('data:image/') || firstAtt.match(/\.(png|jpe?g|gif|webp)(\?.*)?$/i)) {
+      return { type: 'image', fileName: 'Attachment.jpg', dataUrl: firstAtt, cleanText };
+    } else {
+      return { type: 'document', fileName: 'Attachment.pdf', fileSize: 'Document', dataUrl: firstAtt, cleanText };
+    }
+  }
+
+  return { type, cleanText };
+}
+
+const AudioPlayer: React.FC<{ audioUrl: string; duration?: string; isMe: boolean }> = ({ audioUrl, duration, isMe }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    const onLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setTotalDuration(audio.duration);
+      }
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+    };
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const progress = totalDuration > 0 ? (currentTime / totalDuration) * 100 : (isPlaying ? 50 : 0);
+
+  return (
+    <div className={`flex items-center gap-2.5 p-2 rounded-xl min-w-[200px] sm:min-w-[240px] ${
+      isMe ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-800'
+    }`}>
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-transform active:scale-95 ${
+          isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+        }`}
+      >
+        {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="h-1.5 w-full bg-black/15 rounded-full overflow-hidden relative">
+          <div
+            className={`h-full rounded-full transition-all duration-100 ${isMe ? 'bg-white' : 'bg-blue-600'}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex justify-between items-center mt-1 text-[9px] opacity-80 font-mono">
+          <span>{formatTime(currentTime)}</span>
+          <span>{duration || (totalDuration > 0 ? formatTime(totalDuration) : '0:05')}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface AttachedFileItem {
+  name: string;
+  size: string;
+  type: 'image' | 'doc';
+  dataUrl: string;
+}
+
+
 
 interface CommunicationViewProps {
   cases: CaseItem[];
@@ -51,7 +272,9 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [channelFilter, setChannelFilter] = useState<'all' | 'email' | 'whatsapp' | 'internal'>('all');
-  const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<AttachedFileItem | null>(null);
+  const [previewImageModal, setPreviewImageModal] = useState<{ url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeViewMode, setActiveViewMode] = useState<'hub' | 'whatsapp'>(viewMode);
 
   useEffect(() => {
@@ -177,17 +400,58 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     { label: '📑 USCIS Receipt Notice', text: 'Your petition filing receipt (Form I-797C) has been generated and logged in your Document Vault.' },
   ];
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImage = file.type.startsWith('image/');
+    try {
+      if (isImage) {
+        let compressed = '';
+        try {
+          compressed = await compressImageToDataUrl(file);
+        } catch {
+          compressed = await readFileAsDataUrl(file);
+        }
+        setAttachedFile({
+          name: file.name,
+          size: formatFileSize(file.size),
+          type: 'image',
+          dataUrl: compressed
+        });
+      } else {
+        const dataUrl = await readFileAsDataUrl(file);
+        setAttachedFile({
+          name: file.name,
+          size: formatFileSize(file.size),
+          type: 'doc',
+          dataUrl
+        });
+      }
+    } catch (err) {
+      console.error('Error reading attachment file:', err);
+    }
+    e.target.value = '';
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMsgText.trim() && !attachedFileName || !selectedCase) return;
+    if ((!newMsgText.trim() && !attachedFile) || !selectedCase) return;
 
     let contentToSend = newMsgText.trim();
-    if (attachedFileName) {
-      contentToSend += ` [Attachment: ${attachedFileName}]`;
+    const attachmentsPayload: string[] = [];
+
+    if (attachedFile) {
+      if (attachedFile.type === 'image') {
+        contentToSend = `📷 [Photo: ${attachedFile.name}] [DATA:${attachedFile.dataUrl}] ${contentToSend}`.trim();
+      } else {
+        contentToSend = `📎 [Attachment: ${attachedFile.name} (${attachedFile.size})] [DATA:${attachedFile.dataUrl}] ${contentToSend}`.trim();
+      }
+      attachmentsPayload.push(attachedFile.dataUrl);
     }
 
     setNewMsgText('');
-    setAttachedFileName(null);
+    setAttachedFile(null);
     setIsSending(true);
 
     const isClientRole = userRole === 'client';
@@ -203,7 +467,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
       senderName: myName,
       senderRole: myRole,
       content: contentToSend,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined
     };
 
     setMessages(prev => [...prev, optimisticMsg]);
@@ -214,7 +479,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
         senderName: myName,
         senderRole: myRole,
         content: contentToSend,
-        channel: 'portal'
+        channel: 'portal',
+        attachments: attachmentsPayload
       });
 
       if (data && data.success && data.data) {
@@ -228,14 +494,97 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
     }
   };
 
-  const applyTemplate = (templateText: string) => {
-    setNewMsgText(templateText);
+  const renderLastMsgPreview = (content: string) => {
+    if (!content) return 'No messages';
+    if (content.includes('[AUDIO:') || content.includes('[Voice Note]')) {
+      const dur = content.match(/\((0:[0-9]{2})\)/)?.[1] || '';
+      return `🎤 Voice note ${dur}`.trim();
+    }
+    if (content.includes('📷 [Photo:') || content.includes('[DATA:data:image')) {
+      return '📷 Photo';
+    }
+    if (content.includes('📎 [Attachment:')) {
+      const fName = content.match(/\[Attachment:\s*(.*?)\s*\(/)?.[1] || 'Document';
+      return `📎 ${fName}`;
+    }
+    const clean = content.replace(/^\[WA\]\s*/i, '').replace(/\[DATA:.*?\]/g, '').replace(/\[AUDIO:.*?\]/g, '').trim();
+    return clean || 'Attachment';
   };
 
-  const handleSimulateFileSelect = () => {
-    const mockFiles = ['Exhibit_104_Scholar_Metrics.pdf', 'Recommender_CV_Dr_Smith.pdf', 'Proposed_Endeavor_Draft_v2.docx'];
-    const randomFile = mockFiles[Math.floor(Math.random() * mockFiles.length)];
-    setAttachedFileName(randomFile);
+  const renderMessageBubbleContent = (m: CaseMessage, isMe: boolean) => {
+    const parsed = parseMessageAttachments(m.content, m.attachments);
+
+    return (
+      <div className="space-y-1.5">
+        {parsed.type === 'image' && parsed.dataUrl && (
+          <div 
+            onClick={() => setPreviewImageModal({ url: parsed.dataUrl!, name: parsed.fileName || 'Photo.jpg' })}
+            className="overflow-hidden rounded-xl border border-black/10 relative group cursor-pointer max-w-sm mt-1"
+          >
+            <img 
+              src={parsed.dataUrl} 
+              alt={parsed.fileName || 'Image Attachment'} 
+              className="max-h-56 w-auto max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200" 
+            />
+            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="bg-black/75 text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                <Maximize2 className="w-3 h-3" /> View Photo
+              </span>
+            </div>
+          </div>
+        )}
+
+        {parsed.type === 'document' && (
+          <div className={`p-2.5 rounded-xl flex items-center justify-between gap-3 border mt-1 ${
+            isMe ? 'bg-blue-700/60 border-blue-500/40 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
+          }`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                isMe ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+              }`}>
+                <FileText className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-xs truncate max-w-[170px] sm:max-w-xs">{parsed.fileName}</div>
+                <div className={`text-[10px] ${isMe ? 'text-blue-100' : 'text-slate-500'}`}>{parsed.fileSize || 'Document'}</div>
+              </div>
+            </div>
+            {parsed.dataUrl ? (
+              <a
+                href={parsed.dataUrl}
+                download={parsed.fileName || 'Attachment.pdf'}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
+                  isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title="Download Attachment"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => alert(`Document: ${parsed.fileName}. Available in Document Vault.`)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
+                  isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {parsed.type === 'audio' && parsed.dataUrl && (
+          <div className="mt-1">
+            <AudioPlayer audioUrl={parsed.dataUrl} duration={parsed.duration} isMe={isMe} />
+          </div>
+        )}
+
+        {parsed.cleanText && (
+          <p className="text-xs leading-relaxed whitespace-pre-wrap">{parsed.cleanText}</p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -346,7 +695,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
                   {lastMsg ? (
                     <div className="text-[11px] text-slate-400 mt-1 truncate flex items-center gap-1">
                       <span className="font-semibold text-slate-600">{lastMsg.senderName.split(' ')[0]}:</span>
-                      <span className="truncate">{lastMsg.content}</span>
+                      <span className="truncate">{renderLastMsgPreview(lastMsg.content)}</span>
                     </div>
                   ) : (
                     <div className="text-[10px] text-slate-400 mt-1 italic">No recent messages</div>
@@ -407,7 +756,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               <button
                 key={idx}
                 type="button"
-                onClick={() => applyTemplate(tmpl.text)}
+                onClick={() => setNewMsgText(tmpl.text)}
                 className="text-[11px] bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-700 px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs font-medium cursor-pointer"
               >
                 {tmpl.label}
@@ -450,7 +799,7 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
                           <span>{m.timestamp}</span>
                         </span>
                       </div>
-                      <p className="text-xs leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                      {renderMessageBubbleContent(m, isMe)}
                     </div>
                   </div>
                 );
@@ -460,28 +809,46 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           </div>
 
           {/* Attached File Preview Badge */}
-          {attachedFileName && (
-            <div className="px-4 py-1.5 bg-blue-50 border-t border-blue-100 flex items-center justify-between">
-              <span className="text-xs font-semibold text-blue-700 flex items-center gap-1.5 truncate">
-                <Paperclip className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Attached: {attachedFileName}</span>
-              </span>
+          {attachedFile && (
+            <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center justify-between animate-fadeIn">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {attachedFile.type === 'image' ? (
+                  <img src={attachedFile.dataUrl} alt="preview" className="w-9 h-9 object-cover rounded-lg border border-blue-200 shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-slate-800 block truncate max-w-[200px] sm:max-w-md">{attachedFile.name}</span>
+                  <span className="text-[10px] text-slate-500">{attachedFile.size} • Ready to send</span>
+                </div>
+              </div>
               <button 
-                onClick={() => setAttachedFileName(null)} 
-                className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer shrink-0 ml-2"
+                type="button"
+                onClick={() => setAttachedFile(null)} 
+                className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0 ml-2"
+                title="Remove attachment"
               >
-                Remove
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
 
           {/* Message Input & Send Form */}
           <form onSubmit={handleSend} className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-slate-200 flex items-center gap-2.5 bg-white">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.csv"
+              onChange={handleFileSelect}
+            />
             <button
               type="button"
-              onClick={handleSimulateFileSelect}
+              onClick={() => fileInputRef.current?.click()}
               title="Attach File / Document"
-              className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors shrink-0 cursor-pointer shadow-2xs"
+              className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors shrink-0 cursor-pointer shadow-2xs active:scale-95"
             >
               <Paperclip className="w-4 h-4" />
             </button>
@@ -497,7 +864,8 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
             <div className="shrink-0 pl-1 pr-1">
               <button
                 type="submit"
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                disabled={(!newMsgText.trim() && !attachedFile) || isSending}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
               >
                 <span>Send</span>
                 <Send className="w-3.5 h-3.5" />
@@ -506,6 +874,47 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
           </form>
         </div>
       </div>
+      )}
+
+      {/* Lightbox / High-Res Image Preview Modal */}
+      {previewImageModal && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
+          onClick={() => setPreviewImageModal(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[92vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full bg-slate-800 px-4 py-3 flex items-center justify-between border-b border-slate-700">
+              <span className="text-xs sm:text-sm font-semibold text-slate-100 truncate max-w-md">{previewImageModal.name}</span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImageModal.url}
+                  download={previewImageModal.name}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImageModal(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-3 sm:p-6 overflow-auto flex items-center justify-center bg-black/50">
+              <img
+                src={previewImageModal.url}
+                alt={previewImageModal.name}
+                className="max-h-[72vh] max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
