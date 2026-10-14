@@ -386,12 +386,22 @@ export default function App() {
       }).catch(() => {});
     };
 
+    const handleDocumentDeleted = (e: any) => {
+      const docId = e?.detail?.documentId;
+      const docName = e?.detail?.docName;
+      if (docId || docName) {
+        setDocuments(prev => prev.filter(d => d.id !== docId && d.name !== docName));
+      }
+    };
+
     window.addEventListener('document_uploaded', handleDocumentUploaded);
     window.addEventListener('workflow_task_updated', handleDocumentUploaded);
+    window.addEventListener('document_deleted', handleDocumentDeleted);
 
     return () => {
       window.removeEventListener('document_uploaded', handleDocumentUploaded);
       window.removeEventListener('workflow_task_updated', handleDocumentUploaded);
+      window.removeEventListener('document_deleted', handleDocumentDeleted);
     };
   }, []);
 

@@ -844,14 +844,14 @@ export const CommunicationView: React.FC<CommunicationViewProps> = ({
               accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.csv"
               onChange={handleFileSelect}
             />
-            <button
+            {/* <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach File / Document"
               className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors shrink-0 cursor-pointer shadow-2xs active:scale-95"
             >
               <Paperclip className="w-4 h-4" />
-            </button>
+            </button> */}
 
             <input
               type="text"

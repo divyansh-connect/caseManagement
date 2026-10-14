@@ -801,14 +801,29 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     }
   };
 
+  const [deletedDocIds, setDeletedDocIds] = useState<Set<string>>(() => {
+    try {
+      const ids = JSON.parse(localStorage.getItem('deleted_doc_ids') || '[]');
+      const names = JSON.parse(localStorage.getItem('deleted_doc_names') || '[]');
+      return new Set([...ids, ...names]);
+    } catch {
+      return new Set();
+    }
+  });
+
   const clientDocs = React.useMemo(() => {
     const map = new Map<string, CaseDocument>();
+    const isDeleted = (d: CaseDocument) => 
+      deletedDocIds.has(d.id) || (d.name && deletedDocIds.has(d.name));
+
     const caseAttachedDocs = Array.isArray((caseData as any)?.documents) ? (caseData as any).documents : [];
-    caseAttachedDocs.forEach((d: CaseDocument) => { if (d?.id) map.set(d.id, d); });
+    caseAttachedDocs.forEach((d: CaseDocument) => { 
+      if (d?.id && !isDeleted(d)) map.set(d.id, d); 
+    });
 
     if (documents && Array.isArray(documents)) {
       documents.forEach((d: CaseDocument) => {
-        if (!d?.id) return;
+        if (!d?.id || isDeleted(d)) return;
         const matchesCase = 
           !caseData?.id || 
           d.caseId === caseData.id || 
@@ -823,10 +838,144 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       });
     }
 
+    try {
+      const candidateKeys = [
+        'local_case_documents_master',
+        caseData?.id ? `local_case_documents_${caseData.id}` : null,
+        caseData?.caseNumber ? `local_case_documents_${caseData.caseNumber}` : null,
+      ].filter(Boolean) as string[];
+
+      for (const k of candidateKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const list: CaseDocument[] = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            list.forEach(d => {
+              if (d?.id && !isDeleted(d)) map.set(d.id, d);
+            });
+          }
+        }
+      }
+    } catch {}
+
     return Array.from(map.values());
-  }, [documents, caseData, currentUser, allCases]);
+  }, [documents, caseData, currentUser, allCases, deletedDocIds]);
 
   const hasUploadedDocs = clientDocs.length > 0 || Boolean(caseData?.documentsCount && caseData.documentsCount > 0);
+
+  const handleDeleteDocument = async (doc: CaseDocument, taskId?: string) => {
+    if (!window.confirm(`Are you sure you want to remove "${doc.name}"? You can re-upload another document.`)) {
+      return;
+    }
+
+    try {
+      // 1. Delete from backend if real document
+      if (doc.id && !doc.id.startsWith('mock-') && !doc.id.startsWith('doc-client-')) {
+        try {
+          await api.delete(`/documents/${doc.id}`);
+        } catch (apiErr) {
+          console.warn('Backend delete document non-critical error:', apiErr);
+        }
+      }
+
+      // 2. Add to deleted tracking sets in localStorage
+      const deletedIdsRaw = localStorage.getItem('deleted_doc_ids') || '[]';
+      const deletedIds: string[] = JSON.parse(deletedIdsRaw);
+      if (doc.id && !deletedIds.includes(doc.id)) deletedIds.push(doc.id);
+      localStorage.setItem('deleted_doc_ids', JSON.stringify(deletedIds));
+
+      const deletedNamesRaw = localStorage.getItem('deleted_doc_names') || '[]';
+      const deletedNames: string[] = JSON.parse(deletedNamesRaw);
+      if (doc.name && !deletedNames.includes(doc.name)) deletedNames.push(doc.name);
+      localStorage.setItem('deleted_doc_names', JSON.stringify(deletedNames));
+
+      // 3. Remove from all local storage caches
+      const candidateDocKeys = [
+        'local_case_documents_master',
+        caseData?.id ? `local_case_documents_${caseData.id}` : null,
+        caseData?.caseNumber ? `local_case_documents_${caseData.caseNumber}` : null,
+      ].filter(Boolean) as string[];
+
+      for (const k of candidateDocKeys) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list: CaseDocument[] = JSON.parse(raw);
+            const filtered = list.filter(d => d.id !== doc.id && d.name !== doc.name);
+            localStorage.setItem(k, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+
+      // 4. Update task submission if attached to a task
+      const targetTaskId = taskId || (doc as any).attachedTaskId || activeActionTask?.id;
+      if (targetTaskId) {
+        const candidateTaskKeys = [
+          'workflow_stage_tasks_master',
+          caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
+          caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+          caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+          'workflow_stage_tasks_shared',
+          'workflow_stage_tasks_latest'
+        ].filter(Boolean) as string[];
+
+        for (const k of candidateTaskKeys) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const stages = JSON.parse(raw);
+              if (Array.isArray(stages)) {
+                const updatedStages = stages.map((st: any) => ({
+                  ...st,
+                  tasks: st.tasks.map((t: any) => {
+                    if (t.id === targetTaskId) {
+                      const existingDocs = Array.isArray(t.submission?.documents) ? t.submission.documents : [];
+                      const remainingDocs = existingDocs.filter((d: any) => d.id !== doc.id && d.name !== doc.name);
+                      
+                      if (remainingDocs.length > 0) {
+                        return {
+                          ...t,
+                          submission: {
+                            ...t.submission,
+                            docName: remainingDocs[0].name,
+                            documents: remainingDocs
+                          }
+                        };
+                      } else {
+                        // All docs removed from this task: reset task so client can re-upload
+                        return {
+                          ...t,
+                          status: 'Awaiting Client',
+                          submission: undefined
+                        };
+                      }
+                    }
+                    return t;
+                  })
+                }));
+                localStorage.setItem(k, JSON.stringify(updatedStages));
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // 5. Update local state
+      setDeletedDocIds(prev => new Set([...prev, doc.id, doc.name]));
+      setWorkflowSyncTick(t => t + 1);
+
+      // 6. Broadcast deletion to all components (App.tsx, CaseDetailView.tsx)
+      window.dispatchEvent(new CustomEvent('document_deleted', {
+        detail: { documentId: doc.id, docName: doc.name, taskId: targetTaskId }
+      }));
+      window.dispatchEvent(new CustomEvent('workflow_task_updated', {
+        detail: { taskId: targetTaskId }
+      }));
+
+    } catch (err) {
+      console.error('Error deleting document:', err);
+    }
+  };
 
   // ── Action-Driven Task Lifecycle & Sync State ──────────────────────────────
   const [activeActionTask, setActiveActionTask] = useState<{ id: string; stageId: number; name: string } | null>(null);
@@ -1263,10 +1412,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: createdDoc, caseId: finalCaseId } }));
       } catch {}
 
+      const existingTaskDocs = getTaskMatchingDocuments({ id: activeActionTask.id, name: activeActionTask.name }, clientDocs)
+        .filter(d => d.id !== createdDoc!.id && d.name !== createdDoc!.name);
+      const allSubmittedDocs = [...existingTaskDocs, createdDoc!];
+
       const subPayload = {
         type: 'document',
         docName: file.name,
-        documents: [createdDoc],
+        documents: allSubmittedDocs,
         submittedAt: new Date().toISOString(),
         note: `Uploaded evidence document: ${file.name}`
       };
@@ -1305,10 +1458,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         window.dispatchEvent(new CustomEvent('document_uploaded', { detail: { document: mockDoc, caseId: finalCaseId } }));
       } catch {}
 
+      const existingTaskDocs = getTaskMatchingDocuments({ id: activeActionTask.id, name: activeActionTask.name }, clientDocs)
+        .filter(d => d.id !== mockDoc.id && d.name !== mockDoc.name);
+      const allSubmittedDocs = [...existingTaskDocs, mockDoc];
+
       const mockPayload = {
         type: 'document',
         docName: file.name,
-        documents: [mockDoc],
+        documents: allSubmittedDocs,
         submittedAt: new Date().toISOString(),
         note: `Uploaded evidence document: ${file.name}`
       };
@@ -1347,7 +1504,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     } else {
       // Document upload tasks: st1-2, st2-5, st6-4, etc.
       setIsInlineDocModalOpen(true);
-      if (openNewDocModal) openNewDocModal();
     }
   };
 
@@ -2045,6 +2201,17 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                         >
                                           <Download className="w-3 h-3" />
                                         </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteDocument(doc, task.id);
+                                          }}
+                                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/80 rounded cursor-pointer transition-colors ml-0.5"
+                                          title="Remove / Delete wrong document"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
                                     ))}
                                   </div>
@@ -2148,6 +2315,13 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     title="Download File"
                   >
                     <Download className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDocument(doc)}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                    title="Remove / Delete Document"
+                  >
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -2520,14 +2694,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   onChange={handlePortalFileSelect}
                   className="hidden"
                 />
-                <button
+                {/* <button
                   type="button"
                   onClick={() => portalFileInputRef.current?.click()}
                   className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer shrink-0"
                   title="Attach file or photo"
                 >
                   <Paperclip className="w-4 h-4" />
-                </button>
+                </button> */}
                 <input
                   type="text"
                   value={newMsg}
@@ -3439,6 +3613,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDocument(doc, activeActionTask?.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer transition-colors"
+                          title="Remove / Delete wrong document"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -3485,6 +3667,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <button
               type="button"
               onClick={() => {
+                setIsInlineDocModalOpen(false);
                 if (openNewDocModal) openNewDocModal();
               }}
               className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer flex items-center gap-1"
