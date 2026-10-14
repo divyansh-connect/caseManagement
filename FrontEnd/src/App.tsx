@@ -1214,7 +1214,7 @@ export default function App() {
           if (activeCase?.id) {
             const adminKey = `workflow_stage_tasks_${activeCase.id}`;
             try {
-              const saved = localStorage.getItem(adminKey);
+              const saved = localStorage.getItem('workflow_stage_tasks_master') || localStorage.getItem(adminKey);
               if (saved) {
                 const stages = JSON.parse(saved);
                 const updated = stages.map((st: any) => ({
@@ -1226,15 +1226,26 @@ export default function App() {
                     return t;
                   })
                 }));
-                localStorage.setItem(adminKey, JSON.stringify(updated));
+                const serialized = JSON.stringify(updated);
+                localStorage.setItem('workflow_stage_tasks_master', serialized);
+                localStorage.setItem(adminKey, serialized);
+                if (activeCase.caseNumber) localStorage.setItem(`workflow_stage_tasks_${activeCase.caseNumber}`, serialized);
+
                 window.dispatchEvent(new CustomEvent('workflow_task_updated', {
-                  detail: { caseId: activeCase.id, newStatus: 'Under Review' }
+                  detail: { caseId: activeCase.id, caseNumber: activeCase.caseNumber, newStatus: 'Under Review' }
                 }));
                 try {
                   const bc = new BroadcastChannel('jurisflow_workflow_sync');
-                  bc.postMessage({ caseId: activeCase.id, newStatus: 'Under Review' });
-                  bc.close();
+                  bc.postMessage({ caseId: activeCase.id, caseNumber: activeCase.caseNumber, newStatus: 'Under Review' });
+                  setTimeout(() => { try { bc.close(); } catch {} }, 1000);
                 } catch {}
+
+                const caseIdentifier = activeCase.caseNumber || activeCase.id;
+                if (caseIdentifier) {
+                  api.patch(`/cases/${caseIdentifier}`, {
+                    notes: JSON.stringify({ workflowTasks: updated, lastUpdated: new Date().toISOString() })
+                  }).catch(() => {});
+                }
               }
             } catch {}
           }
@@ -1251,7 +1262,7 @@ export default function App() {
           if (activeCase?.id) {
             const adminKey = `workflow_stage_tasks_${activeCase.id}`;
             try {
-              const saved = localStorage.getItem(adminKey);
+              const saved = localStorage.getItem('workflow_stage_tasks_master') || localStorage.getItem(adminKey);
               if (saved) {
                 const stages = JSON.parse(saved);
                 const updated = stages.map((st: any) => ({
@@ -1263,15 +1274,26 @@ export default function App() {
                     return t;
                   })
                 }));
-                localStorage.setItem(adminKey, JSON.stringify(updated));
+                const serialized = JSON.stringify(updated);
+                localStorage.setItem('workflow_stage_tasks_master', serialized);
+                localStorage.setItem(adminKey, serialized);
+                if (activeCase.caseNumber) localStorage.setItem(`workflow_stage_tasks_${activeCase.caseNumber}`, serialized);
+
                 window.dispatchEvent(new CustomEvent('workflow_task_updated', {
-                  detail: { caseId: activeCase.id, newStatus: 'Under Review' }
+                  detail: { caseId: activeCase.id, caseNumber: activeCase.caseNumber, newStatus: 'Under Review' }
                 }));
                 try {
                   const bc = new BroadcastChannel('jurisflow_workflow_sync');
-                  bc.postMessage({ caseId: activeCase.id, newStatus: 'Under Review' });
-                  bc.close();
+                  bc.postMessage({ caseId: activeCase.id, caseNumber: activeCase.caseNumber, newStatus: 'Under Review' });
+                  setTimeout(() => { try { bc.close(); } catch {} }, 1000);
                 } catch {}
+
+                const caseIdentifier = activeCase.caseNumber || activeCase.id;
+                if (caseIdentifier) {
+                  api.patch(`/cases/${caseIdentifier}`, {
+                    notes: JSON.stringify({ workflowTasks: updated, lastUpdated: new Date().toISOString() })
+                  }).catch(() => {});
+                }
               }
             } catch {}
           }

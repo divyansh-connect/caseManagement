@@ -558,7 +558,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     const reloadWorkflow = () => {
       try {
         const keys = [
-          'workflow_stage_tasks_master',
           caseData?.id ? `completed_client_tasks_${caseData.id}` : null,
           caseData?.caseNumber ? `completed_client_tasks_${caseData.caseNumber}` : null,
           'completed_client_tasks_shared',
@@ -576,6 +575,25 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     };
 
     reloadWorkflow();
+
+    // Periodic backend polling so changes made in separate incognito sessions or browsers reflect within 2-3s
+    const pollBackend = async () => {
+      try {
+        const res = await api.get('/cases/my-case');
+        if (res.success && res.data?.notes) {
+          try {
+            const parsed = JSON.parse(res.data.notes);
+            if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
+              const serialized = JSON.stringify(parsed.workflowTasks);
+              localStorage.setItem('workflow_stage_tasks_master', serialized);
+              if (res.data.id) localStorage.setItem(`workflow_stage_tasks_${res.data.id}`, serialized);
+              if (res.data.caseNumber) localStorage.setItem(`workflow_stage_tasks_${res.data.caseNumber}`, serialized);
+              setWorkflowSyncTick(t => t + 1);
+            }
+          } catch {}
+        }
+      } catch {}
+    };
 
     const handleWorkflowEvent = () => {
       reloadWorkflow();
@@ -598,49 +616,50 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       };
     } catch {}
 
-    const interval = setInterval(reloadWorkflow, 1000);
+    const localInterval = setInterval(reloadWorkflow, 1000);
+    const pollInterval = setInterval(pollBackend, 2500);
 
     return () => {
       window.removeEventListener('workflow_task_updated', handleWorkflowEvent);
       window.removeEventListener('storage', handleStorageEvent);
       if (bc) bc.close();
-      clearInterval(interval);
+      clearInterval(localInterval);
+      clearInterval(pollInterval);
     };
   }, [caseData?.id, caseData?.caseNumber, caseData?.currentStage]);
 
   // Resolves task status strictly respecting Admin / Super Admin state
   const getResolvedTaskStatus = (task: any, stageId?: number): ClientStageGroup['tasks'][0]['status'] => {
     try {
-      // 1. Direct database-persisted workflowTasks on caseData
       let parsedStages: any[] | null = null;
-      if ((caseData as any)?.workflowTasks && Array.isArray((caseData as any).workflowTasks) && (caseData as any).workflowTasks.length > 0) {
-        parsedStages = (caseData as any).workflowTasks;
+
+      // 1. LocalStorage candidate keys FIRST (reflecting instant live edits from Super Admin / Admin)
+      const candidateKeys = [
+        'workflow_stage_tasks_master',
+        caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
+        caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+        caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+        ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
+        'workflow_stage_tasks_shared',
+        'workflow_stage_tasks_latest'
+      ].filter(Boolean) as string[];
+
+      for (const k of candidateKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const data = JSON.parse(raw);
+            if (Array.isArray(data) && data.length > 0) {
+              parsedStages = data;
+              break;
+            }
+          } catch {}
+        }
       }
 
-      // 2. LocalStorage candidate keys (prioritizing master key)
-      if (!parsedStages) {
-        const candidateKeys = [
-          'workflow_stage_tasks_master',
-          caseData?.id ? `workflow_stage_tasks_${caseData.id}` : null,
-          caseData?.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
-          caseData?.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
-          ...Array.from(clientCaseIds).map(id => `workflow_stage_tasks_${id}`),
-          'workflow_stage_tasks_shared',
-          'workflow_stage_tasks_latest'
-        ].filter(Boolean) as string[];
-
-        for (const k of candidateKeys) {
-          const raw = localStorage.getItem(k);
-          if (raw) {
-            try {
-              const data = JSON.parse(raw);
-              if (Array.isArray(data) && data.length > 0) {
-                parsedStages = data;
-                break;
-              }
-            } catch {}
-          }
-        }
+      // 2. Direct database-persisted workflowTasks on caseData fallback
+      if (!parsedStages && (caseData as any)?.workflowTasks && Array.isArray((caseData as any).workflowTasks) && (caseData as any).workflowTasks.length > 0) {
+        parsedStages = (caseData as any).workflowTasks;
       }
 
       // 3. Fallback: inspect any workflow_stage_tasks_ key in localStorage
@@ -769,7 +788,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     try {
       const bc = new BroadcastChannel('jurisflow_workflow_sync');
       bc.postMessage({ caseId: caseData?.id, caseNumber: caseData?.caseNumber, stageId, taskId, newStatus: 'Under Review' });
-      bc.close();
+      setTimeout(() => {
+        try { bc.close(); } catch {}
+      }, 1000);
     } catch {}
 
     // Persist to backend database as well

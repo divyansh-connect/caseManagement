@@ -289,21 +289,57 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
 
       const reloadTasks = () => {
         try {
-          const saved = localStorage.getItem(`workflow_stage_tasks_${caseData.id}`);
-          if (saved) {
-            setStageGroups(JSON.parse(saved));
+          const candidateKeys = [
+            'workflow_stage_tasks_master',
+            `workflow_stage_tasks_${caseData.id}`,
+            caseData.caseNumber ? `workflow_stage_tasks_${caseData.caseNumber}` : null,
+            caseData.clientId ? `workflow_stage_tasks_${caseData.clientId}` : null,
+            'workflow_stage_tasks_shared',
+            'workflow_stage_tasks_latest'
+          ].filter(Boolean) as string[];
+
+          for (const k of candidateKeys) {
+            const saved = localStorage.getItem(k);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setStageGroups(parsed);
+                break;
+              }
+            }
+          }
+        } catch {}
+      };
+
+      // Periodic background backend polling to sync across different browsers & incognito sessions
+      const pollBackend = async () => {
+        try {
+          const identifier = caseData.caseNumber || caseData.id;
+          if (!identifier) return;
+          const res = await api.get(`/cases/${identifier}`);
+          if (res.success && res.data?.notes) {
+            try {
+              const parsed = JSON.parse(res.data.notes);
+              if (parsed?.workflowTasks && Array.isArray(parsed.workflowTasks)) {
+                setStageGroups(parsed.workflowTasks);
+                const serialized = JSON.stringify(parsed.workflowTasks);
+                localStorage.setItem('workflow_stage_tasks_master', serialized);
+                if (caseData.id) localStorage.setItem(`workflow_stage_tasks_${caseData.id}`, serialized);
+                if (caseData.caseNumber) localStorage.setItem(`workflow_stage_tasks_${caseData.caseNumber}`, serialized);
+              }
+            } catch {}
           }
         } catch {}
       };
 
       const handleWorkflowEvent = (e: any) => {
-        if (!e.detail?.caseId || e.detail.caseId === caseData.id) {
+        if (!e.detail?.caseId || e.detail.caseId === caseData.id || e.detail.caseNumber === caseData.caseNumber) {
           reloadTasks();
         }
       };
 
       const handleStorageEvent = (e: StorageEvent) => {
-        if (e.key === `workflow_stage_tasks_${caseData.id}`) {
+        if (e.key && (e.key.startsWith('workflow_stage_tasks_') || e.key.startsWith('completed_client_tasks_'))) {
           reloadTasks();
         }
       };
@@ -315,22 +351,25 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
       try {
         bc = new BroadcastChannel('jurisflow_workflow_sync');
         bc.onmessage = (msg) => {
-          if (!msg.data?.caseId || msg.data.caseId === caseData.id) {
+          if (!msg.data?.caseId || msg.data.caseId === caseData.id || msg.data.caseNumber === caseData.caseNumber) {
             reloadTasks();
           }
         };
       } catch {}
 
-      const interval = setInterval(reloadTasks, 2500);
+      // Fast local sync tick (every 1s) and backend poll (every 2.5s)
+      const localInterval = setInterval(reloadTasks, 1000);
+      const pollInterval = setInterval(pollBackend, 2500);
 
       return () => {
         window.removeEventListener('workflow_task_updated', handleWorkflowEvent);
         window.removeEventListener('storage', handleStorageEvent);
         if (bc) bc.close();
-        clearInterval(interval);
+        clearInterval(localInterval);
+        clearInterval(pollInterval);
       };
     }
-  }, [caseData?.id, caseData?.currentStage, activeCaseDocs.length]);
+  }, [caseData?.id, caseData?.caseNumber, caseData?.currentStage, activeCaseDocs.length]);
 
   if (!caseData) {
     return (
@@ -447,7 +486,9 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({
           try {
             const bc = new BroadcastChannel('jurisflow_workflow_sync');
             bc.postMessage({ caseId: caseData.id, caseNumber: caseData.caseNumber, stageId, taskId, newStatus });
-            bc.close();
+            setTimeout(() => {
+              try { bc.close(); } catch {}
+            }, 1000);
           } catch {}
 
           // Persist directly to backend DB so other browsers & incognito sessions receive status immediately
