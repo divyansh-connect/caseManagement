@@ -148,26 +148,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
       const res = await api.post('/clients', payload);
       if (res.success && res.data) {
-        // Automatically initialize their active case in All Cases
-        try {
-          const newClientId = res.data.id || res.data.clientId;
-          if (newClientId) {
-            await api.post('/cases', {
-              clientId: newClientId,
-              petitionCategory: 'EB-2 NIW',
-              fieldCategory: payload.currentField || 'Proposed Endeavor',
-              assignedWriter: 'Petition Drafter 1',
-              assignedReviewer: 'Senior Reviewer',
-              riskLevel: 'medium',
-              targetFilingDate: '2026-12-31',
-              uscisServiceCenter: 'Nebraska (NSC)',
-              premiumProcessing: false
-            });
-          }
-        } catch (caseErr) {
-          console.log('Case creation skipped or already handled:', caseErr);
-        }
-
         setIsAddModalOpen(false);
         resetAddForm();
         await fetchClientsFromDb();
